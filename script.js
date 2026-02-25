@@ -5,7 +5,6 @@ const TILE_TYPES = {
     id: "GRASS",
     name: "草地",
     emoji: "🌿",
-    bgColor: "#a8e6cf",
     cost: 2,
     walkable: ["POLICE", "THIEF"],
   },
@@ -13,31 +12,21 @@ const TILE_TYPES = {
     id: "BUILDING",
     name: "建筑物",
     emoji: "🏢",
-    bgColor: "#dcdde1",
     cost: 0,
     walkable: [],
   },
-  BARRIER: {
-    id: "BARRIER",
-    name: "路障",
-    emoji: "🚧",
-    bgColor: "#7f8fa6",
-    cost: 0,
-    walkable: [],
-  },
+  BARRIER: { id: "BARRIER", name: "路障", emoji: "🚧", cost: 0, walkable: [] },
   ROAD: {
     id: "ROAD",
     name: "道路",
     emoji: "⬜",
-    bgColor: "#fdfdff",
     cost: 1,
     walkable: ["POLICE", "THIEF"],
   },
   POLICE_STATION: {
     id: "POLICE_STATION",
     name: "警察局",
-    emoji: "🏛️",
-    bgColor: "#c7ecee",
+    emoji: "🚨",
     cost: 1,
     walkable: ["POLICE"],
   },
@@ -45,7 +34,6 @@ const TILE_TYPES = {
     id: "THIEF_BASE",
     name: "小偷基地",
     emoji: "🏚️",
-    bgColor: "#ffcccc",
     cost: 1,
     walkable: ["THIEF"],
   },
@@ -53,7 +41,6 @@ const TILE_TYPES = {
     id: "POLICE_SPAWN",
     name: "警察出生点",
     emoji: "🔵",
-    bgColor: "",
     cost: 1,
     walkable: ["POLICE", "THIEF"],
     isSpawn: true,
@@ -63,7 +50,6 @@ const TILE_TYPES = {
     id: "THIEF_SPAWN",
     name: "小偷出生点",
     emoji: "🔴",
-    bgColor: "",
     cost: 1,
     walkable: ["POLICE", "THIEF"],
     isSpawn: true,
@@ -91,6 +77,19 @@ const els = {
   btnClearMap: document.getElementById("btn-clear-map"),
   btnStartGame: document.getElementById("btn-start-game"),
   btnBackEditor: document.getElementById("btn-back-editor"),
+  turnIndicator: document.getElementById("turn-indicator"),
+  policeStat: document.getElementById("police-stat"),
+  thiefStat: document.getElementById("thief-stat"),
+  diceEl: document.getElementById("dice"),
+  diceValueEl: document.getElementById("dice-value"), // Fixed ID
+  gameMessage: document.getElementById("game-message"),
+  btnRollDice: document.getElementById("btn-roll-dice"),
+  btnSkipTurn: document.getElementById("btn-skip-turn"),
+  victoryModal: document.getElementById("victory-modal"),
+  victoryTitle: document.getElementById("victory-title"),
+  victoryMessage: document.getElementById("victory-message"),
+  btnPlayAgain: document.getElementById("btn-play-again"),
+  btnModalEditor: document.getElementById("btn-modal-editor"),
 };
 
 // Initialization
@@ -102,6 +101,14 @@ function init() {
   // Bind global navigation
   els.btnStartGame.addEventListener("click", startGame);
   els.btnBackEditor.addEventListener("click", backToEditor);
+  els.btnPlayAgain.addEventListener("click", () => {
+    els.victoryModal.classList.add("hidden");
+    gameEngine.init();
+  });
+  els.btnModalEditor.addEventListener("click", () => {
+    els.victoryModal.classList.add("hidden");
+    backToEditor();
+  });
 }
 
 // ========================
@@ -109,7 +116,6 @@ function init() {
 // ========================
 
 function initEditor() {
-  // Generate Palette
   els.palette.innerHTML = "";
   Object.values(TILE_TYPES).forEach((type) => {
     const item = document.createElement("div");
@@ -126,7 +132,6 @@ function initEditor() {
     els.palette.appendChild(item);
   });
 
-  // Editor Actions
   els.btnSaveMap.addEventListener("click", saveMap);
   els.btnClearMap.addEventListener("click", clearMap);
 }
@@ -135,7 +140,6 @@ function renderEditorBoard() {
   els.editorBoard.innerHTML = "";
   let isMouseDown = false;
 
-  // Global tracking to ensure reliable drag painting
   document.addEventListener("mousedown", () => (isMouseDown = true));
   document.addEventListener("mouseup", () => (isMouseDown = false));
 
@@ -146,7 +150,7 @@ function renderEditorBoard() {
       const updateCellDOM = (element, r, c) => {
         const tileType = state.map[r][c];
         element.className = `cell type-${tileType}`;
-        element.innerHTML = ""; // Clear existing markers
+        element.innerHTML = "";
 
         if (
           TILE_TYPES[tileType].isSpawn ||
@@ -161,7 +165,6 @@ function renderEditorBoard() {
 
       updateCellDOM(cell, r, c);
 
-      // Painting logic
       const paint = () => {
         if (state.map[r][c] !== state.currentPaletteType) {
           state.map[r][c] = state.currentPaletteType;
@@ -174,10 +177,8 @@ function renderEditorBoard() {
         paint();
       });
 
-      cell.addEventListener("mouseenter", (e) => {
-        if (isMouseDown) {
-          paint();
-        }
+      cell.addEventListener("mouseenter", () => {
+        if (isMouseDown) paint();
       });
 
       els.editorBoard.appendChild(cell);
@@ -231,7 +232,6 @@ function validateMap() {
   return true;
 }
 
-// Temporary showToast
 function showToast(msg) {
   const btn = els.btnSaveMap;
   const oldText = btn.innerHTML;
@@ -243,37 +243,26 @@ function showToast(msg) {
   }, 1500);
 }
 
-// ========================
-// Game Setup & Transitions
-// ========================
-
 function startGame() {
   if (!validateMap()) return;
-
   state.mode = "GAME";
   els.editorView.classList.add("hidden");
   els.gameView.classList.remove("hidden");
   document.getElementById("mode-indicator").textContent = "游戏模式";
   document.getElementById("mode-indicator").style.backgroundColor =
     "var(--success-color)";
-
-  // Auto save
   saveMap();
-
-  // Initialize Game engine
   gameEngine.init();
 }
 
 function backToEditor() {
   if (!confirm("返回编辑器将结束当前游戏进度，确定吗？")) return;
-
   state.mode = "EDITOR";
   els.gameView.classList.add("hidden");
   els.editorView.classList.remove("hidden");
   document.getElementById("mode-indicator").textContent = "地图编辑模式";
   document.getElementById("mode-indicator").style.backgroundColor =
     "var(--warning-color)";
-
   renderEditorBoard();
 }
 
@@ -282,62 +271,61 @@ function backToEditor() {
 // ========================
 
 const gameEngine = {
-  turn: "THIEF",
+  turn: "THIEF", // 'THIEF' or 'POLICE'
   diceValue: 0,
-  reachable: new Map(), // "r,c" => path[]
-  policeInfo: { r: -1, c: -1, el: null },
-  thiefInfo: { r: -1, c: -1, el: null },
   isRolling: false,
+
+  // State arrays for multiple units
+  policeUnits: [], // { id, r, c, state: 'IDLE' | 'CARRYING' }
+  thiefUnits: [], // { id, r, c, state: 'ACTIVE' | 'ESCAPED' | 'JAILED' | 'CARRIED' }
+
+  selectedUnit: null,
+  reachable: new Map(), // "r,c" => { r,c, path, remainingSteps }
 
   init: function () {
     this.turn = "THIEF";
     this.diceValue = 0;
+    this.selectedUnit = null;
     this.reachable.clear();
+    this.policeUnits = [];
+    this.thiefUnits = [];
 
-    // Find spawns
+    // Scan map for spawns
+    let pid = 0,
+      tid = 0;
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
         if (state.map[r][c] === "POLICE_SPAWN") {
-          this.policeInfo.r = r;
-          this.policeInfo.c = c;
+          this.policeUnits.push({ id: `P${pid++}`, r, c, state: "IDLE" });
         }
         if (state.map[r][c] === "THIEF_SPAWN") {
-          this.thiefInfo.r = r;
-          this.thiefInfo.c = c;
+          this.thiefUnits.push({ id: `T${tid++}`, r, c, state: "ACTIVE" });
         }
       }
     }
 
+    this.setupUI();
     this.renderGameBoard();
     this.updateTurnUI();
+  },
 
-    // Bind events
-    const btnRoll = document.getElementById("btn-roll-dice");
-    const btnSkip = document.getElementById("btn-skip-turn");
+  setupUI: function () {
+    // Clear old event listeners by cloning
+    ["btnRollDice", "btnSkipTurn"].forEach((key) => {
+      const el = els[key];
+      const newEl = el.cloneNode(true);
+      el.parentNode.replaceChild(newEl, el);
+      els[key] = newEl;
+    });
 
-    // Remove old listeners by cloning
-    const newBtnRoll = btnRoll.cloneNode(true);
-    const newBtnSkip = btnSkip.cloneNode(true);
-    btnRoll.parentNode.replaceChild(newBtnRoll, btnRoll);
-    btnSkip.parentNode.replaceChild(newBtnSkip, btnSkip);
-
-    newBtnRoll.addEventListener("click", () => this.rollDice());
-    newBtnSkip.addEventListener("click", () => this.skipTurn());
-
-    document.getElementById("btn-play-again").onclick = () => {
-      document.getElementById("victory-modal").classList.add("hidden");
-      this.init();
-    };
-    document.getElementById("btn-modal-editor").onclick = () => {
-      document.getElementById("victory-modal").classList.add("hidden");
-      backToEditor();
-    };
+    els.btnRollDice.addEventListener("click", () => this.rollDice());
+    els.btnSkipTurn.addEventListener("click", () => this.skipTurn());
   },
 
   renderGameBoard: function () {
     els.gameBoard.innerHTML = "";
-    const boardFragment = document.createDocumentFragment();
 
+    // Render Grid
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
         const cell = document.createElement("div");
@@ -345,7 +333,7 @@ const gameEngine = {
         cell.className = `cell type-${tileType}`;
         cell.id = `game-cell-${r}-${c}`;
 
-        // Keep markers for visual, but hide spawn markers during gameplay
+        // Show markers (exclude spawns in game mode as requested)
         if (
           !TILE_TYPES[tileType].isSpawn &&
           tileType !== "GRASS" &&
@@ -357,195 +345,407 @@ const gameEngine = {
           cell.appendChild(marker);
         }
 
-        // Interaction
         cell.addEventListener("mouseenter", () => this.handleCellHover(r, c));
         cell.addEventListener("mouseleave", () => this.clearPathHover());
-        cell.addEventListener("click", () => this.movePlayer(r, c));
+        cell.addEventListener("click", () => this.handleCellClick(r, c));
 
-        boardFragment.appendChild(cell);
+        els.gameBoard.appendChild(cell);
       }
     }
-    els.gameBoard.appendChild(boardFragment);
 
-    // Add tokens
-    this.policeInfo.el = document.createElement("div");
-    this.policeInfo.el.className = "character police-token";
-    this.policeInfo.el.textContent = "🚓";
+    // Render Units
+    this.policeUnits.forEach((p) => {
+      // Police visually stays on board even if Carrying
+      this.renderUnit(
+        p.r,
+        p.c,
+        p.state === "CARRYING" ? "👮🎒" : "👮",
+        "police-token",
+        p.id,
+      );
+    });
 
-    this.thiefInfo.el = document.createElement("div");
-    this.thiefInfo.el.className = "character thief-token";
-    this.thiefInfo.el.textContent = "🏃";
-
-    this.updateTokenPositions();
+    this.thiefUnits.forEach((t) => {
+      if (t.state === "ACTIVE") {
+        this.renderUnit(t.r, t.c, "🏃", "thief-token", t.id);
+      }
+    });
   },
 
-  updateTokenPositions: function () {
-    // Place police
-    const pCell = document.getElementById(
-      `game-cell-${this.policeInfo.r}-${this.policeInfo.c}`,
-    );
-    if (pCell && !pCell.contains(this.policeInfo.el)) {
-      pCell.appendChild(this.policeInfo.el);
-    }
-    // Place thief
-    const tCell = document.getElementById(
-      `game-cell-${this.thiefInfo.r}-${this.thiefInfo.c}`,
-    );
-    if (tCell && !tCell.contains(this.thiefInfo.el)) {
-      tCell.appendChild(this.thiefInfo.el);
-    }
+  renderUnit: function (r, c, emoji, cssClass, id) {
+    const cell = document.getElementById(`game-cell-${r}-${c}`);
+    if (!cell) return;
+
+    const token = document.createElement("div");
+    token.className = `character ${cssClass}`;
+    token.textContent = emoji;
+    token.dataset.id = id;
+    cell.appendChild(token);
   },
 
   updateTurnUI: function () {
-    const turnText = this.turn === "THIEF" ? "🏃 小偷回合" : "🚓 警察回合";
-    document.getElementById("turn-indicator").textContent = turnText;
+    const isThief = this.turn === "THIEF";
+    els.turnIndicator.textContent = isThief ? "🏃 小偷回合" : "🚓 警察回合";
+    els.policeStat.classList.toggle("active", !isThief);
+    els.thiefStat.classList.toggle("active", isThief);
 
-    document
-      .getElementById("police-stat")
-      .classList.toggle("active", this.turn === "POLICE");
-    document
-      .getElementById("thief-stat")
-      .classList.toggle("active", this.turn === "THIEF");
+    els.diceEl.textContent = "🎲";
+    els.diceValueEl.textContent = "?";
+    els.gameMessage.textContent = "点击骰子投掷";
 
-    document.getElementById("dice-value").textContent = "?";
-    document.getElementById("dice").textContent = "🎲";
-    document.getElementById("game-message").textContent = "点击骰子投掷";
-
-    document.getElementById("btn-roll-dice").disabled = false;
-    document.getElementById("btn-roll-dice").classList.remove("hidden");
-    document.getElementById("btn-skip-turn").classList.add("hidden");
+    els.btnRollDice.disabled = false;
+    els.btnRollDice.classList.remove("hidden");
+    els.btnSkipTurn.classList.add("hidden");
 
     this.diceValue = 0;
+    this.selectedUnit = null;
     this.clearHighlights();
   },
 
   rollDice: function () {
     if (this.isRolling) return;
     this.isRolling = true;
-
-    const diceEl = document.getElementById("dice");
-    const btnRoll = document.getElementById("btn-roll-dice");
-    btnRoll.disabled = true;
-
-    diceEl.classList.add("rolling");
-    document.getElementById("game-message").textContent = "骰子投掷中...";
+    els.btnRollDice.disabled = true;
+    els.diceEl.classList.add("rolling");
+    els.gameMessage.textContent = "掷骰子中...";
 
     let rolls = 0;
-    const rollInterval = setInterval(() => {
-      const faces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
-      diceEl.textContent = faces[Math.floor(Math.random() * 6)];
+    const interval = setInterval(() => {
+      els.diceEl.textContent = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"][
+        Math.floor(Math.random() * 6)
+      ];
       rolls++;
       if (rolls > 15) {
-        clearInterval(rollInterval);
-        diceEl.classList.remove("rolling");
-
-        // Final value
-        this.diceValue = Math.floor(Math.random() * 6) + 1;
-        const finalFaces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
-        diceEl.textContent = finalFaces[this.diceValue - 1];
-        document.getElementById("dice-value").textContent = this.diceValue;
-
+        clearInterval(interval);
         this.isRolling = false;
-        this.calculateReachable();
+        els.diceEl.classList.remove("rolling");
+
+        this.diceValue = Math.floor(Math.random() * 6) + 1;
+        els.diceEl.textContent = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"][
+          this.diceValue - 1
+        ];
+        els.diceValueEl.textContent = this.diceValue;
+
+        this.onDiceRolled();
       }
     }, 50);
   },
 
-  calculateReachable: function () {
-    this.reachable.clear();
-    this.clearHighlights();
+  onDiceRolled: function () {
+    // Check if ANY unit has valid moves
+    const units = this.turn === "THIEF" ? this.thiefUnits : this.policeUnits;
+    const activeUnits = units.filter((u) =>
+      this.turn === "THIEF" ? u.state === "ACTIVE" : true,
+    );
 
-    const startR =
-      this.turn === "POLICE" ? this.policeInfo.r : this.thiefInfo.r;
-    const startC =
-      this.turn === "POLICE" ? this.policeInfo.c : this.thiefInfo.c;
-    const role = this.turn;
+    let hasMoves = false;
+    for (const u of activeUnits) {
+      const moves = this.calculateReachableForUnit(u);
+      if (moves.size > 0) {
+        hasMoves = true;
+        break;
+      }
+    }
 
-    const queue = [
-      {
-        r: startR,
-        c: startC,
-        stepsLeft: this.diceValue,
-        path: [{ r: startR, c: startC }],
-        costSpent: 0,
-      },
-    ];
+    if (!hasMoves) {
+      els.gameMessage.textContent = "无路可走！所有角色均无法行动。";
+      els.btnRollDice.classList.add("hidden");
+      els.btnSkipTurn.classList.remove("hidden");
+    } else {
+      els.gameMessage.textContent = `点数 ${this.diceValue}！请点击己方角色移动`;
+      els.btnRollDice.classList.add("hidden");
+      // Highlight selectables
+      this.highlightSelectableUnits(activeUnits);
+    }
+  },
+
+  highlightSelectableUnits: function (units) {
+    units.forEach((u) => {
+      const moves = this.calculateReachableForUnit(u);
+      if (moves.size > 0) {
+        const cell = document.getElementById(`game-cell-${u.r}-${u.c}`);
+        if (cell) cell.classList.add("selectable-unit");
+      }
+    });
+  },
+
+  calculateReachableForUnit: function (unit) {
+    const results = new Map();
+    const startNode = {
+      r: unit.r,
+      c: unit.c,
+      stepsLeft: this.diceValue,
+      path: [{ r: unit.r, c: unit.c }],
+      costSpent: 0,
+    };
+    const queue = [startNode];
+
+    // Define obstacles based on who is moving
+    const isThief = this.turn === "THIEF";
 
     while (queue.length > 0) {
-      const current = queue.shift();
+      const curr = queue.shift();
 
-      if (current.stepsLeft === 0) {
-        const key = `${current.r},${current.c}`;
-        // Keep the first found path
-        if (!this.reachable.has(key)) {
-          this.reachable.set(key, current);
-        }
+      // Success condition
+      if (curr.stepsLeft === 0) {
+        const key = `${curr.r},${curr.c}`;
+        if (!results.has(key)) results.set(key, curr);
         continue;
       }
 
       const dirs = [
-        [-1, 0],
-        [1, 0],
-        [0, -1],
         [0, 1],
+        [0, -1],
+        [1, 0],
+        [-1, 0],
       ];
       for (const [dr, dc] of dirs) {
-        const nr = current.r + dr;
-        const nc = current.c + dc;
+        const nr = curr.r + dr;
+        const nc = curr.c + dc;
 
+        // Boundaries
         if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) continue;
-        if (current.path.some((p) => p.r === nr && p.c === nc)) continue;
+
+        // No backtracking in single move
+        if (curr.path.some((p) => p.r === nr && p.c === nc)) continue;
 
         const tileType = state.map[nr][nc];
         const tile = TILE_TYPES[tileType];
 
-        if (!tile.walkable.includes(role)) continue;
+        // Static terrain walkability
+        if (!tile.walkable.includes(isThief ? "THIEF" : "POLICE")) continue;
+
+        // Special Rule: Carrying Police can only enter Police Station to drop off, but can walk on roads
+        // Actually they are just Police units. The destination logic is handled at end.
+        // But wait, "Carrying Police" cannot capture another thief.
+        // "Escorting" police must return to Station.
 
         const cost = tile.cost;
-        if (current.stepsLeft < cost) continue; // Cannot enter
+        if (curr.stepsLeft < cost) continue;
 
-        // Character collision
-        const otherR = role === "POLICE" ? this.thiefInfo.r : this.policeInfo.r;
-        const otherC = role === "POLICE" ? this.thiefInfo.c : this.policeInfo.c;
-        if (nr === otherR && nc === otherC) {
-          if (role === "POLICE" && current.stepsLeft === cost) {
-            // Police catches Thief on final step - Valid!
-          } else {
-            // Cannot pass through or thief cannot land on police
+        // UNIT COLLISION AND INTERACTION RULES
+
+        // 1. Cannot PASS THROUGH any unit (Ally or Enemy)
+        // Check if any unit is at (nr, nc)
+        const occupant = this.getUnitAt(nr, nc);
+
+        if (occupant) {
+          // Interaction only possible on FINAL step (Capture or Jail)
+          // If not final step, it's a block
+          if (curr.stepsLeft > cost) continue;
+
+          // Final Step Logic:
+          if (isThief) {
+            // Thief cannot land on any unit (no capturing)
             continue;
+          } else {
+            // Police moving
+            const isPolice = occupant.role === "POLICE";
+            if (isPolice) continue; // Cannot land on ally
+
+            // Landing on Thief (Capture)
+            // Requirement: Police must be IDLE (not carrying)
+            if (unit.state === "CARRYING") continue;
+
+            // Valid capture! Allow move.
           }
         }
 
         queue.push({
           r: nr,
           c: nc,
-          stepsLeft: current.stepsLeft - cost,
-          path: [...current.path, { r: nr, c: nc }],
-          costSpent: current.costSpent + cost,
+          stepsLeft: curr.stepsLeft - cost,
+          path: [...curr.path, { r: nr, c: nc }],
+          costSpent: curr.costSpent + cost,
         });
       }
     }
-
-    this.highlightReachable();
+    return results;
   },
 
-  highlightReachable: function () {
-    if (this.reachable.size === 0) {
-      document.getElementById("game-message").textContent =
-        "无法移动！必须恰巧走完，请跳过回合。";
-      document.getElementById("btn-roll-dice").classList.add("hidden");
-      document.getElementById("btn-skip-turn").classList.remove("hidden");
+  getUnitAt: function (r, c) {
+    const p = this.policeUnits.find((u) => u.r === r && u.c === c);
+    if (p) return { role: "POLICE", unit: p };
+
+    const t = this.thiefUnits.find(
+      (u) => u.r === r && u.c === c && u.state === "ACTIVE",
+    );
+    if (t) return { role: "THIEF", unit: t };
+
+    return null;
+  },
+
+  handleCellClick: function (r, c) {
+    if (this.diceValue === 0) return;
+
+    // 1. Select Unit Mode
+    if (!this.selectedUnit) {
+      const clickedUnit = this.getUnitAt(r, c);
+      if (!clickedUnit) return;
+
+      // Must be own unit
+      if (clickedUnit.role !== this.turn) return;
+
+      // Check if selectable (has moves)
+      const moves = this.calculateReachableForUnit(clickedUnit.unit);
+      if (moves.size === 0) return;
+
+      this.selectedUnit = clickedUnit.unit;
+      this.reachable = moves;
+
+      this.clearHighlights();
+      // Highlight selected unit
+      document
+        .getElementById(`game-cell-${r}-${c}`)
+        .classList.add("unit-selected");
+      this.highlightReachable();
+      els.gameMessage.textContent = "请点击高亮格子移动";
       return;
     }
 
-    document.getElementById("game-message").textContent = "请选择高亮格子移动";
-    document.getElementById("btn-roll-dice").classList.add("hidden");
+    // 2. Move Unit Mode
+    const key = `${r},${c}`;
+    if (this.reachable.has(key)) {
+      this.moveSelectedUnit(r, c);
+    } else {
+      // Deselect or switch unit
+      const clickedUnit = this.getUnitAt(r, c);
+      if (
+        clickedUnit &&
+        clickedUnit.role === this.turn &&
+        clickedUnit.unit !== this.selectedUnit
+      ) {
+        const moves = this.calculateReachableForUnit(clickedUnit.unit);
+        if (moves.size > 0) {
+          this.selectedUnit = clickedUnit.unit;
+          this.reachable = moves;
+          this.clearHighlights();
+          document
+            .getElementById(`game-cell-${r}-${c}`)
+            .classList.add("unit-selected");
+          this.highlightReachable();
+        }
+      }
+    }
+  },
 
-    for (const [key] of this.reachable) {
-      const [r, c] = key.split("-"); // whoops, used comma in calculateReachable
+  moveSelectedUnit: function (r, c) {
+    const u = this.selectedUnit;
+    u.r = r;
+    u.c = c;
+
+    this.clearHighlights();
+
+    // Post-Move Interaction Logic
+    if (this.turn === "POLICE") {
+      const tileType = state.map[r][c];
+
+      // 1. Jailing Logic (Carrying Police enters Station)
+      if (u.state === "CARRYING" && tileType === "POLICE_STATION") {
+        u.state = "IDLE";
+        // Find visible notification? Maybe toast.
+      }
+
+      // 2. Capture Logic (Idle Police lands on Thief)
+      // Note: getUnitAt won't find the thief anymore because Police is now on top of it?
+      // Actually u is updated. So check against thief array.
+      const caughtThief = this.thiefUnits.find(
+        (t) => t.r === r && t.c === c && t.state === "ACTIVE",
+      );
+      if (caughtThief && u.state === "IDLE") {
+        caughtThief.state = "CARRIED";
+        u.state = "CARRYING";
+      }
+    } else {
+      // Thief Logic
+      const tileType = state.map[r][c];
+      if (tileType === "THIEF_BASE") {
+        u.state = "ESCAPED";
+      }
     }
 
-    // Fix key iteration
+    this.renderGameBoard();
+    this.checkWinCondition();
+  },
+
+  checkWinCondition: function () {
+    // Police Win: All thieves are CAUGHT (CARRIED or JAILED)
+    const allCaught = this.thiefUnits.every(
+      (t) => t.state === "CARRIED" || t.state === "JAILED",
+    );
+    if (this.thiefUnits.length > 0 && allCaught) {
+      this.showVictory("POLICE");
+      return;
+    }
+
+    // Thief Win: All thieves ESCAPED
+    const allEscaped = this.thiefUnits.every((t) => t.state === "ESCAPED");
+    if (this.thiefUnits.length > 0 && allEscaped) {
+      this.showVictory("THIEF");
+      return;
+    }
+
+    // Mixed End Game: If no ACTIVE thieves left (some escaped, some jailed)
+    // This is a partial state. Usually game ends when last active thief is resolved.
+    const hasActive = this.thiefUnits.some((t) => t.state === "ACTIVE");
+    if (!hasActive) {
+      // Game Over - Calculate who did better?
+      // User requirement: "小偷...胜利条件为所有小偷都到达"
+      // So if mixed, it's technically a Police win (prevented full escape)?
+      // Or just a "Game Over" summary.
+      // Let's declare Police Win if any caught, Thief Win only if ALL escaped.
+      // Wait, if 1 escaped and 1 caught, the game stops.
+      // Let's show a summary message.
+      this.showVictory("MIXED");
+      return;
+    }
+
+    // Next Turn
+    this.turn = this.turn === "THIEF" ? "POLICE" : "THIEF";
+    this.updateTurnUI();
+  },
+
+  showVictory: function (type) {
+    els.victoryModal.classList.remove("hidden");
+    if (type === "POLICE") {
+      els.victoryTitle.textContent = "🚓 警察胜利！";
+      els.victoryTitle.style.color = "var(--primary-color)";
+      els.victoryMessage.textContent = "所有小偷都被抓捕归案！";
+    } else if (type === "THIEF") {
+      els.victoryTitle.textContent = "🏃 小偷胜利！";
+      els.victoryTitle.style.color = "var(--danger-color)";
+      els.victoryMessage.textContent = "所有小偷都成功逃脱！";
+    } else {
+      // Mixed
+      const escaped = this.thiefUnits.filter(
+        (t) => t.state === "ESCAPED",
+      ).length;
+      const caught = this.thiefUnits.length - escaped;
+      els.victoryTitle.textContent = "🏁 游戏结束";
+      els.victoryTitle.style.color = "#f39c12";
+      els.victoryMessage.textContent = `${escaped} 名小偷逃脱，${caught} 名被抓捕。`;
+    }
+  },
+
+  skipTurn: function () {
+    this.turn = this.turn === "THIEF" ? "POLICE" : "THIEF";
+    this.updateTurnUI();
+  },
+
+  clearHighlights: function () {
+    document
+      .querySelectorAll(".reachable")
+      .forEach((el) => el.classList.remove("reachable"));
+    document
+      .querySelectorAll(".selectable-unit")
+      .forEach((el) => el.classList.remove("selectable-unit"));
+    document
+      .querySelectorAll(".unit-selected")
+      .forEach((el) => el.classList.remove("unit-selected"));
+    this.clearPathHover();
+  },
+
+  highlightReachable: function () {
     this.reachable.forEach((data, key) => {
       const [r, c] = key.split(",").map(Number);
       const cell = document.getElementById(`game-cell-${r}-${c}`);
@@ -554,7 +754,7 @@ const gameEngine = {
   },
 
   handleCellHover: function (r, c) {
-    if (this.diceValue === 0 || this.isRolling) return;
+    if (this.diceValue === 0 || !this.selectedUnit) return;
 
     this.clearPathHover();
     const key = `${r},${c}`;
@@ -563,13 +763,11 @@ const gameEngine = {
       const route = this.reachable.get(key);
       let currentCostSpent = 0;
 
-      // Draw path lines
       for (let i = 1; i < route.path.length; i++) {
         const p = route.path[i];
         const cell = document.getElementById(`game-cell-${p.r}-${p.c}`);
         if (cell) {
           cell.classList.add("path-hover");
-
           const tileType = state.map[p.r][p.c];
           currentCostSpent += TILE_TYPES[tileType].cost;
 
@@ -588,76 +786,6 @@ const gameEngine = {
       .forEach((el) => el.classList.remove("path-hover"));
     document.querySelectorAll(".path-badge-temp").forEach((el) => el.remove());
   },
-
-  clearHighlights: function () {
-    document
-      .querySelectorAll(".reachable")
-      .forEach((el) => el.classList.remove("reachable"));
-    this.clearPathHover();
-  },
-
-  movePlayer: function (r, c) {
-    const key = `${r},${c}`;
-    if (!this.reachable.has(key)) return;
-
-    this.clearHighlights();
-
-    if (this.turn === "POLICE") {
-      this.policeInfo.r = r;
-      this.policeInfo.c = c;
-    } else {
-      this.thiefInfo.r = r;
-      this.thiefInfo.c = c;
-    }
-
-    this.updateTokenPositions();
-    this.checkWinCondition();
-  },
-
-  skipTurn: function () {
-    this.turn = this.turn === "THIEF" ? "POLICE" : "THIEF";
-    this.updateTurnUI();
-  },
-
-  checkWinCondition: function () {
-    // Police wins if on same tile as thief
-    if (
-      this.policeInfo.r === this.thiefInfo.r &&
-      this.policeInfo.c === this.thiefInfo.c
-    ) {
-      this.showVictory("POLICE");
-      return;
-    }
-
-    // Thief wins if reaches base
-    const thiefCellType = state.map[this.thiefInfo.r][this.thiefInfo.c];
-    if (thiefCellType === "THIEF_BASE") {
-      this.showVictory("THIEF");
-      return;
-    }
-
-    // Otherwise next turn
-    this.turn = this.turn === "THIEF" ? "POLICE" : "THIEF";
-    this.updateTurnUI();
-  },
-
-  showVictory: function (winner) {
-    const modal = document.getElementById("victory-modal");
-    const title = document.getElementById("victory-title");
-    const msg = document.getElementById("victory-message");
-
-    modal.classList.remove("hidden");
-    if (winner === "POLICE") {
-      title.textContent = "🚓 警察胜利！";
-      title.style.color = "var(--primary-color)";
-      msg.textContent = "警察成功抓住了小偷！";
-    } else {
-      title.textContent = "🏃 小偷胜利！";
-      title.style.color = "var(--danger-color)";
-      msg.textContent = "小偷成功逃回了基地！";
-    }
-  },
 };
 
-// Start app
 document.addEventListener("DOMContentLoaded", init);
