@@ -57,6 +57,23 @@ const TILE_TYPES = {
   },
 };
 
+const BASE64_ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+const INT_TILE_MAP = [
+  "GRASS",
+  "BUILDING",
+  "BARRIER",
+  "ROAD",
+  "POLICE_STATION",
+  "THIEF_BASE",
+  "POLICE_SPAWN",
+  "THIEF_SPAWN",
+];
+const TILE_INT_MAP = INT_TILE_MAP.reduce((acc, val, i) => {
+  acc[val] = i;
+  return acc;
+}, {});
+
 // Application State
 const state = {
   map: Array(GRID_SIZE)
@@ -74,6 +91,7 @@ const els = {
   gameBoard: document.getElementById("game-board"),
   palette: document.getElementById("palette"),
   btnSaveMap: document.getElementById("btn-save-map"),
+  btnShareMap: document.getElementById("btn-share-map"),
   btnClearMap: document.getElementById("btn-clear-map"),
   btnStartGame: document.getElementById("btn-start-game"),
   btnBackEditor: document.getElementById("btn-back-editor"),
@@ -133,6 +151,7 @@ function initEditor() {
   });
 
   els.btnSaveMap.addEventListener("click", saveMap);
+  if (els.btnShareMap) els.btnShareMap.addEventListener("click", shareMap);
   els.btnClearMap.addEventListener("click", clearMap);
 }
 
@@ -169,6 +188,7 @@ function renderEditorBoard() {
         if (state.map[r][c] !== state.currentPaletteType) {
           state.map[r][c] = state.currentPaletteType;
           updateCellDOM(cell, r, c);
+          updateMapUrl();
         }
       };
 
@@ -188,10 +208,46 @@ function renderEditorBoard() {
 
 function saveMap() {
   localStorage.setItem("policeThiefMap", JSON.stringify(state.map));
-  showToast("地图已保存");
+  updateMapUrl();
+  showToast("地图已保存", els.btnSaveMap);
+}
+
+function updateMapUrl() {
+  const encodedMap = encodeMapToUrlSafeBase64(state.map);
+  const newUrl =
+    window.location.protocol +
+    "//" +
+    window.location.host +
+    window.location.pathname +
+    "?m=" +
+    encodedMap;
+  window.history.replaceState({ path: newUrl }, "", newUrl);
+}
+
+function shareMap() {
+  updateMapUrl();
+  navigator.clipboard
+    .writeText(window.location.href)
+    .then(() => {
+      showToast("分享链接已复制！", els.btnShareMap);
+    })
+    .catch((err) => {
+      showToast("复制失败，请手动复制地址栏", els.btnShareMap);
+    });
 }
 
 function loadMap() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const m = urlParams.get("m");
+  if (m && m.length === 50) {
+    try {
+      state.map = decodeUrlSafeBase64ToMap(m);
+      return;
+    } catch (e) {
+      console.error("Failed to parse map from URL");
+    }
+  }
+
   const saved = localStorage.getItem("policeThiefMap");
   if (saved) {
     try {
@@ -211,6 +267,7 @@ function clearMap() {
     }
     renderEditorBoard();
     localStorage.removeItem("policeThiefMap");
+    updateMapUrl();
   }
 }
 
@@ -232,8 +289,8 @@ function validateMap() {
   return true;
 }
 
-function showToast(msg) {
-  const btn = els.btnSaveMap;
+function showToast(msg, targetBtn = els.btnSaveMap) {
+  const btn = targetBtn;
   const oldText = btn.innerHTML;
   btn.innerHTML = `✅ ${msg}`;
   btn.disabled = true;
@@ -241,6 +298,48 @@ function showToast(msg) {
     btn.innerHTML = oldText;
     btn.disabled = false;
   }, 1500);
+}
+
+function encodeMapToUrlSafeBase64(mapMatrix) {
+  let chars = "";
+  let flat = [];
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      flat.push(TILE_INT_MAP[mapMatrix[r][c]] || 0);
+    }
+  }
+  for (let i = 0; i < flat.length; i += 2) {
+    let t1 = flat[i];
+    let t2 = i + 1 < flat.length ? flat[i + 1] : 0;
+    let b6 = (t1 << 3) | t2;
+    chars += BASE64_ALPHABET[b6];
+  }
+  return chars;
+}
+
+function decodeUrlSafeBase64ToMap(chars) {
+  let mapMatrix = Array(GRID_SIZE)
+    .fill()
+    .map(() => Array(GRID_SIZE).fill("GRASS"));
+  let flat = [];
+  for (let i = 0; i < chars.length; i++) {
+    let b6 = BASE64_ALPHABET.indexOf(chars[i]);
+    if (b6 === -1) b6 = 0;
+    let t1 = b6 >> 3;
+    let t2 = b6 & 7;
+    flat.push(t1, t2);
+  }
+  let i = 0;
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      if (i < flat.length) {
+        let type = INT_TILE_MAP[flat[i]] || "GRASS";
+        mapMatrix[r][c] = type;
+      }
+      i++;
+    }
+  }
+  return mapMatrix;
 }
 
 function startGame() {
