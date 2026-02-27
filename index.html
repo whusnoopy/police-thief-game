@@ -26,6 +26,7 @@
           <div class="editor-actions">
             <button id="btn-clear-map" class="btn danger">🗑️ 清空地图</button>
             <button id="btn-save-map" class="btn primary">💾 保存地图</button>
+            <button id="btn-map-list" class="btn info">📁 地图列表</button>
             <button id="btn-share-map" class="btn secondary">
               🔗 复制分享链接
             </button>
@@ -93,6 +94,30 @@
         <div class="board-container">
           <div id="game-board" class="board grid-10x10">
             <!-- 游戏棋盘通过 JS 渲染 -->
+          </div>
+        </div>
+      </main>
+
+      <main id="map-list-view" class="view hidden map-list-view">
+        <div class="map-list-header">
+          <button id="btn-back-from-list" class="btn secondary">
+            ⬅️ 返回编辑
+          </button>
+          <h2>💾 保存的地图</h2>
+          <button id="btn-save-new-map" class="btn success">
+            ➕ 将当前地图存为新地图
+          </button>
+        </div>
+        <div class="map-list-container">
+          <div id="map-list-grid" class="map-list-grid">
+            <!-- 地图卡片由 JS 渲染 -->
+          </div>
+          <div
+            id="map-list-empty"
+            class="hidden"
+            style="text-align: center; padding: 40px; color: #7f8c8d"
+          >
+            暂无保存的地图
           </div>
         </div>
       </main>
