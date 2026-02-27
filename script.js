@@ -55,6 +55,13 @@ const TILE_TYPES = {
     isSpawn: true,
     owner: "THIEF",
   },
+  MANHOLE: {
+    id: "MANHOLE",
+    name: "井盖",
+    emoji: "🕳️",
+    cost: 1,
+    walkable: ["POLICE", "THIEF"],
+  },
 };
 
 const BASE64_ALPHABET =
@@ -68,6 +75,7 @@ const INT_TILE_MAP = [
   "THIEF_BASE",
   "POLICE_SPAWN",
   "THIEF_SPAWN",
+  "MANHOLE",
 ];
 const TILE_INT_MAP = INT_TILE_MAP.reduce((acc, val, i) => {
   acc[val] = i;
@@ -271,7 +279,7 @@ function shareMap() {
 function loadMap() {
   const urlParams = new URLSearchParams(window.location.search);
   const m = urlParams.get("m");
-  if (m && m.length === 50) {
+  if (m && (m.length === 50 || m.length === 100)) {
     try {
       state.map = decodeUrlSafeBase64ToMap(m);
       return;
@@ -334,17 +342,11 @@ function showToast(msg, targetBtn = els.btnSaveMap) {
 
 function encodeMapToUrlSafeBase64(mapMatrix) {
   let chars = "";
-  let flat = [];
   for (let r = 0; r < GRID_SIZE; r++) {
     for (let c = 0; c < GRID_SIZE; c++) {
-      flat.push(TILE_INT_MAP[mapMatrix[r][c]] || 0);
+      let b6 = TILE_INT_MAP[mapMatrix[r][c]] || 0;
+      chars += BASE64_ALPHABET[b6];
     }
-  }
-  for (let i = 0; i < flat.length; i += 2) {
-    let t1 = flat[i];
-    let t2 = i + 1 < flat.length ? flat[i + 1] : 0;
-    let b6 = (t1 << 3) | t2;
-    chars += BASE64_ALPHABET[b6];
   }
   return chars;
 }
@@ -353,22 +355,38 @@ function decodeUrlSafeBase64ToMap(chars) {
   let mapMatrix = Array(GRID_SIZE)
     .fill()
     .map(() => Array(GRID_SIZE).fill("GRASS"));
-  let flat = [];
-  for (let i = 0; i < chars.length; i++) {
-    let b6 = BASE64_ALPHABET.indexOf(chars[i]);
-    if (b6 === -1) b6 = 0;
-    let t1 = b6 >> 3;
-    let t2 = b6 & 7;
-    flat.push(t1, t2);
-  }
-  let i = 0;
-  for (let r = 0; r < GRID_SIZE; r++) {
-    for (let c = 0; c < GRID_SIZE; c++) {
-      if (i < flat.length) {
-        let type = INT_TILE_MAP[flat[i]] || "GRASS";
-        mapMatrix[r][c] = type;
+
+  if (chars.length === 50) {
+    let flat = [];
+    for (let i = 0; i < chars.length; i++) {
+      let b6 = BASE64_ALPHABET.indexOf(chars[i]);
+      if (b6 === -1) b6 = 0;
+      let t1 = b6 >> 3;
+      let t2 = b6 & 7;
+      flat.push(t1, t2);
+    }
+    let i = 0;
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        if (i < flat.length) {
+          let type = INT_TILE_MAP[flat[i]] || "GRASS";
+          mapMatrix[r][c] = type;
+        }
+        i++;
       }
-      i++;
+    }
+  } else {
+    let i = 0;
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        if (i < chars.length) {
+          let b6 = BASE64_ALPHABET.indexOf(chars[i]);
+          if (b6 === -1) b6 = 0;
+          let type = INT_TILE_MAP[b6] || "GRASS";
+          mapMatrix[r][c] = type;
+        }
+        i++;
+      }
     }
   }
   return mapMatrix;
@@ -796,6 +814,9 @@ const gameEngine = {
         continue;
       }
 
+      let possibleMoves = [];
+
+      // 1. Adjacent tiles
       const dirs = [
         [0, 1],
         [0, -1],
@@ -803,8 +824,31 @@ const gameEngine = {
         [-1, 0],
       ];
       for (const [dr, dc] of dirs) {
-        const nr = curr.r + dr;
-        const nc = curr.c + dc;
+        possibleMoves.push({
+          nr: curr.r + dr,
+          nc: curr.c + dc,
+          isTeleport: false,
+        });
+      }
+
+      // 2. Manhole teleports
+      if (isThief && state.map[curr.r][curr.c] === "MANHOLE") {
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            if (
+              state.map[r][c] === "MANHOLE" &&
+              (r !== curr.r || c !== curr.c)
+            ) {
+              possibleMoves.push({ nr: r, nc: c, isTeleport: true });
+            }
+          }
+        }
+      }
+
+      for (const move of possibleMoves) {
+        const nr = move.nr;
+        const nc = move.nc;
+        const isTeleport = move.isTeleport;
 
         // Boundaries
         if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) continue;
@@ -823,7 +867,7 @@ const gameEngine = {
         // But wait, "Carrying Police" cannot capture another thief.
         // "Escorting" police must return to Station.
 
-        const cost = tile.cost;
+        const cost = isTeleport ? 1 : tile.cost;
         if (curr.stepsLeft < cost) continue;
 
         // UNIT COLLISION AND INTERACTION RULES

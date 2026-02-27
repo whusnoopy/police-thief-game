@@ -206,6 +206,9 @@ h1 {
 .cell.type-THIEF_SPAWN {
   background-color: var(--road-color);
 }
+.cell.type-MANHOLE {
+  background-color: var(--road-color);
+}
 
 .cell:hover {
   filter: brightness(0.9);
