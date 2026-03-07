@@ -11,8 +11,10 @@ function startGame() {
   gameEngine.init();
 }
 
-function backToEditor() {
-  if (!confirm("返回编辑器将结束当前游戏进度，确定吗？")) return;
+function backToEditor(options = {}) {
+  const skipConfirm = options && options.skipConfirm === true;
+  if (!skipConfirm && !confirm("返回编辑器将结束当前游戏进度，确定吗？"))
+    return;
   state.mode = "EDITOR";
   els.gameView.classList.add("hidden");
   els.editorView.classList.remove("hidden");
@@ -36,15 +38,14 @@ function init() {
   });
   els.btnModalEditor.addEventListener("click", () => {
     els.victoryModal.classList.add("hidden");
-    backToEditor();
+    backToEditor({ skipConfirm: true });
   });
 
   // Map List
   if (els.btnMapList) els.btnMapList.addEventListener("click", showMapList);
   if (els.btnBackFromList)
     els.btnBackFromList.addEventListener("click", hideMapList);
-  if (els.btnSaveNewMap)
-    els.btnSaveNewMap.addEventListener("click", saveMapAsNew);
+  if (els.btnCreateMap) els.btnCreateMap.addEventListener("click", createNewMap);
 }
 
 document.addEventListener("DOMContentLoaded", init);

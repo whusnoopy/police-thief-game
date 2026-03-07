@@ -15,7 +15,6 @@ function initEditor() {
     els.palette.appendChild(item);
   });
 
-  els.btnSaveMap.addEventListener("click", saveMap);
   if (els.btnShareMap) els.btnShareMap.addEventListener("click", shareMap);
   els.btnClearMap.addEventListener("click", clearMap);
 }
@@ -53,7 +52,7 @@ function renderEditorBoard() {
         if (state.map[r][c] !== state.currentPaletteType) {
           state.map[r][c] = state.currentPaletteType;
           updateCellDOM(cell, r, c);
-          updateMapUrl();
+          saveMap();
         }
       };
 
@@ -89,11 +88,14 @@ function getStoredBase64Map() {
   return saved;
 }
 
-function saveMap() {
+function saveMap(options = {}) {
+  const { forceNewMap = false, mapName = null } = options;
   const b64 = encodeMapToUrlSafeBase64(state.map);
   localStorage.setItem("policeThiefMap", b64);
+  if (typeof upsertCurrentMapInList === "function") {
+    upsertCurrentMapInList(b64, { forceNew: forceNewMap, name: mapName });
+  }
   updateMapUrl();
-  showToast("地图已保存", els.btnSaveMap);
 }
 
 function updateMapUrl() {
@@ -121,25 +123,32 @@ function shareMap() {
 }
 
 function loadMap() {
+  let loadedFromUrl = false;
+  let shouldCreateNewMap = false;
+  const savedB64 = getStoredBase64Map();
   const urlParams = new URLSearchParams(window.location.search);
   const m = urlParams.get("m");
   if (m && (m.length === 50 || m.length === 100)) {
     try {
       state.map = decodeUrlSafeBase64ToMap(m);
-      return;
+      loadedFromUrl = true;
+      shouldCreateNewMap = !!savedB64 && savedB64 !== m;
     } catch (e) {
       console.error("Failed to parse map from URL");
     }
   }
 
-  const savedB64 = getStoredBase64Map();
-  if (savedB64) {
-    try {
-      state.map = decodeUrlSafeBase64ToMap(savedB64);
-    } catch (e) {
-      console.error("Failed to load map");
+  if (!loadedFromUrl) {
+    if (savedB64) {
+      try {
+        state.map = decodeUrlSafeBase64ToMap(savedB64);
+      } catch (e) {
+        console.error("Failed to load map");
+      }
     }
   }
+
+  saveMap({ forceNewMap: shouldCreateNewMap });
 }
 
 function clearMap() {
@@ -150,8 +159,7 @@ function clearMap() {
       }
     }
     renderEditorBoard();
-    localStorage.removeItem("policeThiefMap");
-    updateMapUrl();
+    saveMap();
   }
 }
 

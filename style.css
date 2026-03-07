@@ -561,6 +561,10 @@ h1 {
   background-color: #fcfcfc;
 }
 
+.map-card.current-map {
+  border-color: var(--success-color);
+}
+
 .map-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
@@ -580,6 +584,17 @@ h1 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.map-card-current-tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  color: #fff;
+  background-color: var(--success-color);
+  border-radius: 999px;
+  padding: 2px 6px;
+  margin-left: 6px;
+  vertical-align: middle;
 }
 
 .map-card-date {

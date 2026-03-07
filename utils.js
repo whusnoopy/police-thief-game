@@ -1,5 +1,6 @@
-function showToast(msg, targetBtn = els.btnSaveMap) {
-  const btn = targetBtn;
+function showToast(msg, targetBtn = null) {
+  const btn = targetBtn || els.btnShareMap || els.btnMapList;
+  if (!btn) return;
   const oldText = btn.innerHTML;
   btn.innerHTML = `✅ ${msg}`;
   btn.disabled = true;

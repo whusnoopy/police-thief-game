@@ -14,7 +14,6 @@ const els = {
   editorBoard: document.getElementById("editor-board"),
   gameBoard: document.getElementById("game-board"),
   palette: document.getElementById("palette"),
-  btnSaveMap: document.getElementById("btn-save-map"),
   btnShareMap: document.getElementById("btn-share-map"),
   btnClearMap: document.getElementById("btn-clear-map"),
   btnStartGame: document.getElementById("btn-start-game"),
@@ -35,7 +34,7 @@ const els = {
   mapListView: document.getElementById("map-list-view"),
   btnMapList: document.getElementById("btn-map-list"),
   btnBackFromList: document.getElementById("btn-back-from-list"),
-  btnSaveNewMap: document.getElementById("btn-save-new-map"),
+  btnCreateMap: document.getElementById("btn-create-map"),
   mapListGrid: document.getElementById("map-list-grid"),
   mapListEmpty: document.getElementById("map-list-empty"),
 };
