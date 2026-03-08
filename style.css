@@ -191,6 +191,9 @@ h1 {
 .cell.type-BUILDING {
   background-color: var(--building-color);
 }
+.cell.type-CONSTRUCTION_SITE {
+  background-color: var(--building-color);
+}
 .cell.type-BARRIER {
   background-color: var(--barrier-color);
 }

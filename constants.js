@@ -15,6 +15,13 @@ const TILE_TYPES = {
     cost: 0,
     walkable: [],
   },
+  CONSTRUCTION_SITE: {
+    id: "CONSTRUCTION_SITE",
+    name: "建筑工地",
+    emoji: "🏗️",
+    cost: 0,
+    walkable: [],
+  },
   BARRIER: { id: "BARRIER", name: "路障", emoji: "🚧", cost: 0, walkable: [] },
   ROAD: {
     id: "ROAD",
@@ -76,6 +83,7 @@ const INT_TILE_MAP = [
   "POLICE_SPAWN",
   "THIEF_SPAWN",
   "MANHOLE",
+  "CONSTRUCTION_SITE",
 ];
 const TILE_INT_MAP = INT_TILE_MAP.reduce((acc, val, i) => {
   acc[val] = i;
