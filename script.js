@@ -7,6 +7,7 @@ function startGame() {
   document.getElementById("mode-indicator").textContent = "游戏模式";
   document.getElementById("mode-indicator").style.backgroundColor =
     "var(--success-color)";
+  document.getElementById("mode-indicator").title = "";
   saveMap();
   gameEngine.init();
 }
@@ -18,9 +19,13 @@ function backToEditor(options = {}) {
   state.mode = "EDITOR";
   els.gameView.classList.add("hidden");
   els.editorView.classList.remove("hidden");
-  document.getElementById("mode-indicator").textContent = "地图编辑模式";
-  document.getElementById("mode-indicator").style.backgroundColor =
-    "var(--warning-color)";
+  if (typeof updateModeIndicatorForEditor === "function") {
+    updateModeIndicatorForEditor();
+  } else {
+    document.getElementById("mode-indicator").textContent = "地图编辑模式";
+    document.getElementById("mode-indicator").style.backgroundColor =
+      "var(--warning-color)";
+  }
   renderEditorBoard();
 }
 
@@ -29,6 +34,9 @@ function init() {
   initMapList();
   loadMap();
   renderEditorBoard();
+  if (typeof updateModeIndicatorForEditor === "function") {
+    updateModeIndicatorForEditor();
+  }
 
   // Bind global navigation
   els.btnStartGame.addEventListener("click", startGame);

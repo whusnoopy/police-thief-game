@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>警察抓小偷 - 趣味棋盘游戏</title>
-    <link rel="stylesheet" href="style.css?v=20260308-2" />
+    <link rel="stylesheet" href="style.css?v=20260308-4" />
     <link
       href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap"
       rel="stylesheet"
@@ -84,6 +84,14 @@
           <div class="legend">
             <p><span class="emoji">🌿</span> 草地消耗 2 步</p>
             <p><span class="emoji">⬜</span> 道路消耗 1 步</p>
+            <p><span class="emoji">🏢</span> 建筑物不可进入</p>
+            <p><span class="emoji">🏗️</span> 建筑工地不可进入</p>
+            <p><span class="emoji">🚧</span> 路障不可进入</p>
+            <p><span class="emoji">🚨</span> 警察局仅警察可进入（押送时需回警局）</p>
+            <p><span class="emoji">🏚️</span> 小偷基地仅小偷可进入，进入即逃脱</p>
+            <p><span class="emoji">🔵</span> 警察出生点可通行，消耗 1 步</p>
+            <p><span class="emoji">🔴</span> 小偷出生点可通行，消耗 1 步</p>
+            <p><span class="emoji">🕳️</span> 井盖可通行；小偷站在井盖上可 1 步传送到其他井盖</p>
           </div>
         </div>
 
@@ -148,8 +156,8 @@
     <script src="state.js?v=20260308-2"></script>
     <script src="utils.js?v=20260307-1"></script>
     <script src="editor.js?v=20260308-2"></script>
-    <script src="mapList.js?v=20260308-2"></script>
+    <script src="mapList.js?v=20260308-3"></script>
     <script src="gameEngine.js?v=20260307-1"></script>
-    <script src="script.js?v=20260308-2"></script>
+    <script src="script.js?v=20260308-3"></script>
   </body>
 </html>

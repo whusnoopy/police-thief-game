@@ -25,6 +25,24 @@ function getCurrentMapId() {
   return localStorage.getItem(CURRENT_MAP_ID_STORAGE_KEY);
 }
 
+function getCurrentMapName() {
+  const currentMapId = getCurrentMapId();
+  if (!currentMapId) return "";
+  const currentMap = getMapList().find((mapObj) => mapObj.id === currentMapId);
+  return currentMap && currentMap.name ? currentMap.name : "";
+}
+
+function updateModeIndicatorForEditor() {
+  const indicator = document.getElementById("mode-indicator");
+  if (!indicator) return;
+  const currentMapName = getCurrentMapName();
+  indicator.textContent = currentMapName
+    ? `编辑中：${currentMapName}`
+    : "地图编辑模式";
+  indicator.style.backgroundColor = "var(--warning-color)";
+  indicator.title = currentMapName || "";
+}
+
 function setCurrentMapId(mapId) {
   if (!mapId) {
     localStorage.removeItem(CURRENT_MAP_ID_STORAGE_KEY);
@@ -196,6 +214,7 @@ function showMapList() {
 function hideMapList() {
   els.mapListView.classList.add("hidden");
   els.editorView.classList.remove("hidden");
+  updateModeIndicatorForEditor();
 }
 
 function renderBoardDOM(container, mapMatrix) {
@@ -243,12 +262,15 @@ function renderMapList() {
     header.className = "map-card-header";
     const dateText = new Date(mapObj.date).toLocaleString();
     header.innerHTML = `
-      <span class="map-card-title">
-        ${escapeHTML(mapObj.name)}
-        ${isCurrentMap ? '<span class="map-card-current-tag">当前编辑</span>' : ""}
-      </span>
-      <span class="map-card-date">${dateText}</span>
+      <span class="map-card-title">${escapeHTML(mapObj.name)}</span>
+      <span class="map-card-date">最后修改：${dateText}</span>
     `;
+    if (isCurrentMap) {
+      const cornerBadge = document.createElement("div");
+      cornerBadge.className = "map-card-corner-badge";
+      cornerBadge.innerHTML = "<span>编辑中</span>";
+      card.appendChild(cornerBadge);
+    }
 
     const thumb = document.createElement("div");
     thumb.className = "map-card-thumb";
@@ -290,6 +312,7 @@ function renderMapList() {
       if (newName && newName.trim() !== "") {
         mapObj.name = newName.trim();
         setMapList(maps);
+        if (isCurrentMap) updateModeIndicatorForEditor();
         renderMapList();
       }
     };
