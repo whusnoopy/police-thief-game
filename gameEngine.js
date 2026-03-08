@@ -1,14 +1,18 @@
+const HALF_STEP_POINTS = 2;
+const DRIVE_COST_POINTS = 1;
+
 const gameEngine = {
   turn: "THIEF", // 'THIEF' or 'POLICE'
   diceValue: 0,
   isRolling: false,
 
   // State arrays for multiple units
-  policeUnits: [], // { id, r, c, state: 'IDLE' | 'CARRYING' }
-  thiefUnits: [], // { id, r, c, state: 'ACTIVE' | 'ESCAPED' | 'JAILED' | 'CARRIED' }
+  policeUnits: [], // { id, r, c, state: 'IDLE' | 'CARRYING', inCar: boolean }
+  thiefUnits: [], // { id, r, c, state: 'ACTIVE' | 'ESCAPED' | 'JAILED' | 'CARRIED', inCar: boolean, carrierId: string | null }
+  parkingCars: new Set(), // "r,c" of parking tiles that still have an empty car
 
   selectedUnit: null,
-  reachable: new Map(), // "r,c" => { r,c, path, remainingSteps }
+  reachable: new Map(), // "r,c" => { r,c, path, trail, isDriving, boardedCarAt }
 
   init: function () {
     this.turn = "THIEF";
@@ -17,17 +21,34 @@ const gameEngine = {
     this.reachable.clear();
     this.policeUnits = [];
     this.thiefUnits = [];
+    this.parkingCars = new Set();
 
-    // Scan map for spawns
     let pid = 0,
       tid = 0;
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
-        if (state.map[r][c] === "POLICE_SPAWN") {
-          this.policeUnits.push({ id: `P${pid++}`, r, c, state: "IDLE" });
+        const tileType = state.map[r][c];
+        if (tileType === "PARKING") {
+          this.parkingCars.add(this.getCoordKey(r, c));
         }
-        if (state.map[r][c] === "THIEF_SPAWN") {
-          this.thiefUnits.push({ id: `T${tid++}`, r, c, state: "ACTIVE" });
+        if (tileType === "POLICE_SPAWN") {
+          this.policeUnits.push({
+            id: `P${pid++}`,
+            r,
+            c,
+            state: "IDLE",
+            inCar: false,
+          });
+        }
+        if (tileType === "THIEF_SPAWN") {
+          this.thiefUnits.push({
+            id: `T${tid++}`,
+            r,
+            c,
+            state: "ACTIVE",
+            inCar: false,
+            carrierId: null,
+          });
         }
       }
     }
@@ -37,8 +58,19 @@ const gameEngine = {
     this.updateTurnUI();
   },
 
+  getCoordKey: function (r, c) {
+    return `${r},${c}`;
+  },
+
+  hasAvailableCar: function (r, c) {
+    return this.parkingCars.has(this.getCoordKey(r, c));
+  },
+
+  consumeParkingCar: function (coordKey) {
+    if (coordKey) this.parkingCars.delete(coordKey);
+  },
+
   setupUI: function () {
-    // Clear old event listeners by cloning
     ["btnRollDice", "btnSkipTurn"].forEach((key) => {
       const el = els[key];
       const newEl = el.cloneNode(true);
@@ -53,7 +85,6 @@ const gameEngine = {
   renderGameBoard: function () {
     els.gameBoard.innerHTML = "";
 
-    // Render Grid
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
         const cell = document.createElement("div");
@@ -61,16 +92,18 @@ const gameEngine = {
         cell.className = `cell type-${tileType}`;
         cell.id = `game-cell-${r}-${c}`;
 
-        // Show markers (exclude spawns in game mode as requested)
-        if (
-          !TILE_TYPES[tileType].isSpawn &&
-          tileType !== "GRASS" &&
-          tileType !== "ROAD"
-        ) {
+        if (this.shouldShowTileMarker(tileType)) {
           const marker = document.createElement("span");
           marker.className = "marker";
           marker.textContent = TILE_TYPES[tileType].emoji;
           cell.appendChild(marker);
+        }
+
+        if (tileType === "PARKING" && this.hasAvailableCar(r, c)) {
+          const parkedCar = document.createElement("span");
+          parkedCar.className = "parked-car";
+          parkedCar.textContent = "🚗";
+          cell.appendChild(parkedCar);
         }
 
         cell.addEventListener("mouseenter", () => this.handleCellHover(r, c));
@@ -81,31 +114,50 @@ const gameEngine = {
       }
     }
 
-    // Render Units
-    this.policeUnits.forEach((p) => {
-      // Police visually stays on board even if Carrying
+    this.policeUnits.forEach((police) => {
       this.renderUnit(
-        p.r,
-        p.c,
-        p.state === "CARRYING" ? "👮🎒" : "👮",
+        police.r,
+        police.c,
+        this.getPoliceEmoji(police),
         "police-token",
-        p.id,
+        police.id,
+        police.inCar,
       );
     });
 
-    this.thiefUnits.forEach((t) => {
-      if (t.state === "ACTIVE") {
-        this.renderUnit(t.r, t.c, "🏃", "thief-token", t.id);
+    this.thiefUnits.forEach((thief) => {
+      if (thief.state === "ACTIVE") {
+        this.renderUnit(
+          thief.r,
+          thief.c,
+          this.getThiefEmoji(thief),
+          "thief-token",
+          thief.id,
+          thief.inCar,
+        );
       }
     });
   },
 
-  renderUnit: function (r, c, emoji, cssClass, id) {
+  shouldShowTileMarker: function (tileType) {
+    return !TILE_TYPES[tileType].isSpawn && tileType !== "GRASS" && tileType !== "ROAD";
+  },
+
+  getPoliceEmoji: function (unit) {
+    if (unit.inCar) return unit.state === "CARRYING" ? "🚔" : "🚓";
+    return unit.state === "CARRYING" ? "👮🎒" : "👮";
+  },
+
+  getThiefEmoji: function (unit) {
+    return unit.inCar ? "🚗" : "🏃";
+  },
+
+  renderUnit: function (r, c, emoji, cssClass, id, isDriving = false) {
     const cell = document.getElementById(`game-cell-${r}-${c}`);
     if (!cell) return;
 
     const token = document.createElement("div");
-    token.className = `character ${cssClass}`;
+    token.className = `character ${cssClass}${isDriving ? " driving-token" : ""}`;
     token.textContent = emoji;
     token.dataset.id = id;
     cell.appendChild(token);
@@ -127,6 +179,7 @@ const gameEngine = {
 
     this.diceValue = 0;
     this.selectedUnit = null;
+    this.reachable.clear();
     this.clearHighlights();
   },
 
@@ -159,16 +212,28 @@ const gameEngine = {
     }, 50);
   },
 
+  getMovementPoints: function () {
+    return this.diceValue * HALF_STEP_POINTS;
+  },
+
+  formatMovementPoints: function (points) {
+    const steps = points / HALF_STEP_POINTS;
+    return Number.isInteger(steps) ? `${steps}` : `${steps.toFixed(1)}`;
+  },
+
+  getActiveUnitsForTurn: function () {
+    if (this.turn === "THIEF") {
+      return this.thiefUnits.filter((unit) => unit.state === "ACTIVE");
+    }
+    return this.policeUnits;
+  },
+
   onDiceRolled: function () {
-    // Check if ANY unit has valid moves
-    const units = this.turn === "THIEF" ? this.thiefUnits : this.policeUnits;
-    const activeUnits = units.filter((u) =>
-      this.turn === "THIEF" ? u.state === "ACTIVE" : true,
-    );
+    const activeUnits = this.getActiveUnitsForTurn();
 
     let hasMoves = false;
-    for (const u of activeUnits) {
-      const moves = this.calculateReachableForUnit(u);
+    for (const unit of activeUnits) {
+      const moves = this.calculateReachableForUnit(unit);
       if (moves.size > 0) {
         hasMoves = true;
         break;
@@ -182,165 +247,242 @@ const gameEngine = {
     } else {
       els.gameMessage.textContent = `点数 ${this.diceValue}！请点击己方角色移动`;
       els.btnRollDice.classList.add("hidden");
-      // Highlight selectables
       this.highlightSelectableUnits(activeUnits);
     }
   },
 
   highlightSelectableUnits: function (units) {
-    units.forEach((u) => {
-      const moves = this.calculateReachableForUnit(u);
+    units.forEach((unit) => {
+      const moves = this.calculateReachableForUnit(unit);
       if (moves.size > 0) {
-        const cell = document.getElementById(`game-cell-${u.r}-${u.c}`);
+        const cell = document.getElementById(`game-cell-${unit.r}-${unit.c}`);
         if (cell) cell.classList.add("selectable-unit");
       }
     });
   },
 
+  chooseBetterRoute: function (existing, candidate) {
+    if (!existing) return true;
+    if (candidate.isDriving !== existing.isDriving) return candidate.isDriving;
+    if (candidate.pointsLeft !== existing.pointsLeft) {
+      return candidate.pointsLeft < existing.pointsLeft;
+    }
+    return candidate.path.length < existing.path.length;
+  },
+
+  canThiefStopAtBaseWithHalfStepLeft: function (isThief, tileType, isDriving, pointsLeft) {
+    return (
+      isThief &&
+      isDriving &&
+      tileType === "THIEF_BASE" &&
+      pointsLeft === DRIVE_COST_POINTS
+    );
+  },
+
+  canPoliceCaptureDrivingThiefWithHalfStepLeft: function (
+    isThief,
+    occupant,
+    isDriving,
+    pointsLeft,
+  ) {
+    return (
+      !isThief &&
+      isDriving &&
+      occupant &&
+      occupant.role === "THIEF" &&
+      occupant.unit.inCar &&
+      pointsLeft === DRIVE_COST_POINTS
+    );
+  },
+
+  getPossibleMoves: function (node, isThief) {
+    const possibleMoves = [];
+    const dirs = [
+      [0, 1],
+      [0, -1],
+      [1, 0],
+      [-1, 0],
+    ];
+
+    for (const [dr, dc] of dirs) {
+      possibleMoves.push({
+        nr: node.r + dr,
+        nc: node.c + dc,
+        isTeleport: false,
+      });
+    }
+
+    if (isThief && !node.isDriving && state.map[node.r][node.c] === "MANHOLE") {
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (state.map[r][c] === "MANHOLE" && (r !== node.r || c !== node.c)) {
+            possibleMoves.push({ nr: r, nc: c, isTeleport: true });
+          }
+        }
+      }
+    }
+
+    return possibleMoves;
+  },
+
+  getMoveCost: function (isDriving, tileType, isTeleport) {
+    if (isTeleport) return HALF_STEP_POINTS;
+    if (isDriving) {
+      if (tileType === "GRASS") return null;
+      return DRIVE_COST_POINTS;
+    }
+    return TILE_TYPES[tileType].cost * HALF_STEP_POINTS;
+  },
+
   calculateReachableForUnit: function (unit) {
     const results = new Map();
-    const startNode = {
-      r: unit.r,
-      c: unit.c,
-      stepsLeft: this.diceValue,
-      path: [{ r: unit.r, c: unit.c }],
-      costSpent: 0,
-    };
-    const queue = [startNode];
-
-    // Define obstacles based on who is moving
     const isThief = this.turn === "THIEF";
+    const role = isThief ? "THIEF" : "POLICE";
+    const queue = [
+      {
+        r: unit.r,
+        c: unit.c,
+        pointsLeft: this.getMovementPoints(),
+        path: [{ r: unit.r, c: unit.c }],
+        trail: [],
+        costSpent: 0,
+        isDriving: !!unit.inCar,
+        boardedCarAt: null,
+      },
+    ];
 
     while (queue.length > 0) {
       const curr = queue.shift();
 
-      // Success condition
-      if (curr.stepsLeft === 0) {
-        const key = `${curr.r},${curr.c}`;
-        if (!results.has(key)) results.set(key, curr);
+      if (curr.pointsLeft === 0) {
+        const key = this.getCoordKey(curr.r, curr.c);
+        if (this.chooseBetterRoute(results.get(key), curr)) {
+          results.set(key, curr);
+        }
         continue;
       }
 
-      let possibleMoves = [];
-
-      // 1. Adjacent tiles
-      const dirs = [
-        [0, 1],
-        [0, -1],
-        [1, 0],
-        [-1, 0],
-      ];
-      for (const [dr, dc] of dirs) {
-        possibleMoves.push({
-          nr: curr.r + dr,
-          nc: curr.c + dc,
-          isTeleport: false,
-        });
-      }
-
-      // 2. Manhole teleports
-      if (isThief && state.map[curr.r][curr.c] === "MANHOLE") {
-        for (let r = 0; r < GRID_SIZE; r++) {
-          for (let c = 0; c < GRID_SIZE; c++) {
-            if (
-              state.map[r][c] === "MANHOLE" &&
-              (r !== curr.r || c !== curr.c)
-            ) {
-              possibleMoves.push({ nr: r, nc: c, isTeleport: true });
-            }
-          }
-        }
-      }
+      const possibleMoves = this.getPossibleMoves(curr, isThief);
 
       for (const move of possibleMoves) {
         const nr = move.nr;
         const nc = move.nc;
-        const isTeleport = move.isTeleport;
 
-        // Boundaries
         if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) continue;
-
-        // No backtracking in single move
-        if (curr.path.some((p) => p.r === nr && p.c === nc)) continue;
+        if (curr.path.some((point) => point.r === nr && point.c === nc)) continue;
 
         const tileType = state.map[nr][nc];
         const tile = TILE_TYPES[tileType];
+        if (!tile.walkable.includes(role)) continue;
 
-        // Static terrain walkability
-        if (!tile.walkable.includes(isThief ? "THIEF" : "POLICE")) continue;
+        const cost = this.getMoveCost(curr.isDriving, tileType, move.isTeleport);
+        if (cost === null || curr.pointsLeft < cost) continue;
 
-        // Special Rule: Carrying Police can only enter Police Station to drop off, but can walk on roads
-        // Actually they are just Police units. The destination logic is handled at end.
-        // But wait, "Carrying Police" cannot capture another thief.
-        // "Escorting" police must return to Station.
-
-        const cost = isTeleport ? 1 : tile.cost;
-        if (curr.stepsLeft < cost) continue;
-
-        // UNIT COLLISION AND INTERACTION RULES
-
-        // 1. Cannot PASS THROUGH any unit (Ally or Enemy)
-        // Check if any unit is at (nr, nc)
         const occupant = this.getUnitAt(nr, nc);
-
+        const pointsLeftAfterMove = curr.pointsLeft - cost;
+        const canStopForHalfStepCapture =
+          this.canPoliceCaptureDrivingThiefWithHalfStepLeft(
+            isThief,
+            occupant,
+            curr.isDriving,
+            pointsLeftAfterMove,
+          );
         if (occupant) {
-          // Interaction only possible on FINAL step (Capture or Jail)
-          // If not final step, it's a block
-          if (curr.stepsLeft > cost) continue;
-
-          // Final Step Logic:
-          if (isThief) {
-            // Thief cannot land on any unit (no capturing)
-            continue;
-          } else {
-            // Police moving
-            const isPolice = occupant.role === "POLICE";
-            if (isPolice) continue; // Cannot land on ally
-
-            // Landing on Thief (Capture)
-            // Requirement: Police must be IDLE (not carrying)
-            if (unit.state === "CARRYING") continue;
-
-            // Valid capture! Allow move.
-          }
+          if (curr.pointsLeft > cost && !canStopForHalfStepCapture) continue;
+          if (isThief) continue;
+          if (occupant.role === "POLICE" || unit.state === "CARRYING") continue;
         }
 
-        queue.push({
+        let nextDriving = curr.isDriving;
+        let boardedCarAt = curr.boardedCarAt;
+        if (
+          !nextDriving &&
+          !move.isTeleport &&
+          tileType === "PARKING" &&
+          this.hasAvailableCar(nr, nc)
+        ) {
+          nextDriving = true;
+          boardedCarAt = boardedCarAt || this.getCoordKey(nr, nc);
+        }
+
+        const nextNode = {
           r: nr,
           c: nc,
-          stepsLeft: curr.stepsLeft - cost,
+          pointsLeft: pointsLeftAfterMove,
           path: [...curr.path, { r: nr, c: nc }],
+          trail: [...curr.trail, { r: nr, c: nc, cost }],
           costSpent: curr.costSpent + cost,
-        });
+          isDriving: nextDriving,
+          boardedCarAt,
+        };
+
+        const canStopForHalfStepBase = this.canThiefStopAtBaseWithHalfStepLeft(
+          isThief,
+          tileType,
+          nextNode.isDriving,
+          nextNode.pointsLeft,
+        );
+
+        if (canStopForHalfStepBase || canStopForHalfStepCapture) {
+          const key = this.getCoordKey(nextNode.r, nextNode.c);
+          if (this.chooseBetterRoute(results.get(key), nextNode)) {
+            results.set(key, nextNode);
+          }
+          continue;
+        }
+
+        queue.push(nextNode);
       }
     }
+
     return results;
   },
 
   getUnitAt: function (r, c) {
-    const p = this.policeUnits.find((u) => u.r === r && u.c === c);
-    if (p) return { role: "POLICE", unit: p };
+    const police = this.policeUnits.find((unit) => unit.r === r && unit.c === c);
+    if (police) return { role: "POLICE", unit: police };
 
-    const t = this.thiefUnits.find(
-      (u) => u.r === r && u.c === c && u.state === "ACTIVE",
+    const thief = this.thiefUnits.find(
+      (unit) => unit.r === r && unit.c === c && unit.state === "ACTIVE",
     );
-    if (t) return { role: "THIEF", unit: t };
+    if (thief) return { role: "THIEF", unit: thief };
 
     return null;
+  },
+
+  getCarriedThiefByCarrier: function (carrierId) {
+    return (
+      this.thiefUnits.find(
+        (unit) => unit.state === "CARRIED" && unit.carrierId === carrierId,
+      ) || null
+    );
+  },
+
+  syncCarriedThiefPosition: function (policeUnit) {
+    const carriedThief = this.getCarriedThiefByCarrier(policeUnit.id);
+    if (!carriedThief) return;
+    carriedThief.r = policeUnit.r;
+    carriedThief.c = policeUnit.c;
+    carriedThief.inCar = false;
+  },
+
+  jailCarriedThief: function (policeUnit) {
+    const carriedThief = this.getCarriedThiefByCarrier(policeUnit.id);
+    if (!carriedThief) return;
+    carriedThief.state = "JAILED";
+    carriedThief.carrierId = null;
+    carriedThief.r = policeUnit.r;
+    carriedThief.c = policeUnit.c;
+    carriedThief.inCar = false;
   },
 
   handleCellClick: function (r, c) {
     if (this.diceValue === 0) return;
 
-    // 1. Select Unit Mode
     if (!this.selectedUnit) {
       const clickedUnit = this.getUnitAt(r, c);
-      if (!clickedUnit) return;
+      if (!clickedUnit || clickedUnit.role !== this.turn) return;
 
-      // Must be own unit
-      if (clickedUnit.role !== this.turn) return;
-
-      // Check if selectable (has moves)
       const moves = this.calculateReachableForUnit(clickedUnit.unit);
       if (moves.size === 0) return;
 
@@ -348,74 +490,79 @@ const gameEngine = {
       this.reachable = moves;
 
       this.clearHighlights();
-      // Highlight selected unit
-      document
-        .getElementById(`game-cell-${r}-${c}`)
-        .classList.add("unit-selected");
+      document.getElementById(`game-cell-${r}-${c}`).classList.add("unit-selected");
       this.highlightReachable();
       els.gameMessage.textContent = "请点击高亮格子移动";
       return;
     }
 
-    // 2. Move Unit Mode
-    const key = `${r},${c}`;
+    const key = this.getCoordKey(r, c);
     if (this.reachable.has(key)) {
       this.moveSelectedUnit(r, c);
-    } else {
-      // Deselect or switch unit
-      const clickedUnit = this.getUnitAt(r, c);
-      if (
-        clickedUnit &&
-        clickedUnit.role === this.turn &&
-        clickedUnit.unit !== this.selectedUnit
-      ) {
-        const moves = this.calculateReachableForUnit(clickedUnit.unit);
-        if (moves.size > 0) {
-          this.selectedUnit = clickedUnit.unit;
-          this.reachable = moves;
-          this.clearHighlights();
-          document
-            .getElementById(`game-cell-${r}-${c}`)
-            .classList.add("unit-selected");
-          this.highlightReachable();
-        }
+      return;
+    }
+
+    const clickedUnit = this.getUnitAt(r, c);
+    if (
+      clickedUnit &&
+      clickedUnit.role === this.turn &&
+      clickedUnit.unit !== this.selectedUnit
+    ) {
+      const moves = this.calculateReachableForUnit(clickedUnit.unit);
+      if (moves.size > 0) {
+        this.selectedUnit = clickedUnit.unit;
+        this.reachable = moves;
+        this.clearHighlights();
+        document.getElementById(`game-cell-${r}-${c}`).classList.add("unit-selected");
+        this.highlightReachable();
       }
     }
   },
 
   moveSelectedUnit: function (r, c) {
-    const u = this.selectedUnit;
-    u.r = r;
-    u.c = c;
+    const unit = this.selectedUnit;
+    const route = this.reachable.get(this.getCoordKey(r, c));
+    if (!unit || !route) return;
+
+    if (route.boardedCarAt) {
+      this.consumeParkingCar(route.boardedCarAt);
+    }
+
+    unit.r = r;
+    unit.c = c;
+    unit.inCar = route.isDriving;
 
     this.clearHighlights();
+    this.selectedUnit = null;
+    this.reachable.clear();
 
-    // Post-Move Interaction Logic
     if (this.turn === "POLICE") {
-      const tileType = state.map[r][c];
+      this.syncCarriedThiefPosition(unit);
 
-      // 1. Jailing Logic (Carrying Police enters Station)
-      if (u.state === "CARRYING" && tileType === "POLICE_STATION") {
-        u.state = "IDLE";
-        // Find visible notification? Maybe toast.
-      }
-
-      // 2. Capture Logic (Idle Police lands on Thief)
-      // Note: getUnitAt won't find the thief anymore because Police is now on top of it?
-      // Actually u is updated. So check against thief array.
       const caughtThief = this.thiefUnits.find(
-        (t) => t.r === r && t.c === c && t.state === "ACTIVE",
+        (thief) => thief.r === r && thief.c === c && thief.state === "ACTIVE",
       );
-      if (caughtThief && u.state === "IDLE") {
+      if (caughtThief && unit.state === "IDLE") {
         caughtThief.state = "CARRIED";
-        u.state = "CARRYING";
+        caughtThief.carrierId = unit.id;
+        caughtThief.r = r;
+        caughtThief.c = c;
+        unit.state = "CARRYING";
+
+        if (caughtThief.inCar) {
+          unit.inCar = true;
+        }
+        caughtThief.inCar = false;
       }
-    } else {
-      // Thief Logic
-      const tileType = state.map[r][c];
-      if (tileType === "THIEF_BASE") {
-        u.state = "ESCAPED";
+
+      if (unit.state === "CARRYING" && state.map[r][c] === "POLICE_STATION") {
+        this.jailCarriedThief(unit);
+        unit.state = "IDLE";
       }
+
+      this.syncCarriedThiefPosition(unit);
+    } else if (state.map[r][c] === "THIEF_BASE") {
+      unit.state = "ESCAPED";
     }
 
     this.renderGameBoard();
@@ -423,38 +570,26 @@ const gameEngine = {
   },
 
   checkWinCondition: function () {
-    // Police Win: All thieves are CAUGHT (CARRIED or JAILED)
     const allCaught = this.thiefUnits.every(
-      (t) => t.state === "CARRIED" || t.state === "JAILED",
+      (thief) => thief.state === "CARRIED" || thief.state === "JAILED",
     );
     if (this.thiefUnits.length > 0 && allCaught) {
       this.showVictory("POLICE");
       return;
     }
 
-    // Thief Win: All thieves ESCAPED
-    const allEscaped = this.thiefUnits.every((t) => t.state === "ESCAPED");
+    const allEscaped = this.thiefUnits.every((thief) => thief.state === "ESCAPED");
     if (this.thiefUnits.length > 0 && allEscaped) {
       this.showVictory("THIEF");
       return;
     }
 
-    // Mixed End Game: If no ACTIVE thieves left (some escaped, some jailed)
-    // This is a partial state. Usually game ends when last active thief is resolved.
-    const hasActive = this.thiefUnits.some((t) => t.state === "ACTIVE");
+    const hasActive = this.thiefUnits.some((thief) => thief.state === "ACTIVE");
     if (!hasActive) {
-      // Game Over - Calculate who did better?
-      // User requirement: "小偷...胜利条件为所有小偷都到达"
-      // So if mixed, it's technically a Police win (prevented full escape)?
-      // Or just a "Game Over" summary.
-      // Let's declare Police Win if any caught, Thief Win only if ALL escaped.
-      // Wait, if 1 escaped and 1 caught, the game stops.
-      // Let's show a summary message.
       this.showVictory("MIXED");
       return;
     }
 
-    // Next Turn
     this.turn = this.turn === "THIEF" ? "POLICE" : "THIEF";
     this.updateTurnUI();
   },
@@ -470,10 +605,7 @@ const gameEngine = {
       els.victoryTitle.style.color = "var(--danger-color)";
       els.victoryMessage.textContent = "所有小偷都成功逃脱！";
     } else {
-      // Mixed
-      const escaped = this.thiefUnits.filter(
-        (t) => t.state === "ESCAPED",
-      ).length;
+      const escaped = this.thiefUnits.filter((thief) => thief.state === "ESCAPED").length;
       const caught = this.thiefUnits.length - escaped;
       els.victoryTitle.textContent = "🏁 游戏结束";
       els.victoryTitle.style.color = "#f39c12";
@@ -487,9 +619,7 @@ const gameEngine = {
   },
 
   clearHighlights: function () {
-    document
-      .querySelectorAll(".reachable")
-      .forEach((el) => el.classList.remove("reachable"));
+    document.querySelectorAll(".reachable").forEach((el) => el.classList.remove("reachable"));
     document
       .querySelectorAll(".selectable-unit")
       .forEach((el) => el.classList.remove("selectable-unit"));
@@ -511,33 +641,26 @@ const gameEngine = {
     if (this.diceValue === 0 || !this.selectedUnit) return;
 
     this.clearPathHover();
-    const key = `${r},${c}`;
+    const route = this.reachable.get(this.getCoordKey(r, c));
+    if (!route) return;
 
-    if (this.reachable.has(key)) {
-      const route = this.reachable.get(key);
-      let currentCostSpent = 0;
+    let currentCostSpent = 0;
+    route.trail.forEach((segment) => {
+      const cell = document.getElementById(`game-cell-${segment.r}-${segment.c}`);
+      if (!cell) return;
 
-      for (let i = 1; i < route.path.length; i++) {
-        const p = route.path[i];
-        const cell = document.getElementById(`game-cell-${p.r}-${p.c}`);
-        if (cell) {
-          cell.classList.add("path-hover");
-          const tileType = state.map[p.r][p.c];
-          currentCostSpent += TILE_TYPES[tileType].cost;
+      cell.classList.add("path-hover");
+      currentCostSpent += segment.cost;
 
-          const badge = document.createElement("div");
-          badge.className = "step-badge path-badge-temp";
-          badge.textContent = currentCostSpent;
-          cell.appendChild(badge);
-        }
-      }
-    }
+      const badge = document.createElement("div");
+      badge.className = "step-badge path-badge-temp";
+      badge.textContent = this.formatMovementPoints(currentCostSpent);
+      cell.appendChild(badge);
+    });
   },
 
   clearPathHover: function () {
-    document
-      .querySelectorAll(".path-hover")
-      .forEach((el) => el.classList.remove("path-hover"));
+    document.querySelectorAll(".path-hover").forEach((el) => el.classList.remove("path-hover"));
     document.querySelectorAll(".path-badge-temp").forEach((el) => el.remove());
   },
 };

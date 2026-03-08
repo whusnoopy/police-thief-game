@@ -16,6 +16,7 @@
   --barrier-color: #7f8fa6;
   --police-st-color: #c7ecee;
   --thief-base-color: #ffcccc;
+  --parking-color: #ffe8a3;
 
   --cell-size: clamp(30px, 8vmin, 60px);
 }
@@ -213,6 +214,9 @@ h1 {
 .cell.type-THIEF_SPAWN {
   background-color: var(--road-color);
 }
+.cell.type-PARKING {
+  background-color: var(--parking-color);
+}
 .cell.type-MANHOLE {
   background-color: var(--road-color);
 }
@@ -225,6 +229,15 @@ h1 {
   position: absolute;
   font-size: calc(var(--cell-size) * 0.6);
   z-index: 2;
+}
+
+.cell .parked-car {
+  position: absolute;
+  left: 3px;
+  bottom: 1px;
+  font-size: calc(var(--cell-size) * 0.38);
+  z-index: 4;
+  pointer-events: none;
 }
 
 /* Buttons */
@@ -477,6 +490,12 @@ h1 {
   transition:
     top 0.3s ease,
     left 0.3s ease;
+}
+
+.character.driving-token {
+  width: 88%;
+  border-radius: 16px;
+  font-size: calc(var(--cell-size) * 0.5);
 }
 
 .police-token {

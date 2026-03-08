@@ -62,6 +62,13 @@ const TILE_TYPES = {
     isSpawn: true,
     owner: "THIEF",
   },
+  PARKING: {
+    id: "PARKING",
+    name: "停车场",
+    emoji: "🅿️",
+    cost: 1,
+    walkable: ["POLICE", "THIEF"],
+  },
   MANHOLE: {
     id: "MANHOLE",
     name: "井盖",
@@ -84,6 +91,7 @@ const INT_TILE_MAP = [
   "THIEF_SPAWN",
   "MANHOLE",
   "CONSTRUCTION_SITE",
+  "PARKING",
 ];
 const TILE_INT_MAP = INT_TILE_MAP.reduce((acc, val, i) => {
   acc[val] = i;
