@@ -26,6 +26,7 @@ function backToEditor(options = {}) {
 
 function init() {
   initEditor();
+  initMapList();
   loadMap();
   renderEditorBoard();
 

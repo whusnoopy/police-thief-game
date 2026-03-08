@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>警察抓小偷 - 趣味棋盘游戏</title>
-    <link rel="stylesheet" href="style.css?v=20260308-1" />
+    <link rel="stylesheet" href="style.css?v=20260308-2" />
     <link
       href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap"
       rel="stylesheet"
@@ -26,9 +26,6 @@
           <div class="editor-actions">
             <button id="btn-clear-map" class="btn danger">🗑️ 清空地图</button>
             <button id="btn-map-list" class="btn info">📁 地图列表</button>
-            <button id="btn-share-map" class="btn secondary">
-              🔗 复制分享链接
-            </button>
             <button
               id="btn-start-game"
               class="btn success tooltip"
@@ -134,13 +131,25 @@
           </div>
         </div>
       </div>
+
+      <div id="share-link-modal" class="modal hidden">
+        <div class="modal-content">
+          <h2>地图分享链接</h2>
+          <p id="share-link-message">链接已复制到剪贴板，可直接发送给其他人。</p>
+          <input id="share-link-input" class="share-link-input" type="text" readonly />
+          <div class="modal-actions">
+            <button id="btn-copy-share-link" class="btn primary">再次复制</button>
+            <button id="btn-close-share-link-modal" class="btn secondary">关闭</button>
+          </div>
+        </div>
+      </div>
     </div>
     <script src="constants.js?v=20260308-1"></script>
-    <script src="state.js?v=20260307-1"></script>
+    <script src="state.js?v=20260308-2"></script>
     <script src="utils.js?v=20260307-1"></script>
-    <script src="editor.js?v=20260307-1"></script>
-    <script src="mapList.js?v=20260307-1"></script>
+    <script src="editor.js?v=20260308-2"></script>
+    <script src="mapList.js?v=20260308-2"></script>
     <script src="gameEngine.js?v=20260307-1"></script>
-    <script src="script.js?v=20260307-1"></script>
+    <script src="script.js?v=20260308-2"></script>
   </body>
 </html>

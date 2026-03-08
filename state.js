@@ -14,7 +14,6 @@ const els = {
   editorBoard: document.getElementById("editor-board"),
   gameBoard: document.getElementById("game-board"),
   palette: document.getElementById("palette"),
-  btnShareMap: document.getElementById("btn-share-map"),
   btnClearMap: document.getElementById("btn-clear-map"),
   btnStartGame: document.getElementById("btn-start-game"),
   btnBackEditor: document.getElementById("btn-back-editor"),
@@ -37,4 +36,9 @@ const els = {
   btnCreateMap: document.getElementById("btn-create-map"),
   mapListGrid: document.getElementById("map-list-grid"),
   mapListEmpty: document.getElementById("map-list-empty"),
+  shareLinkModal: document.getElementById("share-link-modal"),
+  shareLinkMessage: document.getElementById("share-link-message"),
+  shareLinkInput: document.getElementById("share-link-input"),
+  btnCopyShareLink: document.getElementById("btn-copy-share-link"),
+  btnCloseShareLinkModal: document.getElementById("btn-close-share-link-modal"),
 };

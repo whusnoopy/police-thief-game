@@ -1,5 +1,6 @@
 const MAP_LIST_STORAGE_KEY = "policeThiefMapList";
 const CURRENT_MAP_ID_STORAGE_KEY = "policeThiefCurrentMapId";
+let currentShareLink = "";
 
 function generateMapId() {
   return "map_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11);
@@ -45,6 +46,111 @@ function createEmptyMapMatrix() {
   return Array(GRID_SIZE)
     .fill()
     .map(() => Array(GRID_SIZE).fill("GRASS"));
+}
+
+function cloneMapMatrix(mapMatrix) {
+  return mapMatrix.map((row) => row.slice());
+}
+
+function formatDuplicateMapName(sourceName, existingMaps) {
+  const baseName = `${sourceName}（副本）`;
+  if (!existingMaps.some((m) => m.name === baseName)) return baseName;
+  let index = 2;
+  while (existingMaps.some((m) => m.name === `${sourceName}（副本${index}）`)) {
+    index += 1;
+  }
+  return `${sourceName}（副本${index}）`;
+}
+
+function buildMapShareUrl(encodedMap) {
+  return (
+    window.location.protocol +
+    "//" +
+    window.location.host +
+    window.location.pathname +
+    "?m=" +
+    encodedMap
+  );
+}
+
+function copyTextToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject) => {
+    const helper = document.createElement("textarea");
+    helper.value = text;
+    helper.setAttribute("readonly", "");
+    helper.style.position = "fixed";
+    helper.style.opacity = "0";
+    helper.style.pointerEvents = "none";
+    document.body.appendChild(helper);
+    helper.focus();
+    helper.select();
+    const copied = document.execCommand("copy");
+    document.body.removeChild(helper);
+    if (copied) resolve();
+    else reject(new Error("copy failed"));
+  });
+}
+
+function showShareLinkModal(link, copied = true) {
+  if (!els.shareLinkModal || !els.shareLinkInput || !els.shareLinkMessage) return;
+  currentShareLink = link;
+  els.shareLinkInput.value = link;
+  els.shareLinkMessage.textContent = copied
+    ? "分享链接已复制到剪贴板，也可以在下方手动复制。"
+    : "自动复制失败，请手动复制下方链接。";
+  els.shareLinkModal.classList.remove("hidden");
+  setTimeout(() => {
+    els.shareLinkInput.focus();
+    els.shareLinkInput.select();
+  }, 0);
+}
+
+function hideShareLinkModal() {
+  if (!els.shareLinkModal) return;
+  els.shareLinkModal.classList.add("hidden");
+}
+
+function shareMapByData(encodedMap) {
+  const shareLink = buildMapShareUrl(encodedMap);
+  copyTextToClipboard(shareLink)
+    .then(() => showShareLinkModal(shareLink, true))
+    .catch(() => showShareLinkModal(shareLink, false));
+}
+
+function initMapList() {
+  if (els.btnCloseShareLinkModal) {
+    els.btnCloseShareLinkModal.addEventListener("click", hideShareLinkModal);
+  }
+  if (els.shareLinkModal) {
+    els.shareLinkModal.addEventListener("click", (event) => {
+      if (event.target === els.shareLinkModal) hideShareLinkModal();
+    });
+  }
+  if (els.btnCopyShareLink) {
+    els.btnCopyShareLink.addEventListener("click", () => {
+      if (!currentShareLink) return;
+      copyTextToClipboard(currentShareLink)
+        .then(() => {
+          if (els.shareLinkMessage) {
+            els.shareLinkMessage.textContent =
+              "链接已再次复制到剪贴板，也可以继续手动复制。";
+          }
+          if (els.shareLinkInput) {
+            els.shareLinkInput.focus();
+            els.shareLinkInput.select();
+          }
+        })
+        .catch(() => {
+          if (els.shareLinkMessage) {
+            els.shareLinkMessage.textContent =
+              "自动复制失败，请手动复制下方链接。";
+          }
+        });
+    });
+  }
 }
 
 function upsertCurrentMapInList(encodedMap = encodeMapToUrlSafeBase64(state.map), options = {}) {
@@ -203,7 +309,34 @@ function renderMapList() {
       }
     };
 
+    const btnShare = document.createElement("button");
+    btnShare.className = "btn info";
+    btnShare.innerHTML = "🔗 分享";
+    btnShare.onclick = () => {
+      shareMapByData(mapObj.data);
+    };
+
+    const btnDuplicate = document.createElement("button");
+    btnDuplicate.className = "btn secondary";
+    btnDuplicate.innerHTML = "📄 复制";
+    btnDuplicate.onclick = () => {
+      let mapMatrix;
+      try {
+        mapMatrix = decodeUrlSafeBase64ToMap(mapObj.data);
+      } catch (e) {
+        alert("该地图数据损坏，无法复制。");
+        return;
+      }
+      const duplicateName = formatDuplicateMapName(mapObj.name, maps);
+      state.map = cloneMapMatrix(mapMatrix);
+      saveMap({ forceNewMap: true, mapName: duplicateName });
+      renderEditorBoard();
+      hideMapList();
+    };
+
     actions.appendChild(btnLoad);
+    actions.appendChild(btnShare);
+    actions.appendChild(btnDuplicate);
     actions.appendChild(btnRename);
     actions.appendChild(btnDelete);
 

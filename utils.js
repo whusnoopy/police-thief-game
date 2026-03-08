@@ -1,5 +1,5 @@
 function showToast(msg, targetBtn = null) {
-  const btn = targetBtn || els.btnShareMap || els.btnMapList;
+  const btn = targetBtn || els.btnMapList;
   if (!btn) return;
   const oldText = btn.innerHTML;
   btn.innerHTML = `✅ ${msg}`;

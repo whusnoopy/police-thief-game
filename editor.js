@@ -15,7 +15,6 @@ function initEditor() {
     els.palette.appendChild(item);
   });
 
-  if (els.btnShareMap) els.btnShareMap.addEventListener("click", shareMap);
   els.btnClearMap.addEventListener("click", clearMap);
 }
 
@@ -108,18 +107,6 @@ function updateMapUrl() {
     "?m=" +
     encodedMap;
   window.history.replaceState({ path: newUrl }, "", newUrl);
-}
-
-function shareMap() {
-  updateMapUrl();
-  navigator.clipboard
-    .writeText(window.location.href)
-    .then(() => {
-      showToast("分享链接已复制！", els.btnShareMap);
-    })
-    .catch((err) => {
-      showToast("复制失败，请手动复制地址栏", els.btnShareMap);
-    });
 }
 
 function loadMap() {
