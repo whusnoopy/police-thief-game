@@ -357,9 +357,22 @@ h1 {
   margin-bottom: 10px;
 }
 
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .legend p {
   font-size: 0.9rem;
-  margin-bottom: 5px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.legend .emoji {
+  flex: 0 0 auto;
 }
 
 /* Animations */
