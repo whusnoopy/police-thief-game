@@ -25,6 +25,7 @@ export function createGameSession(mapDefinition) {
   getFeaturePositionsByKind(sessionMapDefinition, "PARKING").forEach((position) => {
     parkingCars.add(`${position.r},${position.c}`);
   });
+  const parkedCars = new Set(parkingCars);
 
   return {
     mapDefinition: sessionMapDefinition,
@@ -33,5 +34,6 @@ export function createGameSession(mapDefinition) {
     policeUnits,
     thiefUnits,
     parkingCars,
+    parkedCars,
   };
 }

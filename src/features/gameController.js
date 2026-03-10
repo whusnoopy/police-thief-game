@@ -48,6 +48,7 @@ export const gameController = {
   policeUnits: [],
   thiefUnits: [],
   parkingCars: new Set(),
+  parkedCars: new Set(),
   selectedUnit: null,
   reachable: new Map(),
 
@@ -60,6 +61,7 @@ export const gameController = {
     this.policeUnits = this.session.policeUnits;
     this.thiefUnits = this.session.thiefUnits;
     this.parkingCars = this.session.parkingCars;
+    this.parkedCars = this.session.parkedCars;
 
     this.setupUI();
     this.renderGameBoard();
@@ -72,6 +74,10 @@ export const gameController = {
 
   hasAvailableCar(r, c) {
     return this.parkingCars.has(this.getCoordKey(r, c));
+  },
+
+  hasParkedCar(r, c) {
+    return this.parkedCars.has(this.getCoordKey(r, c));
   },
 
   setupUI() {
@@ -90,8 +96,8 @@ export const gameController = {
     renderBoard(els.gameBoard, {
       mapDefinition: this.session?.mapDefinition || state.mapDefinition,
       cellIdPrefix: GAME_CELL_ID_PREFIX,
-      decorateCell: (cell, { r, c, display }) => {
-        if (display.tileType !== "PARKING" || !this.hasAvailableCar(r, c)) return;
+      decorateCell: (cell, { r, c }) => {
+        if (!this.hasParkedCar(r, c)) return;
         appendParkedCar(cell);
       },
       bindCell: (cell, { r, c }) => {

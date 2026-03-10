@@ -1,5 +1,9 @@
 import { getCarriedThiefByCarrier } from "../game/sessionSelectors.js";
 
+function getCoordKey(r, c) {
+  return `${r},${c}`;
+}
+
 function getActiveThiefAt(session, r, c) {
   return (
     session.thiefUnits.find(
@@ -31,6 +35,7 @@ function jailCarriedThief(session, policeUnit) {
 export function applyResolvedAction({ session, turn, unit, action }) {
   if (action.boardedCarAt) {
     session.parkingCars.delete(action.boardedCarAt);
+    session.parkedCars.delete(action.boardedCarAt);
   }
 
   unit.r = action.to.r;
@@ -66,6 +71,10 @@ export function applyResolvedAction({ session, turn, unit, action }) {
   }
 
   if (turn === "THIEF" && action.type === "ESCAPE") {
+    if (unit.inCar) {
+      session.parkedCars.add(getCoordKey(action.to.r, action.to.c));
+      unit.inCar = false;
+    }
     unit.state = "ESCAPED";
   }
 }
