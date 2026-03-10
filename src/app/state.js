@@ -1,19 +1,26 @@
-// Application State
-const state = {
-  map: Array(GRID_SIZE)
-    .fill()
-    .map(() => Array(GRID_SIZE).fill("GRASS")),
-  mode: "EDITOR", // EDITOR or GAME
+import { cloneMapDefinition, createEmptyMapDefinition } from "../domain/map/mapModel.js";
+
+const initialMapDefinition = createEmptyMapDefinition();
+
+export const state = {
+  mapDefinition: initialMapDefinition,
+  mode: "EDITOR",
   currentPaletteType: "GRASS",
 };
 
-// DOM Elements
-const els = {
+export function setMapDefinition(mapDefinition) {
+  state.mapDefinition = cloneMapDefinition(mapDefinition);
+  return state.mapDefinition;
+}
+
+export const els = {
   editorView: document.getElementById("editor-view"),
   gameView: document.getElementById("game-view"),
+  mapListView: document.getElementById("map-list-view"),
   editorBoard: document.getElementById("editor-board"),
   gameBoard: document.getElementById("game-board"),
   palette: document.getElementById("palette"),
+  modeIndicator: document.getElementById("mode-indicator"),
   btnClearMap: document.getElementById("btn-clear-map"),
   btnStartGame: document.getElementById("btn-start-game"),
   btnBackEditor: document.getElementById("btn-back-editor"),
@@ -30,7 +37,6 @@ const els = {
   victoryMessage: document.getElementById("victory-message"),
   btnPlayAgain: document.getElementById("btn-play-again"),
   btnModalEditor: document.getElementById("btn-modal-editor"),
-  mapListView: document.getElementById("map-list-view"),
   btnMapList: document.getElementById("btn-map-list"),
   btnBackFromList: document.getElementById("btn-back-from-list"),
   btnCreateMap: document.getElementById("btn-create-map"),

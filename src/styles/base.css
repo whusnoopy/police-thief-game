@@ -1,0 +1,183 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Nunito", sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Fredoka One", cursive;
+}
+
+h1 {
+  font-size: 2.5rem;
+  color: var(--primary-color);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.badge {
+  display: inline-block;
+  background-color: var(--warning-color);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  margin-top: 10px;
+  max-width: min(90vw, 860px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.btn {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  font-family: inherit;
+  font-weight: bold;
+  cursor: pointer;
+  transition:
+    transform 0.1s,
+    opacity 0.2s;
+  font-size: 1rem;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn.primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn.success {
+  background-color: var(--success-color);
+  color: white;
+}
+
+.btn.warning {
+  background-color: var(--warning-color);
+  color: white;
+}
+
+.btn.danger {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.btn.secondary {
+  background-color: #95a5a6;
+  color: white;
+}
+
+.btn.info {
+  background-color: var(--info-color);
+  color: white;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.help-text {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  line-height: 1.4;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 30px;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  animation: slideDown 0.3s ease;
+}
+
+.modal-content h2 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+  color: var(--primary-color);
+}
+
+.modal-content p {
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.share-link-input {
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid #d5dce4;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #2c3e50;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

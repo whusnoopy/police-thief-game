@@ -1,6 +1,6 @@
-// Constants
-const GRID_SIZE = 10;
-const TILE_TYPES = {
+export const GRID_SIZE = 10;
+
+export const TILE_TYPES = {
   GRASS: {
     id: "GRASS",
     name: "草地",
@@ -77,23 +77,3 @@ const TILE_TYPES = {
     walkable: ["POLICE", "THIEF"],
   },
 };
-
-const BASE64_ALPHABET =
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-const INT_TILE_MAP = [
-  "GRASS",
-  "BUILDING",
-  "BARRIER",
-  "ROAD",
-  "POLICE_STATION",
-  "THIEF_BASE",
-  "POLICE_SPAWN",
-  "THIEF_SPAWN",
-  "MANHOLE",
-  "CONSTRUCTION_SITE",
-  "PARKING",
-];
-const TILE_INT_MAP = INT_TILE_MAP.reduce((acc, val, i) => {
-  acc[val] = i;
-  return acc;
-}, {});

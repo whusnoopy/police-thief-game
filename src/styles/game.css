@@ -1,0 +1,143 @@
+.palette {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border: 2px solid #ecf0f1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.palette-item:hover {
+  border-color: var(--primary-color);
+  background-color: #f7f9fa;
+}
+
+.palette-item.active {
+  border-color: var(--primary-color);
+  background-color: #e3f2fd;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
+}
+
+.palette-icon {
+  font-size: 1.5rem;
+  margin-right: 10px;
+}
+
+.palette-name {
+  font-size: 0.9rem;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.status-panel {
+  text-align: center;
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.player-stats {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.stat-box {
+  padding: 8px 12px;
+  border-radius: 20px;
+  background-color: #eee;
+  opacity: 0.5;
+  transition: all 0.3s;
+}
+
+.stat-box.active {
+  opacity: 1;
+  background-color: var(--primary-color);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transform: scale(1.05);
+}
+
+.stat-box#thief-stat.active {
+  background-color: var(--danger-color);
+}
+
+.dice-panel {
+  text-align: center;
+  padding: 20px;
+  background-color: #fff9c4;
+  border-radius: 8px;
+  border: 2px dashed #f1c40f;
+}
+
+.dice {
+  font-size: 4rem;
+  margin: 10px 0;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.dice.rolling {
+  animation: shake 0.5s infinite;
+}
+
+.dice-result {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.game-message {
+  color: var(--primary-color);
+  font-weight: bold;
+  min-height: 24px;
+  margin-bottom: 10px;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legend p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.legend .emoji {
+  flex: 0 0 auto;
+}
+
+@keyframes shake {
+  0% {
+    transform: rotate(0deg) translate(0);
+  }
+
+  25% {
+    transform: rotate(15deg) translate(2px, -2px);
+  }
+
+  50% {
+    transform: rotate(0deg) translate(0);
+  }
+
+  75% {
+    transform: rotate(-15deg) translate(-2px, 2px);
+  }
+
+  100% {
+    transform: rotate(0deg) translate(0);
+  }
+}

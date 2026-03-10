@@ -1,0 +1,21 @@
+:root {
+  --bg-color: #f4f6f8;
+  --text-color: #2c3e50;
+  --primary-color: #3498db;
+  --success-color: #2ecc71;
+  --warning-color: #f39c12;
+  --danger-color: #e74c3c;
+  --info-color: #9b59b6;
+  --board-bg: #bdc3c7;
+  --panel-bg: #ffffff;
+
+  --grass-color: #a8e6cf;
+  --road-color: #fdfdff;
+  --building-color: #dcdde1;
+  --barrier-color: #7f8fa6;
+  --police-st-color: #c7ecee;
+  --thief-base-color: #ffcccc;
+  --parking-color: #ffe8a3;
+
+  --cell-size: clamp(30px, 8vmin, 60px);
+}
