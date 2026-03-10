@@ -1,3 +1,4 @@
+import { SIGNAL_PHASES } from "../../config/constants.js";
 import { cloneMapDefinition } from "../map/mapModel.js";
 import { getFeaturePositionsByKind } from "../map/mapQueries.js";
 
@@ -31,6 +32,7 @@ export function createGameSession(mapDefinition) {
     mapDefinition: sessionMapDefinition,
     turn: "THIEF",
     diceValue: 0,
+    signalPhase: SIGNAL_PHASES.PEDESTRIAN_GREEN,
     policeUnits,
     thiefUnits,
     parkingCars,

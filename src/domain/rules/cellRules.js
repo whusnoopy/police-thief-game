@@ -36,6 +36,27 @@ const TERRAIN_RULES = {
     walkableRoles: ["POLICE", "THIEF"],
     driveCost: 1,
   },
+  CROSSWALK: {
+    tileType: "CROSSWALK_HORIZONTAL",
+    category: "TERRAIN",
+    entryCost: 1,
+    walkableRoles: ["POLICE", "THIEF"],
+    driveCost: 1,
+  },
+  CROSSWALK_HORIZONTAL: {
+    tileType: "CROSSWALK_HORIZONTAL",
+    category: "TERRAIN",
+    entryCost: 1,
+    walkableRoles: ["POLICE", "THIEF"],
+    driveCost: 1,
+  },
+  CROSSWALK_VERTICAL: {
+    tileType: "CROSSWALK_VERTICAL",
+    category: "TERRAIN",
+    entryCost: 1,
+    walkableRoles: ["POLICE", "THIEF"],
+    driveCost: 1,
+  },
 };
 
 const FEATURE_RULES = {
@@ -62,6 +83,13 @@ const FEATURE_RULES = {
   },
   MANHOLE: {
     tileType: "MANHOLE",
+    category: "FEATURE",
+    entryCost: 1,
+    walkableRoles: ["POLICE", "THIEF"],
+    driveCost: 1,
+  },
+  TRAFFIC_LIGHT: {
+    tileType: "TRAFFIC_LIGHT",
     category: "FEATURE",
     entryCost: 1,
     walkableRoles: ["POLICE", "THIEF"],

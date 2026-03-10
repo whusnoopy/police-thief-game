@@ -1,6 +1,11 @@
-import { GRID_SIZE } from "../../config/constants.js";
+import { GRID_SIZE, SIGNAL_PHASES, normalizeSignalPhase } from "../../config/constants.js";
+import {
+  getAllowedCrosswalkAxis,
+  isCrosswalkTileType,
+  isStepAlongAxis,
+} from "../map/crosswalk.js";
 import { getTileTypeAt, getFeaturePositionsByKind } from "../map/mapQueries.js";
-import { getUnitAt, hasAvailableCar } from "../game/sessionSelectors.js";
+import { getUnitAt, hasAvailableCar, hasParkedCar } from "../game/sessionSelectors.js";
 import { getCellRuleAt } from "./cellRules.js";
 
 export const HALF_STEP_POINTS = 2;
@@ -8,6 +13,23 @@ export const DRIVE_COST_POINTS = 1;
 
 function getCoordKey(r, c) {
   return `${r},${c}`;
+}
+
+function isCrosswalkMoveBlocked({ session, fromTileType, toTileType, isDriving, dr, dc }) {
+  const signalPhase = normalizeSignalPhase(
+    session?.signalPhase || SIGNAL_PHASES.PEDESTRIAN_GREEN,
+  );
+  const tileTypesToCheck = [fromTileType, toTileType].filter(isCrosswalkTileType);
+
+  return tileTypesToCheck.some((tileType) => {
+    const allowedAxis = getAllowedCrosswalkAxis(tileType, isDriving, signalPhase);
+    return !allowedAxis || !isStepAlongAxis(dr, dc, allowedAxis);
+  });
+}
+
+function getNormalizedTileTypeAt(mapDefinition, r, c) {
+  const cellRule = getCellRuleAt(mapDefinition, r, c);
+  return cellRule.tileType;
 }
 
 function chooseBetterAction(existing, candidate) {
@@ -133,13 +155,32 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
     const possibleMoves = getPossibleMoves(session, current, isThief);
     for (const move of possibleMoves) {
       const { nr, nc } = move;
+      const dr = nr - current.r;
+      const dc = nc - current.c;
 
       if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) continue;
       if (current.path.some((point) => point.r === nr && point.c === nc)) continue;
 
       const cellRule = getCellRuleAt(session.mapDefinition, nr, nc);
       const tileType = cellRule.tileType;
+      const currentTileType = getNormalizedTileTypeAt(session.mapDefinition, current.r, current.c);
+      const destinationHasAvailableCar = hasAvailableCar(session, nr, nc);
+      const destinationHasParkedCar = hasParkedCar(session, nr, nc);
       if (!cellRule.walkableRoles.includes(role)) continue;
+      if (
+        !move.isTeleport &&
+        isCrosswalkMoveBlocked({
+          session,
+          fromTileType: currentTileType,
+          toTileType: tileType,
+          isDriving: current.isDriving,
+          dr,
+          dc,
+        })
+      ) {
+        continue;
+      }
+      if (current.isDriving && !move.isTeleport && destinationHasParkedCar) continue;
 
       const cost = getMoveCost(current.isDriving, cellRule, move.isTeleport);
       if (cost === null || current.pointsLeft < cost) continue;
@@ -164,8 +205,8 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
       if (
         !nextDriving &&
         !move.isTeleport &&
-        tileType === "PARKING" &&
-        hasAvailableCar(session, nr, nc)
+        destinationHasAvailableCar &&
+        cellRule.driveCost !== null
       ) {
         nextDriving = true;
         boardedCarAt = boardedCarAt || getCoordKey(nr, nc);

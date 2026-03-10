@@ -1,5 +1,7 @@
 import { els, state } from "../app/state.js";
+import { SIGNAL_PHASES, normalizeSignalPhase } from "../config/constants.js";
 import { createGameSession } from "../domain/game/sessionFactory.js";
+import { getCrosswalkSignalPositions, isCrosswalkTileType } from "../domain/map/crosswalk.js";
 import {
   getActiveUnitsForTurn as getTurnUnits,
   getUnitAt as getSessionUnitAt,
@@ -39,6 +41,25 @@ import {
 } from "../ui/game/statusRenderer.js";
 
 const GAME_CELL_ID_PREFIX = "game-cell";
+
+function appendCrosswalkSignals(cell, { tileType, signalPhase }) {
+  if (!isCrosswalkTileType(tileType)) return;
+
+  const lightStateClass = normalizeSignalPhase(signalPhase) === SIGNAL_PHASES.PEDESTRIAN_GREEN
+    ? "green"
+    : "red";
+  getCrosswalkSignalPositions(tileType).forEach((position) => {
+    const light = document.createElement("span");
+    light.className = `signal-light ${position} ${lightStateClass}`;
+    cell.appendChild(light);
+  });
+}
+
+function getNextSignalPhase(signalPhase) {
+  return normalizeSignalPhase(signalPhase) === SIGNAL_PHASES.PEDESTRIAN_GREEN
+    ? SIGNAL_PHASES.PEDESTRIAN_RED
+    : SIGNAL_PHASES.PEDESTRIAN_GREEN;
+}
 
 export const gameController = {
   session: null,
@@ -96,7 +117,11 @@ export const gameController = {
     renderBoard(els.gameBoard, {
       mapDefinition: this.session?.mapDefinition || state.mapDefinition,
       cellIdPrefix: GAME_CELL_ID_PREFIX,
-      decorateCell: (cell, { r, c }) => {
+      decorateCell: (cell, { r, c, display }) => {
+        appendCrosswalkSignals(cell, {
+          tileType: display.tileType,
+          signalPhase: this.session?.signalPhase || SIGNAL_PHASES.PEDESTRIAN_GREEN,
+        });
         if (!this.hasParkedCar(r, c)) return;
         appendParkedCar(cell);
       },
@@ -115,7 +140,7 @@ export const gameController = {
   },
 
   updateTurnUI() {
-    renderTurnStart(this.turn);
+    renderTurnStart(this.turn, this.session?.signalPhase);
     this.diceValue = 0;
     if (this.session) {
       this.session.diceValue = 0;
@@ -276,11 +301,7 @@ export const gameController = {
       return;
     }
 
-    this.turn = getNextTurn(this.turn);
-    if (this.session) {
-      this.session.turn = this.turn;
-    }
-    this.updateTurnUI();
+    this.advanceTurn();
   },
 
   showVictory(type) {
@@ -290,9 +311,22 @@ export const gameController = {
   },
 
   skipTurn() {
-    this.turn = getNextTurn(this.turn);
+    this.advanceTurn();
+  },
+
+  advanceTurn() {
+    const nextTurn = getNextTurn(this.turn);
+    let signalChanged = false;
+    if (this.session && this.turn === "POLICE") {
+      this.session.signalPhase = getNextSignalPhase(this.session.signalPhase);
+      signalChanged = true;
+    }
+    this.turn = nextTurn;
     if (this.session) {
       this.session.turn = this.turn;
+    }
+    if (signalChanged) {
+      this.renderGameBoard();
     }
     this.updateTurnUI();
   },

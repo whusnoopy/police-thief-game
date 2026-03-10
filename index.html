@@ -49,6 +49,9 @@
         <div class="game-sidebar">
           <div class="status-panel">
             <h3 id="turn-indicator">🏃 小偷回合</h3>
+            <p id="signal-indicator" class="signal-indicator pedestrian-go">
+              🚥 当前：行人通行
+            </p>
             <div class="player-stats">
               <div class="stat-box" id="police-stat">
                 <span class="icon">🚓</span>
@@ -69,10 +72,12 @@
               <span id="dice-value">?</span>
             </div>
             <p id="game-message" class="game-message">点击骰子投掷</p>
-            <button id="btn-roll-dice" class="btn primary">🎲 掷骰子</button>
-            <button id="btn-skip-turn" class="btn warning hidden">
-              ⏭️ 跳过回合
-            </button>
+            <div class="dice-actions">
+              <button id="btn-roll-dice" class="btn primary">🎲 掷骰子</button>
+              <button id="btn-skip-turn" class="btn warning hidden">
+                ⏭️ 跳过回合
+              </button>
+            </div>
           </div>
 
           <div class="game-actions">
@@ -80,15 +85,20 @@
               ⬅️ 返回编辑
             </button>
           </div>
-          <div class="legend">
-            <p><span class="emoji">⬜🔵🔴</span> 道路消耗 1 步，出生点等同道路</p>
-            <p><span class="emoji">🌿</span> 草地消耗 2 步</p>
-            <p><span class="emoji">🏢🏗️🚧</span> 建筑物、建筑工地、路障不可进入</p>
-            <p><span class="emoji">🚨</span> 警察局仅警察可进入，押送小偷进入警局将让警察可再次抓人</p>
-            <p><span class="emoji">🏚️</span> 小偷基地仅小偷可进入，小偷进入即逃脱；若驾车到达，汽车会留在基地</p>
-            <p><span class="emoji">🕳️</span> 井盖对警察等同道路，小偷站在井盖上可 1 步传送到其他任何井盖</p>
-            <p><span class="emoji">🅿️🚗</span> 停车场等同道路且默认停放空车；进入即可开车，开车每格仅消耗 0.5 步、不能经过草地，暂不支持下车</p>
-          </div>
+          <details class="legend-panel">
+            <summary>查看规则说明</summary>
+            <div class="legend">
+              <p><span class="emoji">⬜🔵🔴</span> 道路消耗 1 步，出生点等同道路</p>
+              <p><span class="emoji">↔️↕️</span> 斑马线分横向和纵向；行人只能按斑马线方向在绿灯时通过，车辆只能按垂直方向在红灯时通过</p>
+              <p><span class="emoji">🌿</span> 草地消耗 2 步</p>
+              <p><span class="emoji">🏢🏗️🚧</span> 建筑物、建筑工地、路障不可进入</p>
+              <p><span class="emoji">🚨</span> 警察局仅警察可进入，押送小偷进入警局将让警察可再次抓人</p>
+              <p><span class="emoji">🟢🔴</span> 斑马线两侧的小灯只表示行人信号；绿灯时行人可按斑马线方向通过，红灯时车辆可按垂直方向通过；每两次行动切换一次</p>
+              <p><span class="emoji">🏚️</span> 小偷基地仅小偷可进入，小偷进入即逃脱；若驾车到达，汽车会留在基地</p>
+              <p><span class="emoji">🕳️</span> 井盖对警察等同道路，小偷站在井盖上可 1 步传送到其他任何井盖</p>
+              <p><span class="emoji">🅿️🚗</span> 停车场等同道路且默认停放空车；进入即可开车，开车每格仅消耗 0.5 步、不能经过草地，暂不支持下车</p>
+            </div>
+          </details>
         </div>
 
         <div class="board-container">

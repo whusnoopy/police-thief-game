@@ -28,7 +28,7 @@ function bindPointerState() {
 export function initEditor() {
   bindPointerState();
   renderPalette(els.palette, {
-    tileTypes: Object.values(TILE_TYPES),
+    tileTypes: Object.values(TILE_TYPES).filter((tileType) => !tileType.hiddenFromPalette),
     currentPaletteType: state.currentPaletteType,
     onSelect(typeId, item) {
       document.querySelectorAll(".palette-item").forEach((paletteItem) => {

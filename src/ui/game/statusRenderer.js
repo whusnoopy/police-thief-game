@@ -1,4 +1,5 @@
 import { els } from "../../app/state.js";
+import { SIGNAL_PHASES, normalizeSignalPhase } from "../../config/constants.js";
 
 const DICE_FACES = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
@@ -7,6 +8,20 @@ function setTurnIndicator(turn) {
   els.turnIndicator.textContent = isThief ? "🏃 小偷回合" : "🚓 警察回合";
   els.policeStat.classList.toggle("active", !isThief);
   els.thiefStat.classList.toggle("active", isThief);
+}
+
+function getSignalLabel(signalPhase) {
+  return normalizeSignalPhase(signalPhase) === SIGNAL_PHASES.PEDESTRIAN_RED
+    ? "行人红灯"
+    : "行人绿灯";
+}
+
+function setSignalIndicator(signalPhase) {
+  if (!els.signalIndicator) return;
+  const isPedestrianRed = normalizeSignalPhase(signalPhase) === SIGNAL_PHASES.PEDESTRIAN_RED;
+  els.signalIndicator.textContent = `🚥 当前：${getSignalLabel(signalPhase)}`;
+  els.signalIndicator.classList.toggle("car-go", isPedestrianRed);
+  els.signalIndicator.classList.toggle("pedestrian-go", !isPedestrianRed);
 }
 
 function setActionButtons({ rollHidden = false, rollDisabled = false, skipHidden = true } = {}) {
@@ -19,8 +34,9 @@ export function getRandomDiceFace() {
   return DICE_FACES[Math.floor(Math.random() * DICE_FACES.length)];
 }
 
-export function renderTurnStart(turn) {
+export function renderTurnStart(turn, signalPhase) {
   setTurnIndicator(turn);
+  setSignalIndicator(signalPhase);
   els.diceEl.classList.remove("rolling");
   els.diceEl.textContent = "🎲";
   els.diceValueEl.textContent = "?";

@@ -1,4 +1,5 @@
 import { GRID_SIZE } from "../../config/constants.js";
+import { normalizeCrosswalkTileType } from "./crosswalk.js";
 
 export const TERRAIN_TILE_TYPES = [
   "GRASS",
@@ -6,6 +7,9 @@ export const TERRAIN_TILE_TYPES = [
   "CONSTRUCTION_SITE",
   "BARRIER",
   "ROAD",
+  "CROSSWALK",
+  "CROSSWALK_HORIZONTAL",
+  "CROSSWALK_VERTICAL",
 ];
 
 export const FEATURE_TILE_TYPES = [
@@ -13,6 +17,7 @@ export const FEATURE_TILE_TYPES = [
   "THIEF_BASE",
   "PARKING",
   "MANHOLE",
+  "TRAFFIC_LIGHT",
 ];
 
 export const SPAWN_TILE_TYPES = ["POLICE_SPAWN", "THIEF_SPAWN"];
@@ -22,6 +27,7 @@ const DEFAULT_FEATURE_TERRAIN = {
   THIEF_BASE: "ROAD",
   PARKING: "ROAD",
   MANHOLE: "ROAD",
+  TRAFFIC_LIGHT: "ROAD",
 };
 
 const TILE_TO_SPAWN_KEY = {
@@ -86,7 +92,7 @@ function normalizeTerrainMatrix(terrain) {
   const normalized = createEmptyTerrainMatrix();
   for (let r = 0; r < GRID_SIZE; r += 1) {
     for (let c = 0; c < GRID_SIZE; c += 1) {
-      const tileType = terrain?.[r]?.[c];
+      const tileType = normalizeCrosswalkTileType(terrain?.[r]?.[c]);
       normalized[r][c] = TERRAIN_TILE_TYPES.includes(tileType) ? tileType : "GRASS";
     }
   }

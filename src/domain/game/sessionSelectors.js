@@ -28,3 +28,7 @@ export function getActiveUnitsForTurn(session, turn) {
 export function hasAvailableCar(session, r, c) {
   return session?.parkingCars?.has(`${r},${c}`) || false;
 }
+
+export function hasParkedCar(session, r, c) {
+  return session?.parkedCars?.has(`${r},${c}`) || false;
+}

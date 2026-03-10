@@ -10,6 +10,7 @@ const DEFAULT_ELEMENT_IDS = [
   "btn-start-game",
   "btn-back-editor",
   "turn-indicator",
+  "signal-indicator",
   "police-stat",
   "thief-stat",
   "dice",

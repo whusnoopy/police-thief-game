@@ -1,5 +1,20 @@
 export const GRID_SIZE = 10;
 
+export const SIGNAL_PHASES = {
+  PEDESTRIAN_GREEN: "PEDESTRIAN_GREEN",
+  PEDESTRIAN_RED: "PEDESTRIAN_RED",
+  PEDESTRIAN_GO: "PEDESTRIAN_GREEN",
+  CAR_GO: "PEDESTRIAN_RED",
+};
+
+export function normalizeSignalPhase(signalPhase) {
+  if (signalPhase === SIGNAL_PHASES.PEDESTRIAN_RED || signalPhase === "CAR_GO") {
+    return SIGNAL_PHASES.PEDESTRIAN_RED;
+  }
+
+  return SIGNAL_PHASES.PEDESTRIAN_GREEN;
+}
+
 export const TILE_TYPES = {
   GRASS: {
     id: "GRASS",
@@ -27,6 +42,28 @@ export const TILE_TYPES = {
     id: "ROAD",
     name: "道路",
     emoji: "⬜",
+    cost: 1,
+    walkable: ["POLICE", "THIEF"],
+  },
+  CROSSWALK: {
+    id: "CROSSWALK",
+    name: "旧斑马线",
+    emoji: "🚸",
+    cost: 1,
+    walkable: ["POLICE", "THIEF"],
+    hiddenFromPalette: true,
+  },
+  CROSSWALK_HORIZONTAL: {
+    id: "CROSSWALK_HORIZONTAL",
+    name: "横向斑马线",
+    emoji: "↔️",
+    cost: 1,
+    walkable: ["POLICE", "THIEF"],
+  },
+  CROSSWALK_VERTICAL: {
+    id: "CROSSWALK_VERTICAL",
+    name: "纵向斑马线",
+    emoji: "↕️",
     cost: 1,
     walkable: ["POLICE", "THIEF"],
   },
@@ -75,5 +112,13 @@ export const TILE_TYPES = {
     emoji: "🕳️",
     cost: 1,
     walkable: ["POLICE", "THIEF"],
+  },
+  TRAFFIC_LIGHT: {
+    id: "TRAFFIC_LIGHT",
+    name: "旧红绿灯",
+    emoji: "🚦",
+    cost: 1,
+    walkable: ["POLICE", "THIEF"],
+    hiddenFromPalette: true,
   },
 };

@@ -22,6 +22,8 @@ function toComparableMap(mapDefinition) {
 test("v2 codec preserves terrain, features, and spawns", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "ROAD");
+  setLegacyTileAt(mapDefinition, 0, 1, "CROSSWALK_HORIZONTAL");
+  setLegacyTileAt(mapDefinition, 0, 2, "CROSSWALK_VERTICAL");
   setLegacyTileAt(mapDefinition, 1, 1, "BUILDING");
   setLegacyTileAt(mapDefinition, 2, 2, "POLICE_STATION");
   setLegacyTileAt(mapDefinition, 3, 3, "MANHOLE");

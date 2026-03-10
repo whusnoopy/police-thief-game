@@ -25,6 +25,7 @@ export const els = {
   btnStartGame: document.getElementById("btn-start-game"),
   btnBackEditor: document.getElementById("btn-back-editor"),
   turnIndicator: document.getElementById("turn-indicator"),
+  signalIndicator: document.getElementById("signal-indicator"),
   policeStat: document.getElementById("police-stat"),
   thiefStat: document.getElementById("thief-stat"),
   diceEl: document.getElementById("dice"),

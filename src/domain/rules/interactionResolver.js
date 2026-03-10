@@ -4,6 +4,17 @@ function getCoordKey(r, c) {
   return `${r},${c}`;
 }
 
+function addAvailableCar(session, r, c) {
+  const coordKey = getCoordKey(r, c);
+  session.parkingCars.add(coordKey);
+  session.parkedCars.add(coordKey);
+}
+
+function getPreviousStepPosition(action) {
+  if (!Array.isArray(action?.path) || action.path.length < 2) return null;
+  return action.path[action.path.length - 2] || null;
+}
+
 function getActiveThiefAt(session, r, c) {
   return (
     session.thiefUnits.find(
@@ -48,16 +59,25 @@ export function applyResolvedAction({ session, turn, unit, action }) {
     if (action.type === "CAPTURE" && unit.state === "IDLE") {
       const caughtThief = getActiveThiefAt(session, action.to.r, action.to.c);
       if (caughtThief) {
+        const policeHadCar = Boolean(unit.inCar);
+        const thiefHadCar = Boolean(caughtThief.inCar);
         caughtThief.state = "CARRIED";
         caughtThief.carrierId = unit.id;
         caughtThief.r = action.to.r;
         caughtThief.c = action.to.c;
         unit.state = "CARRYING";
 
-        if (caughtThief.inCar) {
+        if (thiefHadCar) {
           unit.inCar = true;
         }
         caughtThief.inCar = false;
+
+        if (policeHadCar && thiefHadCar) {
+          const previousStep = getPreviousStepPosition(action);
+          if (previousStep) {
+            addAvailableCar(session, previousStep.r, previousStep.c);
+          }
+        }
       }
     }
 
