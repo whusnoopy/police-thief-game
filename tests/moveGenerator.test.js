@@ -302,6 +302,37 @@ test("driving unit cannot move onto a cell that already has an available empty c
   assert.equal(getActionAt(actions, 0, 1), null);
 });
 
+test("animals block walking and driving movement", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
+  setLegacyTileAt(mapDefinition, 0, 1, "ROAD");
+  setLegacyTileAt(mapDefinition, 0, 2, "ROAD");
+
+  const session = createGameSession(mapDefinition);
+  session.animalUnits.push({ id: "A1", r: 0, c: 1, emoji: "🐷" });
+  const thief = session.thiefUnits[0];
+
+  const walkingActions = calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 1,
+    unit: thief,
+  });
+
+  assert.equal(getActionAt(walkingActions, 0, 1), null);
+
+  thief.inCar = true;
+  const drivingActions = calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 1,
+    unit: thief,
+  });
+
+  assert.equal(getActionAt(drivingActions, 0, 1), null);
+  assert.equal(getActionAt(drivingActions, 0, 2), null);
+});
+
 test("walking unit can enter horizontal crosswalk from left or right during pedestrian phase", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");

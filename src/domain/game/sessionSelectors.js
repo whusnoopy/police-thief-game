@@ -18,6 +18,14 @@ export function getCarriedThiefByCarrier(session, carrierId) {
   );
 }
 
+export function getAnimalAt(session, r, c) {
+  return session?.animalUnits?.find((unit) => unit.r === r && unit.c === c) || null;
+}
+
+export function hasAnimalAt(session, r, c) {
+  return Boolean(getAnimalAt(session, r, c));
+}
+
 export function getActiveUnitsForTurn(session, turn) {
   if (turn === "THIEF") {
     return (session?.thiefUnits || []).filter((unit) => unit.state === "ACTIVE");

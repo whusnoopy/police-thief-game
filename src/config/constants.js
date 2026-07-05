@@ -15,6 +15,13 @@ export function normalizeSignalPhase(signalPhase) {
   return SIGNAL_PHASES.PEDESTRIAN_GREEN;
 }
 
+export const NPC_CONFIG = {
+  FARM_MAX_ANIMALS: 3,
+  ANIMAL_MAX_MOVE_STEPS: 3,
+};
+
+export const ANIMAL_EMOJIS = ["🐷", "🐮"];
+
 export const TILE_TYPES = {
   GRASS: {
     id: "GRASS",

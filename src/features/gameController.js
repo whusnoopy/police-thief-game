@@ -11,6 +11,7 @@ import {
   formatMovementPoints as formatRuleMovementPoints,
   getMovementPoints as getRuleMovementPoints,
 } from "../domain/rules/moveGenerator.js";
+import { resolveEndOfRoundEffects } from "../domain/rules/endOfRoundEffects.js";
 import { applyResolvedAction } from "../domain/rules/interactionResolver.js";
 import { getNextTurn, getWinState } from "../domain/rules/winResolver.js";
 import {
@@ -55,12 +56,6 @@ function appendCrosswalkSignals(cell, { tileType, signalPhase }) {
   });
 }
 
-function getNextSignalPhase(signalPhase) {
-  return normalizeSignalPhase(signalPhase) === SIGNAL_PHASES.PEDESTRIAN_GREEN
-    ? SIGNAL_PHASES.PEDESTRIAN_RED
-    : SIGNAL_PHASES.PEDESTRIAN_GREEN;
-}
-
 export const gameController = {
   session: null,
   turn: "THIEF",
@@ -68,6 +63,7 @@ export const gameController = {
   isRolling: false,
   policeUnits: [],
   thiefUnits: [],
+  animalUnits: [],
   parkingCars: new Set(),
   parkedCars: new Set(),
   selectedUnit: null,
@@ -81,6 +77,7 @@ export const gameController = {
     this.reachable.clear();
     this.policeUnits = this.session.policeUnits;
     this.thiefUnits = this.session.thiefUnits;
+    this.animalUnits = this.session.animalUnits;
     this.parkingCars = this.session.parkingCars;
     this.parkedCars = this.session.parkedCars;
 
@@ -136,6 +133,7 @@ export const gameController = {
       cellIdPrefix: GAME_CELL_ID_PREFIX,
       policeUnits: this.policeUnits,
       thiefUnits: this.thiefUnits,
+      animalUnits: this.session?.animalUnits || this.animalUnits,
     });
   },
 
@@ -316,16 +314,15 @@ export const gameController = {
 
   advanceTurn() {
     const nextTurn = getNextTurn(this.turn);
-    let signalChanged = false;
+    let boardChanged = false;
     if (this.session && this.turn === "POLICE") {
-      this.session.signalPhase = getNextSignalPhase(this.session.signalPhase);
-      signalChanged = true;
+      boardChanged = resolveEndOfRoundEffects(this.session).boardChanged;
     }
     this.turn = nextTurn;
     if (this.session) {
       this.session.turn = this.turn;
     }
-    if (signalChanged) {
+    if (boardChanged) {
       this.renderGameBoard();
     }
     this.updateTurnUI();

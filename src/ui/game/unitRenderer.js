@@ -10,6 +10,10 @@ function getThiefEmoji(unit) {
   return unit.inCar ? "🚗" : "🏃";
 }
 
+function getAnimalEmoji(unit) {
+  return unit.emoji || "🐷";
+}
+
 function appendUnitToken(cell, { emoji, cssClass, id, isDriving }) {
   const token = document.createElement("div");
   token.className = `character ${cssClass}${isDriving ? " driving-token" : ""}`;
@@ -25,7 +29,23 @@ export function appendParkedCar(cell) {
   cell.appendChild(parkedCar);
 }
 
-export function renderUnits({ cellIdPrefix, policeUnits, thiefUnits }) {
+function renderAnimalUnits({ cellIdPrefix, animalUnits }) {
+  animalUnits.forEach((animal) => {
+    const cell = getBoardCellElement(cellIdPrefix, animal.r, animal.c);
+    if (!cell) return;
+
+    appendUnitToken(cell, {
+      emoji: getAnimalEmoji(animal),
+      cssClass: "animal-token",
+      id: animal.id,
+      isDriving: false,
+    });
+  });
+}
+
+export function renderUnits({ cellIdPrefix, policeUnits, thiefUnits, animalUnits = [] }) {
+  renderAnimalUnits({ cellIdPrefix, animalUnits });
+
   policeUnits.forEach((police) => {
     const cell = getBoardCellElement(cellIdPrefix, police.r, police.c);
     if (!cell) return;

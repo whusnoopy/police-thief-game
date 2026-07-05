@@ -5,7 +5,12 @@ import {
   isStepAlongAxis,
 } from "../map/crosswalk.js";
 import { getTileTypeAt, getFeaturePositionsByKind } from "../map/mapQueries.js";
-import { getUnitAt, hasAvailableCar, hasParkedCar } from "../game/sessionSelectors.js";
+import {
+  getUnitAt,
+  hasAnimalAt,
+  hasAvailableCar,
+  hasParkedCar,
+} from "../game/sessionSelectors.js";
 import { getCellRuleAt } from "./cellRules.js";
 
 export const HALF_STEP_POINTS = 2;
@@ -162,6 +167,7 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
 
       if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) continue;
       if (current.path.some((point) => point.r === nr && point.c === nc)) continue;
+      if (hasAnimalAt(session, nr, nc)) continue;
 
       const cellRule = getCellRuleAt(session.mapDefinition, nr, nc);
       const tileType = cellRule.tileType;

@@ -36,6 +36,7 @@ export function createGameSession(mapDefinition) {
     signalPhase: SIGNAL_PHASES.PEDESTRIAN_GREEN,
     policeUnits,
     thiefUnits,
+    animalUnits: [],
     parkingCars,
     parkedCars,
   };

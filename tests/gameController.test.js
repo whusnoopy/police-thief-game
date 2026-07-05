@@ -28,3 +28,15 @@ test("crosswalk signal lights rerender on signal phase change", () => {
   assert.equal(env.elements["game-board"].querySelectorAll(".green").length, 0);
   assert.equal(env.elements["game-board"].querySelectorAll(".red").length, 2);
 });
+
+test("animal units render on the game board", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 0, "POLICE_SPAWN");
+  setLegacyTileAt(mapDefinition, 0, 3, "THIEF_SPAWN");
+
+  gameController.init(mapDefinition);
+  gameController.session.animalUnits.push({ id: "A1", r: 0, c: 1, emoji: "🐮" });
+  gameController.renderGameBoard();
+
+  assert.equal(env.elements["game-board"].querySelectorAll(".animal-token").length, 1);
+});
