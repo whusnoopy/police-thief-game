@@ -37,6 +37,7 @@ export function createGameSession(mapDefinition) {
     policeUnits,
     thiefUnits,
     animalUnits: [],
+    nextAnimalId: 1,
     parkingCars,
     parkedCars,
   };

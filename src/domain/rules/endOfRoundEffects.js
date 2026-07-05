@@ -1,4 +1,5 @@
 import { SIGNAL_PHASES, normalizeSignalPhase } from "../../config/constants.js";
+import { resolveAnimalTurn } from "./npcRules.js";
 
 export function getNextSignalPhase(signalPhase) {
   return normalizeSignalPhase(signalPhase) === SIGNAL_PHASES.PEDESTRIAN_GREEN
@@ -6,7 +7,7 @@ export function getNextSignalPhase(signalPhase) {
     : SIGNAL_PHASES.PEDESTRIAN_GREEN;
 }
 
-export function resolveEndOfRoundEffects(session) {
+export function resolveEndOfRoundEffects(session, options = {}) {
   if (!session) {
     return {
       signalChanged: false,
@@ -18,10 +19,11 @@ export function resolveEndOfRoundEffects(session) {
   const previousSignalPhase = normalizeSignalPhase(session.signalPhase);
   session.signalPhase = getNextSignalPhase(session.signalPhase);
   const signalChanged = normalizeSignalPhase(session.signalPhase) !== previousSignalPhase;
+  const animalChanged = resolveAnimalTurn(session, options).animalChanged;
 
   return {
     signalChanged,
-    animalChanged: false,
-    boardChanged: signalChanged,
+    animalChanged,
+    boardChanged: signalChanged || animalChanged,
   };
 }

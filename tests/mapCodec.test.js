@@ -29,6 +29,7 @@ test("v2 codec preserves terrain, features, and spawns", () => {
   setLegacyTileAt(mapDefinition, 3, 3, "MANHOLE");
   setLegacyTileAt(mapDefinition, 4, 4, "PARKING");
   setLegacyTileAt(mapDefinition, 5, 5, "BANK");
+  setLegacyTileAt(mapDefinition, 6, 6, "FARM");
   setLegacyTileAt(mapDefinition, 8, 1, "POLICE_SPAWN");
   setLegacyTileAt(mapDefinition, 9, 8, "THIEF_SPAWN");
 

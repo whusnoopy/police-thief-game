@@ -74,6 +74,10 @@
   background-color: var(--bank-color);
 }
 
+.cell.type-FARM {
+  background-color: var(--farm-color);
+}
+
 .cell.type-POLICE_SPAWN,
 .cell.type-THIEF_SPAWN,
 .cell.type-MANHOLE,

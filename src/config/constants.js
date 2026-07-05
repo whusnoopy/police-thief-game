@@ -95,6 +95,13 @@ export const TILE_TYPES = {
     cost: 1,
     walkable: ["POLICE", "THIEF"],
   },
+  FARM: {
+    id: "FARM",
+    name: "农场",
+    emoji: "🚜",
+    cost: 1,
+    walkable: ["POLICE", "THIEF"],
+  },
   POLICE_SPAWN: {
     id: "POLICE_SPAWN",
     name: "警察出生点",

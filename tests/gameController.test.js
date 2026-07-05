@@ -40,3 +40,28 @@ test("animal units render on the game board", () => {
 
   assert.equal(env.elements["game-board"].querySelectorAll(".animal-token").length, 1);
 });
+
+test("farm animal spawns rerender after a full round", () => {
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+
+  try {
+    const mapDefinition = createEmptyMapDefinition();
+    setLegacyTileAt(mapDefinition, 0, 0, "POLICE_SPAWN");
+    setLegacyTileAt(mapDefinition, 0, 3, "THIEF_SPAWN");
+    setLegacyTileAt(mapDefinition, 1, 1, "FARM");
+    setLegacyTileAt(mapDefinition, 0, 1, "BUILDING");
+    setLegacyTileAt(mapDefinition, 1, 0, "BUILDING");
+    setLegacyTileAt(mapDefinition, 1, 2, "BUILDING");
+
+    gameController.init(mapDefinition);
+    gameController.turn = "POLICE";
+    gameController.session.turn = "POLICE";
+    gameController.advanceTurn();
+
+    assert.equal(gameController.session.animalUnits.length, 1);
+    assert.equal(env.elements["game-board"].querySelectorAll(".animal-token").length, 1);
+  } finally {
+    Math.random = originalRandom;
+  }
+});
