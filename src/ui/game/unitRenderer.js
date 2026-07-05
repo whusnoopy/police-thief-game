@@ -6,6 +6,7 @@ function getPoliceEmoji(unit) {
 }
 
 function getThiefEmoji(unit) {
+  if (unit.hasMoney) return unit.inCar ? "🚗💰" : "🏃💰";
   return unit.inCar ? "🚗" : "🏃";
 }
 

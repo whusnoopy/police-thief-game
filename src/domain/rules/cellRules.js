@@ -74,6 +74,13 @@ const FEATURE_RULES = {
     walkableRoles: ["THIEF"],
     driveCost: 1,
   },
+  BANK: {
+    tileType: "BANK",
+    category: "FEATURE",
+    entryCost: 1,
+    walkableRoles: ["POLICE", "THIEF"],
+    driveCost: 1,
+  },
   PARKING: {
     tileType: "PARKING",
     category: "FEATURE",

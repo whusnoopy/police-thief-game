@@ -87,7 +87,7 @@ export function renderVictory({ type, escaped = 0, caught = 0 }) {
   if (type === "THIEF") {
     els.victoryTitle.textContent = "🏃 小偷胜利！";
     els.victoryTitle.style.color = "var(--danger-color)";
-    els.victoryMessage.textContent = "所有小偷都成功逃脱！";
+    els.victoryMessage.textContent = "所有小偷都带着钱成功逃脱！";
     return;
   }
 

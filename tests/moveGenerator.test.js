@@ -36,11 +36,13 @@ test("thief can teleport between manholes", () => {
 test("driving thief can stop on base with a half-step left and escape", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
+  setLegacyTileAt(mapDefinition, 1, 0, "BANK");
   setLegacyTileAt(mapDefinition, 0, 1, "THIEF_BASE");
 
   const session = createGameSession(mapDefinition);
   const thief = session.thiefUnits[0];
   thief.inCar = true;
+  thief.hasMoney = true;
 
   const actions = calculateReachableActions({
     session,
@@ -67,6 +69,86 @@ test("driving thief can stop on base with a half-step left and escape", () => {
   assert.equal(session.parkedCars.has("0,1"), true);
 });
 
+test("thief cannot enter the base before stealing money from a bank", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
+  setLegacyTileAt(mapDefinition, 0, 1, "THIEF_BASE");
+
+  const session = createGameSession(mapDefinition);
+  const thief = session.thiefUnits[0];
+
+  const actions = calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 1,
+    unit: thief,
+  });
+
+  assert.equal(getActionAt(actions, 0, 1), null);
+});
+
+test("thief can steal money from a bank and escape at the base in one move", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
+  setLegacyTileAt(mapDefinition, 0, 1, "BANK");
+  setLegacyTileAt(mapDefinition, 0, 2, "THIEF_BASE");
+
+  const session = createGameSession(mapDefinition);
+  const thief = session.thiefUnits[0];
+
+  const actions = calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 2,
+    unit: thief,
+  });
+  const escapeAction = getActionAt(actions, 0, 2);
+
+  assert.ok(escapeAction);
+  assert.equal(escapeAction.type, "ESCAPE");
+  assert.equal(escapeAction.hasMoney, true);
+
+  applyResolvedAction({
+    session,
+    turn: "THIEF",
+    unit: thief,
+    action: escapeAction,
+  });
+
+  assert.equal(thief.hasMoney, true);
+  assert.equal(thief.state, "ESCAPED");
+});
+
+test("thief keeps stolen money after ending a move past the bank", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
+  setLegacyTileAt(mapDefinition, 0, 1, "BANK");
+  setLegacyTileAt(mapDefinition, 0, 2, "ROAD");
+
+  const session = createGameSession(mapDefinition);
+  const thief = session.thiefUnits[0];
+
+  const action = getActionAt(calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 2,
+    unit: thief,
+  }), 0, 2);
+
+  assert.ok(action);
+  assert.equal(action.hasMoney, true);
+
+  applyResolvedAction({
+    session,
+    turn: "THIEF",
+    unit: thief,
+    action,
+  });
+
+  assert.equal(thief.hasMoney, true);
+  assert.equal(thief.state, "ACTIVE");
+});
+
 test("thief leaves the car at base after boarding from parking and escaping", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
@@ -75,6 +157,7 @@ test("thief leaves the car at base after boarding from parking and escaping", ()
 
   const session = createGameSession(mapDefinition);
   const thief = session.thiefUnits[0];
+  thief.hasMoney = true;
 
   const actions = calculateReachableActions({
     session,
@@ -114,6 +197,7 @@ test("driving thief cannot escape into a base that already has a parked empty ca
   const firstThief = session.thiefUnits[0];
   const secondThief = session.thiefUnits[1];
   firstThief.inCar = true;
+  firstThief.hasMoney = true;
 
   const firstEscapeAction = getActionAt(calculateReachableActions({
     session,
@@ -135,6 +219,7 @@ test("driving thief cannot escape into a base that already has a parked empty ca
   assert.equal(session.parkingCars.has("0,1"), false);
 
   secondThief.inCar = true;
+  secondThief.hasMoney = true;
   const secondActions = calculateReachableActions({
     session,
     turn: "THIEF",

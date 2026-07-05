@@ -19,6 +19,7 @@ export function createGameSession(mapDefinition) {
     c: position.c,
     state: "ACTIVE",
     inCar: false,
+    hasMoney: false,
     carrierId: null,
   }));
 

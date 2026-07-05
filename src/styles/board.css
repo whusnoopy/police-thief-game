@@ -70,6 +70,10 @@
   background-color: var(--thief-base-color);
 }
 
+.cell.type-BANK {
+  background-color: var(--bank-color);
+}
+
 .cell.type-POLICE_SPAWN,
 .cell.type-THIEF_SPAWN,
 .cell.type-MANHOLE,

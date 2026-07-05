@@ -1,7 +1,7 @@
 import { TILE_TYPES } from "../config/constants.js";
 import { els, setMapDefinition, state } from "../app/state.js";
 import { createEmptyMapDefinition, setLegacyTileAt } from "../domain/map/mapModel.js";
-import { getTileTypeAt } from "../domain/map/mapQueries.js";
+import { getFeaturePositionsByKind, getTileTypeAt } from "../domain/map/mapQueries.js";
 import { persistCurrentMap } from "../storage/mapRepository.js";
 import { renderBoard, syncBoardCell } from "../ui/board/boardRenderer.js";
 import { renderPalette } from "../ui/editor/editorRenderer.js";
@@ -80,9 +80,16 @@ export function clearMap() {
 export function validateMap() {
   const hasPolice = state.mapDefinition.spawns.police.length > 0;
   const hasThief = state.mapDefinition.spawns.thief.length > 0;
+  const hasThiefBase = getFeaturePositionsByKind(state.mapDefinition, "THIEF_BASE").length > 0;
+  const hasBank = getFeaturePositionsByKind(state.mapDefinition, "BANK").length > 0;
 
   if (!hasPolice || !hasThief) {
     alert("必须至少放置一个警察出生点和一个小偷出生点！");
+    return false;
+  }
+
+  if (!hasThiefBase || !hasBank) {
+    alert("必须至少放置一个小偷基地和一个银行！");
     return false;
   }
 

@@ -15,6 +15,7 @@
   --barrier-color: #7f8fa6;
   --police-st-color: #c7ecee;
   --thief-base-color: #ffcccc;
+  --bank-color: #f6e58d;
   --parking-color: #ffe8a3;
 
   --cell-size: clamp(30px, 8vmin, 60px);

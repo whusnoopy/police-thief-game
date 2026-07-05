@@ -90,6 +90,10 @@ export function applyResolvedAction({ session, turn, unit, action }) {
     return;
   }
 
+  if (turn === "THIEF") {
+    unit.hasMoney = Boolean(action.hasMoney || unit.hasMoney);
+  }
+
   if (turn === "THIEF" && action.type === "ESCAPE") {
     if (unit.inCar) {
       session.parkedCars.add(getCoordKey(action.to.r, action.to.c));

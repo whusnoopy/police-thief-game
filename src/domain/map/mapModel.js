@@ -18,6 +18,7 @@ export const FEATURE_TILE_TYPES = [
   "PARKING",
   "MANHOLE",
   "TRAFFIC_LIGHT",
+  "BANK",
 ];
 
 export const SPAWN_TILE_TYPES = ["POLICE_SPAWN", "THIEF_SPAWN"];
@@ -28,6 +29,7 @@ const DEFAULT_FEATURE_TERRAIN = {
   PARKING: "ROAD",
   MANHOLE: "ROAD",
   TRAFFIC_LIGHT: "ROAD",
+  BANK: "ROAD",
 };
 
 const TILE_TO_SPAWN_KEY = {

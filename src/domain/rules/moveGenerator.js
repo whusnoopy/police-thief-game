@@ -34,6 +34,7 @@ function getNormalizedTileTypeAt(mapDefinition, r, c) {
 
 function chooseBetterAction(existing, candidate) {
   if (!existing) return true;
+  if (candidate.hasMoney !== existing.hasMoney) return candidate.hasMoney;
   if (candidate.isDriving !== existing.isDriving) return candidate.isDriving;
   if (candidate.pointsLeft !== existing.pointsLeft) {
     return candidate.pointsLeft < existing.pointsLeft;
@@ -98,14 +99,14 @@ function getMoveCost(isDriving, cellRule, isTeleport) {
   return cellRule.entryCost * HALF_STEP_POINTS;
 }
 
-function getActionType({ turn, unit, occupant, tileType }) {
+function getActionType({ turn, unit, occupant, tileType, hasMoney }) {
   if (turn === "POLICE" && occupant && occupant.role === "THIEF" && unit.state === "IDLE") {
     return "CAPTURE";
   }
   if (turn === "POLICE" && unit.state === "CARRYING" && tileType === "POLICE_STATION") {
     return "DELIVER";
   }
-  if (turn === "THIEF" && tileType === "THIEF_BASE") {
+  if (turn === "THIEF" && tileType === "THIEF_BASE" && hasMoney) {
     return "ESCAPE";
   }
   return "MOVE";
@@ -137,6 +138,7 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
       trail: [],
       costSpent: 0,
       isDriving: Boolean(unit.inCar),
+      hasMoney: Boolean(unit.hasMoney),
       boardedCarAt: null,
     },
   ];
@@ -185,6 +187,9 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
       const cost = getMoveCost(current.isDriving, cellRule, move.isTeleport);
       if (cost === null || current.pointsLeft < cost) continue;
 
+      const nextHasMoney = Boolean(current.hasMoney || (isThief && tileType === "BANK"));
+      if (isThief && tileType === "THIEF_BASE" && !nextHasMoney) continue;
+
       const occupant = getUnitAt(session, nr, nc);
       const pointsLeftAfterMove = current.pointsLeft - cost;
       const canStopForHalfStepCapture = canPoliceCaptureDrivingThiefWithHalfStepLeft(
@@ -213,7 +218,7 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
       }
 
       const nextNode = {
-        type: getActionType({ turn, unit, occupant, tileType }),
+        type: getActionType({ turn, unit, occupant, tileType, hasMoney: nextHasMoney }),
         movementKind: move.isTeleport ? "TELEPORT" : nextDriving && !current.isDriving ? "BOARD" : "STEP",
         from: { r: unit.r, c: unit.c },
         to: { r: nr, c: nc },
@@ -224,6 +229,7 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
         trail: [...current.trail, { r: nr, c: nc, cost }],
         costSpent: current.costSpent + cost,
         isDriving: nextDriving,
+        hasMoney: nextHasMoney,
         boardedCarAt,
         landingTileType: tileType,
       };
