@@ -124,6 +124,32 @@ function recordReachableAction(results, action) {
   }
 }
 
+function canDisembarkAt(session, node, role) {
+  if (!node.isDriving || node.droppedCarAt) return false;
+
+  const cellRule = getCellRuleAt(session.mapDefinition, node.r, node.c);
+  return canEnterCell(cellRule, role, false) && cellRule.walkCost !== null;
+}
+
+function createDisembarkNode(node) {
+  const droppedCarAt = getCoordKey(node.r, node.c);
+  return {
+    ...node,
+    movementKind: "DISEMBARK",
+    isDriving: false,
+    droppedCarAt,
+    trail: [
+      ...node.trail,
+      {
+        r: node.r,
+        c: node.c,
+        cost: 0,
+        movementKind: "DISEMBARK",
+      },
+    ],
+  };
+}
+
 function getSearchStateKey(node) {
   return [
     node.r,
@@ -131,6 +157,7 @@ function getSearchStateKey(node) {
     node.isDriving ? "D" : "W",
     node.hasMoney ? "M" : "N",
     node.boardedCarAt || "",
+    node.droppedCarAt || "",
   ].join("|");
 }
 
@@ -154,6 +181,7 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
       isDriving: Boolean(unit.inCar),
       hasMoney: Boolean(unit.hasMoney),
       boardedCarAt: null,
+      droppedCarAt: null,
     },
   ];
 
@@ -173,6 +201,10 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
 
     if (current.pointsLeft === 0 || isTerminalAction(current)) {
       continue;
+    }
+
+    if (canDisembarkAt(session, current, role)) {
+      queue.push(createDisembarkNode(current));
     }
 
     const possibleMoves = getPossibleMoves(session, current, isThief);
@@ -247,6 +279,7 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
         isDriving: nextDriving,
         hasMoney: nextHasMoney,
         boardedCarAt,
+        droppedCarAt: current.droppedCarAt,
         landingTileType: tileType,
       };
 

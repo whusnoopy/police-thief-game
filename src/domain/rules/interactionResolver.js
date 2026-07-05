@@ -48,6 +48,10 @@ export function applyResolvedAction({ session, turn, unit, action }) {
     session.parkingCars.delete(action.boardedCarAt);
     session.parkedCars.delete(action.boardedCarAt);
   }
+  if (action.droppedCarAt) {
+    const [r, c] = action.droppedCarAt.split(",").map(Number);
+    addAvailableCar(session, r, c);
+  }
 
   unit.r = action.to.r;
   unit.c = action.to.c;

@@ -15,13 +15,30 @@ export function projectReachablePositions(reachableActions) {
 
 export function projectPathPreview(action, formatMovementPoints) {
   let costSpent = 0;
+  const preview = [];
 
-  return action.trail.map((segment) => {
+  action.trail.forEach((segment) => {
     costSpent += segment.cost;
-    return {
+    if (segment.movementKind === "DISEMBARK") {
+      const previousSegment = preview.at(-1);
+      if (previousSegment?.r === segment.r && previousSegment?.c === segment.c) {
+        previousSegment.label = "下车";
+        return;
+      }
+      preview.push({
+        r: segment.r,
+        c: segment.c,
+        label: "下车",
+      });
+      return;
+    }
+
+    preview.push({
       r: segment.r,
       c: segment.c,
       label: formatMovementPoints(costSpent),
-    };
+    });
   });
+
+  return preview;
 }
