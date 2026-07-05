@@ -52,6 +52,20 @@ export const TILE_TYPES = {
     cost: 1,
     walkable: ["POLICE", "THIEF"],
   },
+  RIVER: {
+    id: "RIVER",
+    name: "河流",
+    emoji: "🌊",
+    cost: 2,
+    walkable: [],
+  },
+  OVERPASS: {
+    id: "OVERPASS",
+    name: "高架桥",
+    emoji: "🌉",
+    cost: 0.25,
+    walkable: [],
+  },
   CROSSWALK: {
     id: "CROSSWALK",
     name: "旧斑马线",

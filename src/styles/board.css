@@ -31,6 +31,22 @@
   background-color: var(--road-color);
 }
 
+.cell.type-RIVER {
+  background:
+    radial-gradient(circle at 20% 45%, rgba(255, 255, 255, 0.55) 0 10%, transparent 11%),
+    linear-gradient(135deg, #4db8dc 0%, var(--river-color) 55%, #2f9bd0 100%);
+}
+
+.cell.type-OVERPASS {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.45) 0 10%, transparent 10% 90%, rgba(0, 0, 0, 0.08) 90%),
+    repeating-linear-gradient(
+      135deg,
+      var(--overpass-color) 0 8px,
+      #aeb6bf 8px 12px
+    );
+}
+
 .cell.type-CROSSWALK,
 .cell.type-CROSSWALK_HORIZONTAL {
   background:

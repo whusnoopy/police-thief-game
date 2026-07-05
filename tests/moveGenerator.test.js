@@ -4,7 +4,10 @@ import { SIGNAL_PHASES } from "../src/config/constants.js";
 import { createGameSession } from "../src/domain/game/sessionFactory.js";
 import { createEmptyMapDefinition, setLegacyTileAt } from "../src/domain/map/mapModel.js";
 import { applyResolvedAction } from "../src/domain/rules/interactionResolver.js";
-import { calculateReachableActions } from "../src/domain/rules/moveGenerator.js";
+import {
+  calculateReachableActions,
+  formatMovementPoints,
+} from "../src/domain/rules/moveGenerator.js";
 
 function getActionAt(actions, r, c) {
   return actions.get(`${r},${c}`) || null;
@@ -30,10 +33,116 @@ test("thief can teleport between manholes", () => {
   assert.ok(teleportAction);
   assert.equal(teleportAction.type, "MOVE");
   assert.equal(teleportAction.movementKind, "TELEPORT");
-  assert.equal(teleportAction.costSpent, 4);
+  assert.equal(teleportAction.costSpent, 8);
 });
 
-test("driving thief can stop on base with a half-step left and escape", () => {
+test("unit can stop before spending all rolled movement points", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
+  setLegacyTileAt(mapDefinition, 0, 1, "ROAD");
+
+  const session = createGameSession(mapDefinition);
+  const thief = session.thiefUnits[0];
+
+  const actions = calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 2,
+    unit: thief,
+  });
+  const action = getActionAt(actions, 0, 1);
+
+  assert.ok(action);
+  assert.equal(action.costSpent, 4);
+  assert.equal(action.pointsLeft, 4);
+});
+
+test("walking units cannot enter river or overpass terrain", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
+  setLegacyTileAt(mapDefinition, 0, 1, "RIVER");
+  setLegacyTileAt(mapDefinition, 1, 0, "OVERPASS");
+
+  const session = createGameSession(mapDefinition);
+  const thief = session.thiefUnits[0];
+
+  const actions = calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 6,
+    unit: thief,
+  });
+
+  assert.equal(getActionAt(actions, 0, 1), null);
+  assert.equal(getActionAt(actions, 1, 0), null);
+});
+
+test("driving units use river and overpass movement costs", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
+  setLegacyTileAt(mapDefinition, 0, 1, "RIVER");
+  setLegacyTileAt(mapDefinition, 1, 0, "OVERPASS");
+
+  const session = createGameSession(mapDefinition);
+  const thief = session.thiefUnits[0];
+  thief.inCar = true;
+
+  const shortActions = calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 1,
+    unit: thief,
+  });
+  const overpassAction = getActionAt(shortActions, 1, 0);
+
+  assert.equal(getActionAt(shortActions, 0, 1), null);
+  assert.ok(overpassAction);
+  assert.equal(overpassAction.costSpent, 1);
+  assert.equal(overpassAction.pointsLeft, 3);
+
+  const riverAction = getActionAt(calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 2,
+    unit: thief,
+  }), 0, 1);
+
+  assert.ok(riverAction);
+  assert.equal(riverAction.costSpent, 8);
+  assert.equal(riverAction.pointsLeft, 0);
+});
+
+test("overpass movement search stays bounded on a full board", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  for (let r = 0; r < 10; r += 1) {
+    for (let c = 0; c < 10; c += 1) {
+      setLegacyTileAt(mapDefinition, r, c, "OVERPASS");
+    }
+  }
+  setLegacyTileAt(mapDefinition, 5, 5, "THIEF_SPAWN");
+
+  const session = createGameSession(mapDefinition);
+  const thief = session.thiefUnits[0];
+  thief.inCar = true;
+
+  const actions = calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 6,
+    unit: thief,
+  });
+
+  assert.equal(actions.size, 99);
+});
+
+test("movement point formatter supports quarter-step values", () => {
+  assert.equal(formatMovementPoints(1), "0.25");
+  assert.equal(formatMovementPoints(2), "0.5");
+  assert.equal(formatMovementPoints(3), "0.75");
+  assert.equal(formatMovementPoints(5), "1.25");
+});
+
+test("driving thief can stop on base with movement points left and escape", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
   setLegacyTileAt(mapDefinition, 1, 0, "BANK");
@@ -55,7 +164,7 @@ test("driving thief can stop on base with a half-step left and escape", () => {
   assert.ok(escapeAction);
   assert.equal(escapeAction.type, "ESCAPE");
   assert.equal(escapeAction.isDriving, true);
-  assert.equal(escapeAction.pointsLeft, 1);
+  assert.equal(escapeAction.pointsLeft, 2);
 
   applyResolvedAction({
     session,
@@ -230,7 +339,7 @@ test("driving thief cannot escape into a base that already has a parked empty ca
   assert.equal(getActionAt(secondActions, 0, 1), null);
 });
 
-test("driving police can capture a driving thief with a half-step left", () => {
+test("driving police can capture a driving thief with movement points left", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "POLICE_SPAWN");
   setLegacyTileAt(mapDefinition, 0, 1, "THIEF_SPAWN");
@@ -254,7 +363,7 @@ test("driving police can capture a driving thief with a half-step left", () => {
   assert.ok(captureAction);
   assert.equal(captureAction.type, "CAPTURE");
   assert.equal(captureAction.isDriving, true);
-  assert.equal(captureAction.pointsLeft, 1);
+  assert.equal(captureAction.pointsLeft, 2);
 
   applyResolvedAction({
     session,

@@ -24,6 +24,8 @@ test("v2 codec preserves terrain, features, and spawns", () => {
   setLegacyTileAt(mapDefinition, 0, 0, "ROAD");
   setLegacyTileAt(mapDefinition, 0, 1, "CROSSWALK_HORIZONTAL");
   setLegacyTileAt(mapDefinition, 0, 2, "CROSSWALK_VERTICAL");
+  setLegacyTileAt(mapDefinition, 0, 3, "RIVER");
+  setLegacyTileAt(mapDefinition, 0, 4, "OVERPASS");
   setLegacyTileAt(mapDefinition, 1, 1, "BUILDING");
   setLegacyTileAt(mapDefinition, 2, 2, "POLICE_STATION");
   setLegacyTileAt(mapDefinition, 3, 3, "MANHOLE");

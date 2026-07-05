@@ -13,8 +13,10 @@ import {
 } from "../game/sessionSelectors.js";
 import { getCellRuleAt } from "./cellRules.js";
 
+export const STEP_POINTS = 4;
 export const HALF_STEP_POINTS = 2;
-export const DRIVE_COST_POINTS = 1;
+export const QUARTER_STEP_POINTS = 1;
+export const DRIVE_COST_POINTS = HALF_STEP_POINTS;
 
 function getCoordKey(r, c) {
   return `${r},${c}`;
@@ -41,30 +43,10 @@ function chooseBetterAction(existing, candidate) {
   if (!existing) return true;
   if (candidate.hasMoney !== existing.hasMoney) return candidate.hasMoney;
   if (candidate.isDriving !== existing.isDriving) return candidate.isDriving;
-  if (candidate.pointsLeft !== existing.pointsLeft) {
-    return candidate.pointsLeft < existing.pointsLeft;
+  if (candidate.costSpent !== existing.costSpent) {
+    return candidate.costSpent < existing.costSpent;
   }
   return candidate.path.length < existing.path.length;
-}
-
-function canThiefStopAtBaseWithHalfStepLeft(isThief, tileType, isDriving, pointsLeft) {
-  return (
-    isThief &&
-    isDriving &&
-    tileType === "THIEF_BASE" &&
-    pointsLeft === DRIVE_COST_POINTS
-  );
-}
-
-function canPoliceCaptureDrivingThiefWithHalfStepLeft(isThief, occupant, isDriving, pointsLeft) {
-  return (
-    !isThief &&
-    isDriving &&
-    occupant &&
-    occupant.role === "THIEF" &&
-    occupant.unit.inCar &&
-    pointsLeft === DRIVE_COST_POINTS
-  );
 }
 
 function getPossibleMoves(session, node, isThief) {
@@ -99,9 +81,14 @@ function getPossibleMoves(session, node, isThief) {
 }
 
 function getMoveCost(isDriving, cellRule, isTeleport) {
-  if (isTeleport) return HALF_STEP_POINTS;
+  if (isTeleport) return STEP_POINTS;
   if (isDriving) return cellRule.driveCost;
-  return cellRule.entryCost * HALF_STEP_POINTS;
+  return cellRule.walkCost;
+}
+
+function canEnterCell(cellRule, role, isDriving) {
+  const allowedRoles = isDriving ? cellRule.drivableRoles : cellRule.walkableRoles;
+  return Array.isArray(allowedRoles) && allowedRoles.includes(role);
 }
 
 function getActionType({ turn, unit, occupant, tileType, hasMoney }) {
@@ -118,16 +105,38 @@ function getActionType({ turn, unit, occupant, tileType, hasMoney }) {
 }
 
 export function getMovementPoints(diceValue) {
-  return diceValue * HALF_STEP_POINTS;
+  return diceValue * STEP_POINTS;
 }
 
 export function formatMovementPoints(points) {
-  const steps = points / HALF_STEP_POINTS;
-  return Number.isInteger(steps) ? `${steps}` : `${steps.toFixed(1)}`;
+  const steps = points / STEP_POINTS;
+  return Number.isInteger(steps) ? `${steps}` : `${Number(steps.toFixed(2))}`;
+}
+
+function isTerminalAction(action) {
+  return action.type === "CAPTURE" || action.type === "DELIVER" || action.type === "ESCAPE";
+}
+
+function recordReachableAction(results, action) {
+  const key = getCoordKey(action.r, action.c);
+  if (chooseBetterAction(results.get(key), action)) {
+    results.set(key, action);
+  }
+}
+
+function getSearchStateKey(node) {
+  return [
+    node.r,
+    node.c,
+    node.isDriving ? "D" : "W",
+    node.hasMoney ? "M" : "N",
+    node.boardedCarAt || "",
+  ].join("|");
 }
 
 export function calculateReachableActions({ session, turn, diceValue, unit }) {
   const results = new Map();
+  const bestCostByState = new Map();
   const isThief = turn === "THIEF";
   const role = isThief ? "THIEF" : "POLICE";
   const queue = [
@@ -149,13 +158,20 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
   ];
 
   while (queue.length > 0) {
+    queue.sort((a, b) => a.costSpent - b.costSpent);
     const current = queue.shift();
+    const stateKey = getSearchStateKey(current);
+    const bestKnownCost = bestCostByState.get(stateKey);
+    if (bestKnownCost !== undefined && bestKnownCost <= current.costSpent) {
+      continue;
+    }
+    bestCostByState.set(stateKey, current.costSpent);
 
-    if (current.pointsLeft === 0) {
-      const key = getCoordKey(current.r, current.c);
-      if (chooseBetterAction(results.get(key), current)) {
-        results.set(key, current);
-      }
+    if (current.trail.length > 0) {
+      recordReachableAction(results, current);
+    }
+
+    if (current.pointsLeft === 0 || isTerminalAction(current)) {
       continue;
     }
 
@@ -174,7 +190,7 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
       const currentTileType = getNormalizedTileTypeAt(session.mapDefinition, current.r, current.c);
       const destinationHasAvailableCar = hasAvailableCar(session, nr, nc);
       const destinationHasParkedCar = hasParkedCar(session, nr, nc);
-      if (!cellRule.walkableRoles.includes(role)) continue;
+      if (!canEnterCell(cellRule, role, current.isDriving)) continue;
       if (
         !move.isTeleport &&
         isCrosswalkMoveBlocked({
@@ -198,15 +214,8 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
 
       const occupant = getUnitAt(session, nr, nc);
       const pointsLeftAfterMove = current.pointsLeft - cost;
-      const canStopForHalfStepCapture = canPoliceCaptureDrivingThiefWithHalfStepLeft(
-        isThief,
-        occupant,
-        current.isDriving,
-        pointsLeftAfterMove,
-      );
 
       if (occupant) {
-        if (current.pointsLeft > cost && !canStopForHalfStepCapture) continue;
         if (isThief) continue;
         if (occupant.role === "POLICE" || unit.state === "CARRYING") continue;
       }
@@ -217,6 +226,7 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
         !nextDriving &&
         !move.isTeleport &&
         destinationHasAvailableCar &&
+        canEnterCell(cellRule, role, true) &&
         cellRule.driveCost !== null
       ) {
         nextDriving = true;
@@ -239,21 +249,6 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
         boardedCarAt,
         landingTileType: tileType,
       };
-
-      const canStopForHalfStepBase = canThiefStopAtBaseWithHalfStepLeft(
-        isThief,
-        tileType,
-        nextNode.isDriving,
-        nextNode.pointsLeft,
-      );
-
-      if (canStopForHalfStepBase || canStopForHalfStepCapture) {
-        const key = getCoordKey(nextNode.r, nextNode.c);
-        if (chooseBetterAction(results.get(key), nextNode)) {
-          results.set(key, nextNode);
-        }
-        continue;
-      }
 
       queue.push(nextNode);
     }

@@ -10,6 +10,8 @@ export const TERRAIN_TILE_TYPES = [
   "CROSSWALK",
   "CROSSWALK_HORIZONTAL",
   "CROSSWALK_VERTICAL",
+  "RIVER",
+  "OVERPASS",
 ];
 
 export const FEATURE_TILE_TYPES = [
