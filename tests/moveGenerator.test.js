@@ -77,6 +77,32 @@ test("walking units cannot enter river or overpass terrain", () => {
   assert.equal(getActionAt(actions, 1, 0), null);
 });
 
+test("units cannot enter mountain terrain when walking or driving", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
+  setLegacyTileAt(mapDefinition, 0, 2, "MOUNTAIN");
+
+  const session = createGameSession(mapDefinition);
+  const thief = session.thiefUnits[0];
+
+  const walkingActions = calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 3,
+    unit: thief,
+  });
+  assert.equal(getActionAt(walkingActions, 0, 2), null);
+
+  thief.inCar = true;
+  const drivingActions = calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 3,
+    unit: thief,
+  });
+  assert.equal(getActionAt(drivingActions, 0, 2), null);
+});
+
 test("driving units use river and overpass movement costs", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");

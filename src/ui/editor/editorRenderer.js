@@ -1,31 +1,44 @@
 const PALETTE_GROUPS = [
   {
-    id: "terrain-traffic",
-    name: "地形与道路",
+    id: "terrain",
+    name: "地形",
     tileIds: [
       "GRASS",
+      "ROAD",
+      "RIVER",
+      "MOUNTAIN",
+    ],
+  },
+  {
+    id: "building-facilities",
+    name: "建筑设施",
+    tileIds: [
       "BUILDING",
       "CONSTRUCTION_SITE",
       "BARRIER",
-      "ROAD",
       "CROSSWALK_HORIZONTAL",
       "CROSSWALK_VERTICAL",
-      "RIVER",
       "OVERPASS",
     ],
   },
   {
-    id: "places-spawns",
-    name: "地点与出生",
+    id: "spawns",
+    name: "出生点",
     tileIds: [
       "POLICE_STATION",
       "THIEF_BASE",
       "BANK",
-      "FARM",
-      "PARKING",
-      "MANHOLE",
-      "POLICE_SPAWN",
       "THIEF_SPAWN",
+      "POLICE_SPAWN",
+    ],
+  },
+  {
+    id: "special",
+    name: "特殊区块",
+    tileIds: [
+      "MANHOLE",
+      "PARKING",
+      "FARM",
     ],
   },
 ];
@@ -65,6 +78,10 @@ const TILE_HELP = {
   OVERPASS: {
     summary: "高速车行地块，只允许车辆通过。",
     details: ["步行不能进入。", "车辆可通行，每格消耗 0.25 步。"],
+  },
+  MOUNTAIN: {
+    summary: "不可通行地形，放置时会影响上下左右四格。",
+    details: ["所有人、车辆和动物都不能进入。", "上下左右四格会被强制设为草地。", "如果会覆盖特殊格，则不能放置。"],
   },
   CROSSWALK_HORIZONTAL: {
     summary: "横向斑马线，受全局红绿灯限制。",
@@ -196,11 +213,21 @@ function createPaletteItem(type, currentPaletteType, onPreview, onSelect) {
   return item;
 }
 
-function createPaletteGroup(group, groupTileTypes, currentPaletteType, onPreview, onSelect) {
+function createPaletteGroup(
+  group,
+  groupTileTypes,
+  currentPaletteType,
+  onPreview,
+  onSelect,
+  onOpen,
+) {
   const details = document.createElement("details");
   details.className = "palette-group";
   details.dataset.group = group.id;
   details.open = groupTileTypes.some((type) => type.id === currentPaletteType);
+  details.addEventListener("toggle", () => {
+    if (details.open) onOpen(details);
+  });
 
   const summary = document.createElement("summary");
   summary.className = "palette-group-title";
@@ -249,28 +276,45 @@ export function renderPalette(container, { tileTypes, currentPaletteType, onSele
   }
 
   container.appendChild(helpPanel);
+  const paletteGroups = [];
+
+  function handleGroupOpen(openGroup) {
+    paletteGroups.forEach((groupElement) => {
+      if (groupElement !== openGroup) {
+        groupElement.open = false;
+      }
+    });
+  }
 
   PALETTE_GROUPS.forEach((group) => {
     const groupTileTypes = group.tileIds.map((tileId) => typeById.get(tileId)).filter(Boolean);
     if (groupTileTypes.length === 0) return;
 
     group.tileIds.forEach((tileId) => groupedIds.add(tileId));
-    container.appendChild(
-      createPaletteGroup(group, groupTileTypes, currentPaletteType, previewTileHelp, selectTile),
+    const groupElement = createPaletteGroup(
+      group,
+      groupTileTypes,
+      currentPaletteType,
+      previewTileHelp,
+      selectTile,
+      handleGroupOpen,
     );
+    paletteGroups.push(groupElement);
+    container.appendChild(groupElement);
   });
 
   const ungroupedTileTypes = tileTypes.filter((type) => !groupedIds.has(type.id));
   if (ungroupedTileTypes.length > 0) {
-    container.appendChild(
-      createPaletteGroup(
-        { id: "other", name: "其他地块" },
-        ungroupedTileTypes,
-        currentPaletteType,
-        previewTileHelp,
-        selectTile,
-      ),
+    const groupElement = createPaletteGroup(
+      { id: "other", name: "其他地块" },
+      ungroupedTileTypes,
+      currentPaletteType,
+      previewTileHelp,
+      selectTile,
+      handleGroupOpen,
     );
+    paletteGroups.push(groupElement);
+    container.appendChild(groupElement);
   }
 
   container.addEventListener("mouseleave", restoreSelectedTileHelp);

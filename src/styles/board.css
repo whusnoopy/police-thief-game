@@ -23,21 +23,25 @@
     transform 0.1s;
 }
 
-.cell.type-GRASS {
+.cell.type-GRASS,
+.placement-ghost.type-GRASS {
   background-color: var(--grass-color);
 }
 
-.cell.type-ROAD {
+.cell.type-ROAD,
+.placement-ghost.type-ROAD {
   background-color: var(--road-color);
 }
 
-.cell.type-RIVER {
+.cell.type-RIVER,
+.placement-ghost.type-RIVER {
   background:
     radial-gradient(circle at 20% 45%, rgba(255, 255, 255, 0.55) 0 10%, transparent 11%),
     linear-gradient(135deg, #4db8dc 0%, var(--river-color) 55%, #2f9bd0 100%);
 }
 
-.cell.type-OVERPASS {
+.cell.type-OVERPASS,
+.placement-ghost.type-OVERPASS {
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.45) 0 10%, transparent 10% 90%, rgba(0, 0, 0, 0.08) 90%),
     repeating-linear-gradient(
@@ -47,8 +51,21 @@
     );
 }
 
+.cell.type-MOUNTAIN,
+.placement-ghost.type-MOUNTAIN {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.28), transparent 34%),
+    repeating-linear-gradient(
+      135deg,
+      #6f7680 0 8px,
+      var(--mountain-color) 8px 16px
+    );
+}
+
 .cell.type-CROSSWALK,
-.cell.type-CROSSWALK_HORIZONTAL {
+.cell.type-CROSSWALK_HORIZONTAL,
+.placement-ghost.type-CROSSWALK,
+.placement-ghost.type-CROSSWALK_HORIZONTAL {
   background:
     repeating-linear-gradient(
       90deg,
@@ -57,7 +74,8 @@
     );
 }
 
-.cell.type-CROSSWALK_VERTICAL {
+.cell.type-CROSSWALK_VERTICAL,
+.placement-ghost.type-CROSSWALK_VERTICAL {
   background:
     repeating-linear-gradient(
       0deg,
@@ -66,47 +84,106 @@
     );
 }
 
-.cell.type-BUILDING {
+.cell.type-BUILDING,
+.placement-ghost.type-BUILDING {
   background-color: var(--building-color);
 }
 
-.cell.type-CONSTRUCTION_SITE {
+.cell.type-CONSTRUCTION_SITE,
+.placement-ghost.type-CONSTRUCTION_SITE {
   background-color: var(--building-color);
 }
 
-.cell.type-BARRIER {
+.cell.type-BARRIER,
+.placement-ghost.type-BARRIER {
   background-color: var(--barrier-color);
 }
 
-.cell.type-POLICE_STATION {
+.cell.type-POLICE_STATION,
+.placement-ghost.type-POLICE_STATION {
   background-color: var(--police-st-color);
 }
 
-.cell.type-THIEF_BASE {
+.cell.type-THIEF_BASE,
+.placement-ghost.type-THIEF_BASE {
   background-color: var(--thief-base-color);
 }
 
-.cell.type-BANK {
+.cell.type-BANK,
+.placement-ghost.type-BANK {
   background-color: var(--bank-color);
 }
 
-.cell.type-FARM {
+.cell.type-FARM,
+.placement-ghost.type-FARM {
   background-color: var(--farm-color);
 }
 
 .cell.type-POLICE_SPAWN,
 .cell.type-THIEF_SPAWN,
 .cell.type-MANHOLE,
-.cell.type-TRAFFIC_LIGHT {
+.cell.type-TRAFFIC_LIGHT,
+.placement-ghost.type-POLICE_SPAWN,
+.placement-ghost.type-THIEF_SPAWN,
+.placement-ghost.type-MANHOLE,
+.placement-ghost.type-TRAFFIC_LIGHT {
   background-color: var(--road-color);
 }
 
-.cell.type-PARKING {
+.cell.type-PARKING,
+.placement-ghost.type-PARKING {
   background-color: var(--parking-color);
 }
 
 .cell:hover {
   filter: brightness(0.9);
+}
+
+.cell.placement-preview {
+  z-index: 8;
+}
+
+.cell .placement-ghost {
+  position: absolute;
+  inset: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  opacity: 0.68;
+  z-index: 7;
+  pointer-events: none;
+}
+
+.cell.placement-invalid .placement-ghost {
+  opacity: 0.52;
+}
+
+.cell .placement-ghost-marker {
+  font-size: calc(var(--cell-size) * 0.55);
+  line-height: 1;
+}
+
+.cell.placement-valid {
+  box-shadow:
+    inset 0 0 0 4px var(--success-color),
+    0 0 0 2px rgba(46, 204, 113, 0.26);
+}
+
+.cell.placement-invalid {
+  box-shadow:
+    inset 0 0 0 4px var(--danger-color),
+    0 0 0 2px rgba(231, 76, 60, 0.26);
+}
+
+.cell.placement-center::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 2px dashed rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 9;
 }
 
 .cell .marker {

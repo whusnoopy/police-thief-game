@@ -95,6 +95,7 @@ test("animals cannot occupy special cells, units, parked cars, or other animals"
   setLegacyTileAt(mapDefinition, 0, 3, "POLICE_SPAWN");
   setLegacyTileAt(mapDefinition, 0, 4, "PARKING");
   setLegacyTileAt(mapDefinition, 1, 0, "THIEF_SPAWN");
+  setLegacyTileAt(mapDefinition, 2, 2, "MOUNTAIN");
 
   const session = createGameSession(mapDefinition);
   session.animalUnits.push({ id: "A1", r: 1, c: 1, emoji: "🐷", farmKey: "farm" });
@@ -106,4 +107,5 @@ test("animals cannot occupy special cells, units, parked cars, or other animals"
   assert.equal(canAnimalOccupyCell(session, 0, 4), false);
   assert.equal(canAnimalOccupyCell(session, 1, 0), false);
   assert.equal(canAnimalOccupyCell(session, 1, 1), false);
+  assert.equal(canAnimalOccupyCell(session, 2, 2), false);
 });

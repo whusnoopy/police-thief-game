@@ -1,13 +1,34 @@
 import { TILE_TYPES } from "../config/constants.js";
 import { els, setMapDefinition, state } from "../app/state.js";
-import { createEmptyMapDefinition, setLegacyTileAt } from "../domain/map/mapModel.js";
+import {
+  createEmptyMapDefinition,
+  getTilePlacementPlan,
+  setLegacyTileAt,
+} from "../domain/map/mapModel.js";
 import { getFeaturePositionsByKind, getTileTypeAt } from "../domain/map/mapQueries.js";
+import {
+  getMarkerEmojiForTileType,
+  shouldShowMarkerForTileType,
+} from "../domain/map/cellDisplay.js";
 import { persistCurrentMap } from "../storage/mapRepository.js";
-import { renderBoard, syncBoardCell } from "../ui/board/boardRenderer.js";
+import {
+  getBoardCellElement,
+  renderBoard,
+  syncBoardCell,
+} from "../ui/board/boardRenderer.js";
 import { renderPalette, updatePaletteRequirementStatus } from "../ui/editor/editorRenderer.js";
+
+const EDITOR_CELL_ID_PREFIX = "editor-cell";
+const PLACEMENT_PREVIEW_CLASSES = [
+  "placement-preview",
+  "placement-valid",
+  "placement-invalid",
+  "placement-center",
+];
 
 let isMouseDown = false;
 let pointerStateBound = false;
+let placementPreviewStateBound = false;
 
 function bindPointerState() {
   if (pointerStateBound) return;
@@ -38,12 +59,129 @@ function syncPaletteRequirementStatus() {
   updatePaletteRequirementStatus(els.palette, getRequiredPaletteStatus());
 }
 
+function clearPlacementPreview() {
+  document.querySelectorAll(".placement-ghost").forEach((ghost) => {
+    if (ghost.parentNode) {
+      ghost.parentNode.removeChild(ghost);
+    }
+  });
+  document.querySelectorAll(".placement-preview").forEach((cell) => {
+    cell.classList.remove(...PLACEMENT_PREVIEW_CLASSES);
+  });
+}
+
+function bindPlacementPreviewState() {
+  if (placementPreviewStateBound) return;
+
+  els.editorBoard.addEventListener("mouseleave", clearPlacementPreview);
+  placementPreviewStateBound = true;
+}
+
+function getUniquePlacementPositions(positions) {
+  const seen = new Set();
+  return positions.filter((position) => {
+    const key = `${position.r},${position.c}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getPreviewTileTypeAt(plan, position) {
+  return plan.placements.find(
+    (placement) => placement.r === position.r && placement.c === position.c,
+  )?.tileType;
+}
+
+function createPlacementGhost(tileType) {
+  const ghost = document.createElement("span");
+  ghost.className = `placement-ghost type-${tileType}`;
+  ghost.setAttribute("aria-hidden", "true");
+
+  if (shouldShowMarkerForTileType(tileType)) {
+    const marker = document.createElement("span");
+    marker.className = "placement-ghost-marker";
+    marker.textContent = getMarkerEmojiForTileType(tileType);
+    ghost.appendChild(marker);
+  }
+
+  return ghost;
+}
+
+function renderPlacementPreview(plan, centerPosition) {
+  clearPlacementPreview();
+
+  const stateClass = plan.canPlace ? "placement-valid" : "placement-invalid";
+  plan.previewPositions.forEach((position) => {
+    const cell = getBoardCellElement(EDITOR_CELL_ID_PREFIX, position.r, position.c);
+    if (!cell) return;
+
+    cell.classList.add("placement-preview", stateClass);
+    const previewTileType = getPreviewTileTypeAt(plan, position);
+    if (previewTileType) {
+      cell.appendChild(createPlacementGhost(previewTileType));
+    }
+    if (position.r === centerPosition.r && position.c === centerPosition.c) {
+      cell.classList.add("placement-center");
+    }
+  });
+}
+
+function syncPlacementCells(plan, fallbackPosition) {
+  const positions = getUniquePlacementPositions(
+    plan.placements.length > 0
+      ? plan.placements
+      : [fallbackPosition],
+  );
+
+  positions.forEach((position) => {
+    const cell = getBoardCellElement(EDITOR_CELL_ID_PREFIX, position.r, position.c);
+    if (!cell) return;
+
+    syncBoardCell({
+      element: cell,
+      mapDefinition: state.mapDefinition,
+      r: position.r,
+      c: position.c,
+      cellIdPrefix: EDITOR_CELL_ID_PREFIX,
+    });
+  });
+}
+
+function getCurrentPlacementPlan(r, c) {
+  return getTilePlacementPlan(state.mapDefinition, r, c, state.currentPaletteType);
+}
+
+function previewPlacement(r, c) {
+  renderPlacementPreview(getCurrentPlacementPlan(r, c), { r, c });
+}
+
+function paintPlacement(r, c) {
+  const plan = getCurrentPlacementPlan(r, c);
+  renderPlacementPreview(plan, { r, c });
+  if (!plan.canPlace) return false;
+
+  if (getTileTypeAt(state.mapDefinition, r, c) === state.currentPaletteType) {
+    return true;
+  }
+
+  clearPlacementPreview();
+  setLegacyTileAt(state.mapDefinition, r, c, state.currentPaletteType);
+  syncPlacementCells(plan, { r, c });
+  syncPaletteRequirementStatus();
+  persistCurrentMap();
+  renderPlacementPreview(getCurrentPlacementPlan(r, c), { r, c });
+  return true;
+}
+
 export function initEditor() {
   bindPointerState();
+  bindPlacementPreviewState();
   renderPalette(els.palette, {
     tileTypes: Object.values(TILE_TYPES).filter((tileType) => !tileType.hiddenFromPalette),
     currentPaletteType: state.currentPaletteType,
     onSelect(typeId, item) {
+      clearPlacementPreview();
       document.querySelectorAll(".palette-item").forEach((paletteItem) => {
         paletteItem.classList.remove("active");
         paletteItem.setAttribute("aria-pressed", "false");
@@ -61,27 +199,21 @@ export function initEditor() {
 export function renderEditorBoard() {
   renderBoard(els.editorBoard, {
     mapDefinition: state.mapDefinition,
+    cellIdPrefix: EDITOR_CELL_ID_PREFIX,
     bindCell(cell, { r, c }) {
-      const paint = () => {
-        if (getTileTypeAt(state.mapDefinition, r, c) === state.currentPaletteType) return;
-        setLegacyTileAt(state.mapDefinition, r, c, state.currentPaletteType);
-        syncBoardCell({
-          element: cell,
-          mapDefinition: state.mapDefinition,
-          r,
-          c,
-        });
-        syncPaletteRequirementStatus();
-        persistCurrentMap();
-      };
-
       cell.addEventListener("mousedown", (event) => {
         event.preventDefault();
-        paint();
+        paintPlacement(r, c);
       });
       cell.addEventListener("mouseenter", () => {
-        if (isMouseDown) paint();
+        if (isMouseDown) {
+          paintPlacement(r, c);
+          return;
+        }
+
+        previewPlacement(r, c);
       });
+      cell.addEventListener("mouseleave", clearPlacementPreview);
     },
   });
   syncPaletteRequirementStatus();

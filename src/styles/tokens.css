@@ -20,6 +20,7 @@
   --bank-color: #f6e58d;
   --farm-color: #badc58;
   --parking-color: #ffe8a3;
+  --mountain-color: #8a8f98;
 
   --cell-size: clamp(30px, 8vmin, 60px);
 }

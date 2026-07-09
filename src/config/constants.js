@@ -66,6 +66,13 @@ export const TILE_TYPES = {
     cost: 0.25,
     walkable: [],
   },
+  MOUNTAIN: {
+    id: "MOUNTAIN",
+    name: "山",
+    emoji: "⛰️",
+    cost: 0,
+    walkable: [],
+  },
   CROSSWALK: {
     id: "CROSSWALK",
     name: "旧斑马线",

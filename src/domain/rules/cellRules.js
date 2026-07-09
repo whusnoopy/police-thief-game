@@ -69,6 +69,15 @@ const TERRAIN_RULES = {
     drivableRoles: ["POLICE", "THIEF"],
     driveCost: QUARTER_STEP_COST,
   },
+  MOUNTAIN: {
+    tileType: "MOUNTAIN",
+    category: "TERRAIN",
+    entryCost: 0,
+    walkCost: null,
+    walkableRoles: [],
+    drivableRoles: [],
+    driveCost: null,
+  },
   CROSSWALK: {
     tileType: "CROSSWALK_HORIZONTAL",
     category: "TERRAIN",
