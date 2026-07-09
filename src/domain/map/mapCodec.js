@@ -1,5 +1,6 @@
 import { GRID_SIZE } from "../../config/constants.js";
 import {
+  DEFAULT_TERRAIN_TILE_TYPE,
   FEATURE_TILE_TYPES,
   TERRAIN_TILE_TYPES,
   createEmptyMapDefinition,
@@ -78,7 +79,7 @@ function decodeTerrainMatrix(chars) {
     for (let c = 0; c < GRID_SIZE; c += 1) {
       if (index < chars.length) {
         const b6 = BASE64_ALPHABET.indexOf(chars[index]);
-        terrainMatrix[r][c] = TERRAIN_TILE_TYPES[b6] || "GRASS";
+        terrainMatrix[r][c] = TERRAIN_TILE_TYPES[b6] || DEFAULT_TERRAIN_TILE_TYPE;
       }
       index += 1;
     }

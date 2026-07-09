@@ -1,5 +1,7 @@
+import { DEFAULT_TERRAIN_TILE_TYPE } from "./mapModel.js";
+
 export function getTerrainAt(mapDefinition, r, c) {
-  return mapDefinition?.terrain?.[r]?.[c] || "GRASS";
+  return mapDefinition?.terrain?.[r]?.[c] || DEFAULT_TERRAIN_TILE_TYPE;
 }
 
 export function getFeatureAt(mapDefinition, r, c) {

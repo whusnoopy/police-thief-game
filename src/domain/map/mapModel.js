@@ -25,6 +25,7 @@ export const FEATURE_TILE_TYPES = [
 ];
 
 export const SPAWN_TILE_TYPES = ["POLICE_SPAWN", "THIEF_SPAWN"];
+export const DEFAULT_TERRAIN_TILE_TYPE = "ROAD";
 
 const DEFAULT_FEATURE_TERRAIN = {
   POLICE_STATION: "ROAD",
@@ -48,7 +49,7 @@ export function isWithinBounds(r, c) {
 export function createEmptyTerrainMatrix() {
   return Array(GRID_SIZE)
     .fill()
-    .map(() => Array(GRID_SIZE).fill("GRASS"));
+    .map(() => Array(GRID_SIZE).fill(DEFAULT_TERRAIN_TILE_TYPE));
 }
 
 export function createEmptyMapDefinition(overrides = {}) {
@@ -99,7 +100,9 @@ function normalizeTerrainMatrix(terrain) {
   for (let r = 0; r < GRID_SIZE; r += 1) {
     for (let c = 0; c < GRID_SIZE; c += 1) {
       const tileType = normalizeCrosswalkTileType(terrain?.[r]?.[c]);
-      normalized[r][c] = TERRAIN_TILE_TYPES.includes(tileType) ? tileType : "GRASS";
+      normalized[r][c] = TERRAIN_TILE_TYPES.includes(tileType)
+        ? tileType
+        : DEFAULT_TERRAIN_TILE_TYPE;
     }
   }
   return normalized;
@@ -168,7 +171,7 @@ export function setLegacyTileAt(mapDefinition, r, c, tileType) {
   mapDefinition.spawns ||= { police: [], thief: [] };
   mapDefinition.spawns.police ||= [];
   mapDefinition.spawns.thief ||= [];
-  mapDefinition.terrain[r] ||= Array(GRID_SIZE).fill("GRASS");
+  mapDefinition.terrain[r] ||= Array(GRID_SIZE).fill(DEFAULT_TERRAIN_TILE_TYPE);
 
   clearCellDecorators(mapDefinition, r, c);
 

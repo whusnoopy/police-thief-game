@@ -4,7 +4,7 @@ import { createEmptyMapDefinition, setLegacyTileAt } from "../domain/map/mapMode
 import { getFeaturePositionsByKind, getTileTypeAt } from "../domain/map/mapQueries.js";
 import { persistCurrentMap } from "../storage/mapRepository.js";
 import { renderBoard, syncBoardCell } from "../ui/board/boardRenderer.js";
-import { renderPalette } from "../ui/editor/editorRenderer.js";
+import { renderPalette, updatePaletteRequirementStatus } from "../ui/editor/editorRenderer.js";
 
 let isMouseDown = false;
 let pointerStateBound = false;
@@ -25,6 +25,19 @@ function bindPointerState() {
   pointerStateBound = true;
 }
 
+function getRequiredPaletteStatus() {
+  return {
+    POLICE_SPAWN: state.mapDefinition.spawns.police.length > 0,
+    THIEF_SPAWN: state.mapDefinition.spawns.thief.length > 0,
+    THIEF_BASE: getFeaturePositionsByKind(state.mapDefinition, "THIEF_BASE").length > 0,
+    BANK: getFeaturePositionsByKind(state.mapDefinition, "BANK").length > 0,
+  };
+}
+
+function syncPaletteRequirementStatus() {
+  updatePaletteRequirementStatus(els.palette, getRequiredPaletteStatus());
+}
+
 export function initEditor() {
   bindPointerState();
   renderPalette(els.palette, {
@@ -33,11 +46,14 @@ export function initEditor() {
     onSelect(typeId, item) {
       document.querySelectorAll(".palette-item").forEach((paletteItem) => {
         paletteItem.classList.remove("active");
+        paletteItem.setAttribute("aria-pressed", "false");
       });
       item.classList.add("active");
+      item.setAttribute("aria-pressed", "true");
       state.currentPaletteType = typeId;
     },
   });
+  syncPaletteRequirementStatus();
 
   els.btnClearMap.addEventListener("click", clearMap);
 }
@@ -55,6 +71,7 @@ export function renderEditorBoard() {
           r,
           c,
         });
+        syncPaletteRequirementStatus();
         persistCurrentMap();
       };
 
@@ -67,10 +84,11 @@ export function renderEditorBoard() {
       });
     },
   });
+  syncPaletteRequirementStatus();
 }
 
 export function clearMap() {
-  if (!confirm("确定要清空地图吗？所有地块将被重置为草地。")) return;
+  if (!confirm("确定要清空地图吗？所有地块将被重置为普通道路。")) return;
 
   setMapDefinition(createEmptyMapDefinition());
   renderEditorBoard();
