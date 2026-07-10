@@ -46,7 +46,7 @@ export function getMapList() {
     return (
       raw.encodedMap !== record.encodedMap ||
       raw.updatedAt !== record.updatedAt ||
-      raw.schemaVersion !== 2
+      raw.schemaVersion !== 3
     );
   });
   if (needsRewrite) setMapList(normalized);

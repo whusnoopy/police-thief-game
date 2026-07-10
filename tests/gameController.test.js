@@ -8,7 +8,7 @@ env.installGlobals();
 const { createEmptyMapDefinition, setLegacyTileAt } = await import(
   "../src/domain/map/mapModel.js"
 );
-const { gameController } = await import("../src/features/gameController.js");
+const { GAME_PHASES, gameController } = await import("../src/features/gameController.js");
 
 test("crosswalk signal lights rerender on signal phase change", () => {
   const mapDefinition = createEmptyMapDefinition();
@@ -64,4 +64,30 @@ test("farm animal spawns rerender after a full round", () => {
   } finally {
     Math.random = originalRandom;
   }
+});
+
+test("reinitializing the game cancels an in-flight dice animation", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  gameController.rollIntervalId = setInterval(() => {}, 1000);
+  gameController.isRolling = true;
+  gameController.phase = GAME_PHASES.ROLLING;
+
+  gameController.init(mapDefinition);
+
+  assert.equal(gameController.rollIntervalId, null);
+  assert.equal(gameController.isRolling, false);
+  assert.equal(gameController.phase, GAME_PHASES.AWAIT_ROLL);
+});
+
+test("skip turn only works after the rolled side has no legal moves", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  gameController.init(mapDefinition);
+  const initialTurn = gameController.turn;
+
+  gameController.skipTurn();
+  assert.equal(gameController.turn, initialTurn);
+
+  gameController.phase = GAME_PHASES.NO_MOVES;
+  gameController.skipTurn();
+  assert.notEqual(gameController.turn, initialTurn);
 });

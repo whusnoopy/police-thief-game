@@ -8,6 +8,9 @@ const DEFAULT_ELEMENT_IDS = [
   "mode-indicator",
   "btn-clear-map",
   "btn-start-game",
+  "editor-help-wrapper",
+  "btn-editor-help",
+  "editor-help-tooltip",
   "btn-back-editor",
   "turn-indicator",
   "signal-indicator",
@@ -18,6 +21,10 @@ const DEFAULT_ELEMENT_IDS = [
   "game-message",
   "btn-roll-dice",
   "btn-skip-turn",
+  "btn-view-rules",
+  "rules-modal",
+  "btn-close-rules-modal",
+  "btn-close-rules-modal-footer",
   "victory-modal",
   "victory-title",
   "victory-message",
@@ -204,6 +211,13 @@ class FakeElement {
     }
     child.parentNode = null;
     return child;
+  }
+
+  contains(node) {
+    if (node === this) return true;
+    return this.children.some(
+      (child) => child.nodeType !== 3 && typeof child.contains === "function" && child.contains(node),
+    );
   }
 
   replaceChild(newChild, oldChild) {

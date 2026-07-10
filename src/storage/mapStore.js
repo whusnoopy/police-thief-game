@@ -2,7 +2,8 @@ import { encodeMapDefinition, normalizeEncodedMap } from "../domain/map/mapCodec
 import { createEmptyMapDefinition, legacyTileMatrixToMapDefinition } from "../domain/map/mapModel.js";
 
 export const STORAGE_KEYS = {
-  mapList: "policeThief.maps.v2",
+  mapList: "policeThief.maps.v3",
+  v2MapList: "policeThief.maps.v2",
   currentMapId: "policeThief.currentMapId",
   legacyMapList: "policeThiefMapList",
   legacyCurrentMapId: "policeThiefCurrentMapId",
@@ -47,7 +48,7 @@ export function normalizeMapRecord(record = {}, options = {}) {
     name: record.name || formatDefaultMapName(new Date(timestamp)),
     encodedMap: normalizeStoredEncodedMap(record.encodedMap || record.data || ""),
     updatedAt: timestamp,
-    schemaVersion: 2,
+    schemaVersion: 3,
   };
 }
 
@@ -67,6 +68,20 @@ export function getMapListFromStorage(storage, options = {}) {
 
 function getLegacyMapListFromStorage(storage, options = {}) {
   const storedList = storage.getItem(STORAGE_KEYS.legacyMapList);
+  if (!storedList) return [];
+
+  try {
+    const parsed = JSON.parse(storedList);
+    return Array.isArray(parsed)
+      ? parsed.map((record) => normalizeMapRecord(record, options))
+      : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function getV2MapListFromStorage(storage, options = {}) {
+  const storedList = storage.getItem(STORAGE_KEYS.v2MapList);
   if (!storedList) return [];
 
   try {
@@ -118,6 +133,7 @@ function getLegacySingleEncodedMapFromStorage(storage) {
 }
 
 function clearLegacyStorage(storage) {
+  storage.removeItem(STORAGE_KEYS.v2MapList);
   storage.removeItem(STORAGE_KEYS.legacyMapList);
   storage.removeItem(STORAGE_KEYS.legacyCurrentMapId);
   storage.removeItem(STORAGE_KEYS.legacySingleMap);
@@ -134,6 +150,7 @@ function moveCurrentMapToFront(maps, currentMapId) {
 
 export function migrateLegacyStorage(storage, options = {}) {
   const hasLegacyData =
+    storage.getItem(STORAGE_KEYS.v2MapList) !== null ||
     storage.getItem(STORAGE_KEYS.legacyMapList) !== null ||
     storage.getItem(STORAGE_KEYS.legacyCurrentMapId) !== null ||
     storage.getItem(STORAGE_KEYS.legacySingleMap) !== null;
@@ -147,9 +164,10 @@ export function migrateLegacyStorage(storage, options = {}) {
   }
 
   let nextMapList = getMapListFromStorage(storage, options);
+  const v2MapList = getV2MapListFromStorage(storage, options);
   const legacyMapList = getLegacyMapListFromStorage(storage, options);
   const existingIds = new Set(nextMapList.map((mapItem) => mapItem.id));
-  legacyMapList.forEach((mapItem) => {
+  [...v2MapList, ...legacyMapList].forEach((mapItem) => {
     if (existingIds.has(mapItem.id)) return;
     nextMapList.push(mapItem);
     existingIds.add(mapItem.id);

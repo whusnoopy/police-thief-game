@@ -18,24 +18,39 @@
 
       <main id="editor-view" class="view active">
         <div class="palette-panel">
-          <h3>地块选择</h3>
-          <div id="palette" class="palette">
-            <!-- 生成的地块选项会放在这里 -->
-          </div>
           <div class="editor-actions">
-            <button id="btn-clear-map" class="btn danger">🗑️ 清空地图</button>
-            <button id="btn-map-list" class="btn info">📁 地图列表</button>
             <button
               id="btn-start-game"
-              class="btn success tooltip"
-              data-tooltip="需放置警察出生点、小偷出生点、小偷基地和银行"
+              class="btn success"
+              type="button"
             >
               🚀 开始游戏
             </button>
+            <div class="editor-utility-actions">
+              <button id="btn-clear-map" class="btn danger" type="button">清空</button>
+              <button id="btn-map-list" class="btn info" type="button">地图库</button>
+              <div id="editor-help-wrapper" class="editor-help-wrapper">
+                <button
+                  id="btn-editor-help"
+                  class="btn secondary editor-help-button"
+                  type="button"
+                  aria-label="查看编辑提示"
+                  aria-expanded="false"
+                  aria-describedby="editor-help-tooltip"
+                >
+                  ℹ️
+                </button>
+                <div id="editor-help-tooltip" class="editor-help-tooltip hidden" role="tooltip">
+                  <p>点击上方地块类型，再在右侧棋盘上涂抹即可编辑。</p>
+                  <p>开始游戏前必须要放置的地块包括警察出生点、小偷出生点、小偷基地和银行。</p>
+                  <p>地图会自动保存，清空按钮可将地图所有地块重置为普通道路，地图库按钮可进入管理多张地图。</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <p class="help-text">
-            点击上方地块类型，然后在右侧地图上涂抹即可编辑。地图会实时自动保存。必须包含警察出生点、小偷出生点、小偷基地和银行才能开始游戏。
-          </p>
+          <div id="palette" class="palette">
+            <!-- 生成的地块选项和当前地块说明会放在这里 -->
+          </div>
         </div>
 
         <div class="board-container">
@@ -81,27 +96,13 @@
           </div>
 
           <div class="game-actions">
+            <button id="btn-view-rules" class="btn info" type="button">
+              📖 查看规则说明
+            </button>
             <button id="btn-back-editor" class="btn secondary">
               ⬅️ 返回编辑
             </button>
           </div>
-          <details class="legend-panel">
-            <summary>查看规则说明</summary>
-            <div class="legend">
-              <p><span class="emoji">⬜🔵🔴</span> 道路消耗 1 步，出生点等同道路</p>
-              <p><span class="emoji">🌊🌉</span> 河流和高架桥只允许车辆通行；车辆过河每格消耗 2 步，过高架桥每格消耗 0.25 步</p>
-              <p><span class="emoji">↔️↕️</span> 斑马线分横向和纵向；行人只能按斑马线方向在绿灯时通过，车辆只能按垂直方向在红灯时通过</p>
-              <p><span class="emoji">🌿</span> 草地消耗 2 步</p>
-              <p><span class="emoji">🏢🏗️🚧</span> 建筑物、建筑工地、路障不可进入</p>
-              <p><span class="emoji">🚨</span> 警察局仅警察可进入，押送小偷进入警局将让警察可再次抓人</p>
-              <p><span class="emoji">🏦</span> 银行的钱无限，小偷必须自己进入银行拿到钱后，才能回小偷基地逃脱</p>
-              <p><span class="emoji">🚜🐷🐮</span> 农场会在上下左右可通行空格刷新动物；每个农场最多 3 只，动物每轮随机移动，所在格不可进入</p>
-              <p><span class="emoji">🟢🔴</span> 斑马线两侧的小灯只表示行人信号；绿灯时行人可按斑马线方向通过，红灯时车辆可按垂直方向通过；每两次行动切换一次</p>
-              <p><span class="emoji">🏚️</span> 小偷基地仅带钱小偷可进入，进入即逃脱；若驾车到达，汽车会留在基地</p>
-              <p><span class="emoji">🕳️</span> 井盖对警察等同道路，小偷站在井盖上可 1 步传送到其他任何井盖</p>
-              <p><span class="emoji">🅿️🚗</span> 停车场等同道路且默认停放空车；进入即可开车，车辆可在允许步行的格子下车，下车后车留在原地</p>
-            </div>
-          </details>
         </div>
 
         <div class="board-container">
@@ -160,6 +161,46 @@
           </div>
         </div>
       </div>
+
+      <div
+        id="rules-modal"
+        class="modal rules-modal hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rules-modal-title"
+      >
+        <div class="modal-content rules-modal-content">
+          <div class="rules-modal-header">
+            <h2 id="rules-modal-title">📖 游戏规则说明</h2>
+            <button
+              id="btn-close-rules-modal"
+              class="rules-close-button"
+              type="button"
+              aria-label="关闭规则说明"
+            >
+              ×
+            </button>
+          </div>
+          <div class="rules-list">
+            <p><span class="emoji">⬜🔵🔴</span> 道路消耗 1 步，出生点等同道路</p>
+            <p><span class="emoji">🌊🌉</span> 河流和高架桥只允许车辆通行；车辆过河每格消耗 2 步，过高架桥每格消耗 0.25 步</p>
+            <p><span class="emoji">↔️↕️</span> 斑马线分横向和纵向；行人只能按斑马线方向在绿灯时通过，车辆只能按垂直方向在红灯时通过</p>
+            <p><span class="emoji">🌿</span> 草地消耗 2 步</p>
+            <p><span class="emoji">🏢🏗️🚧</span> 建筑物、建筑工地、路障不可进入</p>
+            <p><span class="emoji">🚨</span> 警察局仅警察可进入，押送小偷进入警局将让警察可再次抓人</p>
+            <p><span class="emoji">🏦</span> 银行的钱无限，小偷必须自己进入银行拿到钱后，才能回小偷基地逃脱</p>
+            <p><span class="emoji">🚜🐷🐮</span> 农场会在上下左右可通行空格刷新动物；每个农场最多 3 只，动物每轮随机移动，所在格不可进入</p>
+            <p><span class="emoji">🟢🔴</span> 斑马线两侧的小灯只表示行人信号；绿灯时行人可按斑马线方向通过，红灯时车辆可按垂直方向通过；每两次行动切换一次</p>
+            <p><span class="emoji">🏚️</span> 小偷基地仅带钱小偷可进入，进入即逃脱；若驾车到达，汽车会自动回到最近的空停车场</p>
+            <p><span class="emoji">🕳️</span> 井盖对警察等同道路，小偷站在井盖上可 1 步传送到其他任何井盖</p>
+            <p><span class="emoji">🅿️🚗</span> 步行进入空车会自动上车并结束行动；驾车以无车停车场为终点时自动下车，不能中途下车或换乘</p>
+          </div>
+          <div class="modal-actions rules-modal-actions">
+            <button id="btn-close-rules-modal-footer" class="btn primary" type="button">知道了</button>
+          </div>
+        </div>
+      </div>
+
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>

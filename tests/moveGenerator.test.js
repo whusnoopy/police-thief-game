@@ -158,67 +158,10 @@ test("overpass movement search stays bounded on a full board", () => {
     unit: thief,
   });
 
-  assert.equal(actions.size, 100);
+  assert.equal(actions.size, 99);
 });
 
-test("driving unit can disembark on its current walkable cell", () => {
-  const mapDefinition = createEmptyMapDefinition();
-  setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
-
-  const session = createGameSession(mapDefinition);
-  const thief = session.thiefUnits[0];
-  thief.inCar = true;
-
-  const actions = calculateReachableActions({
-    session,
-    turn: "THIEF",
-    diceValue: 1,
-    unit: thief,
-  });
-  const disembarkAction = getActionAt(actions, 0, 0);
-
-  assert.ok(disembarkAction);
-  assert.equal(disembarkAction.movementKind, "DISEMBARK");
-  assert.equal(disembarkAction.isDriving, false);
-  assert.equal(disembarkAction.costSpent, 0);
-  assert.equal(disembarkAction.pointsLeft, 4);
-  assert.equal(disembarkAction.droppedCarAt, "0,0");
-  assert.equal(disembarkAction.trail.at(-1).movementKind, "DISEMBARK");
-
-  applyResolvedAction({
-    session,
-    turn: "THIEF",
-    unit: thief,
-    action: disembarkAction,
-  });
-
-  assert.equal(thief.inCar, false);
-  assert.equal(session.parkingCars.has("0,0"), true);
-  assert.equal(session.parkedCars.has("0,0"), true);
-});
-
-test("driving unit cannot disembark on vehicle-only terrain", () => {
-  const mapDefinition = createEmptyMapDefinition();
-  setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
-  setLegacyTileAt(mapDefinition, 0, 1, "RIVER");
-
-  const session = createGameSession(mapDefinition);
-  const thief = session.thiefUnits[0];
-  thief.r = 0;
-  thief.c = 1;
-  thief.inCar = true;
-
-  const actions = calculateReachableActions({
-    session,
-    turn: "THIEF",
-    diceValue: 1,
-    unit: thief,
-  });
-
-  assert.equal(getActionAt(actions, 0, 1), null);
-});
-
-test("driving unit can disembark mid-route and continue walking", () => {
+test("driving unit cannot disembark on its current cell or mid-route", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
   setLegacyTileAt(mapDefinition, 0, 1, "OVERPASS");
@@ -235,31 +178,12 @@ test("driving unit can disembark mid-route and continue walking", () => {
     diceValue: 3,
     unit: thief,
   });
-  const grassAction = getActionAt(actions, 0, 3);
 
-  assert.ok(grassAction);
-  assert.equal(grassAction.isDriving, false);
-  assert.equal(grassAction.droppedCarAt, "0,2");
-  assert.equal(grassAction.costSpent, 11);
-  assert.equal(grassAction.trail.some((segment) => segment.movementKind === "DISEMBARK"), true);
-
-  applyResolvedAction({
-    session,
-    turn: "THIEF",
-    unit: thief,
-    action: grassAction,
-  });
-
-  assert.deepEqual({ r: thief.r, c: thief.c, inCar: thief.inCar }, {
-    r: 0,
-    c: 3,
-    inCar: false,
-  });
-  assert.equal(session.parkingCars.has("0,2"), true);
-  assert.equal(session.parkedCars.has("0,2"), true);
+  assert.equal(getActionAt(actions, 0, 0), null);
+  assert.equal(getActionAt(actions, 0, 3), null);
 });
 
-test("unit can board a parked car, disembark, and keep walking in one action", () => {
+test("boarding a car immediately ends the action and consumes remaining movement", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
   setLegacyTileAt(mapDefinition, 0, 1, "PARKING");
@@ -274,24 +198,59 @@ test("unit can board a parked car, disembark, and keep walking in one action", (
     diceValue: 3,
     unit: thief,
   });
-  const grassAction = getActionAt(actions, 0, 2);
+  const boardAction = getActionAt(actions, 0, 1);
 
-  assert.ok(grassAction);
-  assert.equal(grassAction.boardedCarAt, "0,1");
-  assert.equal(grassAction.droppedCarAt, "0,1");
-  assert.equal(grassAction.isDriving, false);
-  assert.equal(grassAction.costSpent, 12);
+  assert.ok(boardAction);
+  assert.equal(boardAction.type, "BOARD");
+  assert.equal(boardAction.boardedCarAt, "0,1");
+  assert.equal(boardAction.isDriving, true);
+  assert.equal(boardAction.pointsLeft, 0);
+  assert.equal(getActionAt(actions, 0, 2), null);
 
   applyResolvedAction({
     session,
     turn: "THIEF",
     unit: thief,
-    action: grassAction,
+    action: boardAction,
   });
 
+  assert.equal(thief.inCar, true);
+  assert.equal(session.parkingCars.has("0,1"), false);
+  assert.equal(session.parkedCars.has("0,1"), false);
+});
+
+test("driving unit automatically parks only when an empty parking lot is the destination", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 1, "PARKING");
+  const session = createGameSession(mapDefinition);
+  session.parkingCars.delete("0,1");
+  session.parkedCars.delete("0,1");
+  const thief = {
+    id: "T1",
+    r: 0,
+    c: 0,
+    state: "ACTIVE",
+    inCar: true,
+    hasMoney: false,
+    carrierId: null,
+  };
+  session.thiefUnits = [thief];
+
+  const parkAction = getActionAt(calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 1,
+    unit: thief,
+  }), 0, 1);
+
+  assert.equal(parkAction.type, "PARK");
+  assert.equal(parkAction.isDriving, false);
+  assert.equal(parkAction.pointsLeft, 0);
+  assert.equal(parkAction.droppedCarAt, "0,1");
+
+  applyResolvedAction({ session, turn: "THIEF", unit: thief, action: parkAction });
   assert.equal(thief.inCar, false);
   assert.equal(session.parkingCars.has("0,1"), true);
-  assert.equal(session.parkedCars.has("0,1"), true);
 });
 
 test("movement point formatter supports quarter-step values", () => {
@@ -306,11 +265,14 @@ test("driving thief can stop on base with movement points left and escape", () =
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
   setLegacyTileAt(mapDefinition, 1, 0, "BANK");
   setLegacyTileAt(mapDefinition, 0, 1, "THIEF_BASE");
+  setLegacyTileAt(mapDefinition, 1, 1, "PARKING");
 
   const session = createGameSession(mapDefinition);
   const thief = session.thiefUnits[0];
   thief.inCar = true;
   thief.hasMoney = true;
+  session.parkingCars.delete("1,1");
+  session.parkedCars.delete("1,1");
 
   const actions = calculateReachableActions({
     session,
@@ -323,7 +285,8 @@ test("driving thief can stop on base with movement points left and escape", () =
   assert.ok(escapeAction);
   assert.equal(escapeAction.type, "ESCAPE");
   assert.equal(escapeAction.isDriving, true);
-  assert.equal(escapeAction.pointsLeft, 2);
+  assert.equal(escapeAction.pointsLeft, 0);
+  assert.equal(escapeAction.returnsVehicleToParking, true);
 
   applyResolvedAction({
     session,
@@ -334,7 +297,8 @@ test("driving thief can stop on base with movement points left and escape", () =
 
   assert.equal(thief.state, "ESCAPED");
   assert.equal(thief.inCar, false);
-  assert.equal(session.parkedCars.has("0,1"), true);
+  assert.equal(session.parkedCars.has("0,1"), false);
+  assert.equal(session.parkedCars.has("1,1"), true);
 });
 
 test("thief cannot enter the base before stealing money from a bank", () => {
@@ -417,7 +381,36 @@ test("thief keeps stolen money after ending a move past the bank", () => {
   assert.equal(thief.state, "ACTIVE");
 });
 
-test("thief leaves the car at base after boarding from parking and escaping", () => {
+test("a thief without money prefers a longer route through the bank to the same destination", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 1, 1, "THIEF_SPAWN");
+  setLegacyTileAt(mapDefinition, 2, 2, "BANK");
+
+  const session = createGameSession(mapDefinition);
+  const thief = session.thiefUnits[0];
+  const actions = calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 3,
+    unit: thief,
+  });
+
+  [[1, 2], [2, 1]].forEach(([r, c]) => {
+    const action = getActionAt(actions, r, c);
+
+    assert.ok(action);
+    assert.equal(action.hasMoney, true);
+    assert.equal(action.costSpent, 12);
+    assert.equal(action.pointsLeft, 0);
+    assert.equal(action.path.some((point) => point.r === 2 && point.c === 2), true);
+  });
+
+  const selectedAction = getActionAt(actions, 1, 2);
+  applyResolvedAction({ session, turn: "THIEF", unit: thief, action: selectedAction });
+  assert.equal(thief.hasMoney, true);
+});
+
+test("thief cannot board a car and escape in the same action", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
   setLegacyTileAt(mapDefinition, 0, 1, "PARKING");
@@ -433,37 +426,44 @@ test("thief leaves the car at base after boarding from parking and escaping", ()
     diceValue: 2,
     unit: thief,
   });
-  const escapeAction = getActionAt(actions, 0, 2);
+  const boardAction = getActionAt(actions, 0, 1);
 
-  assert.ok(escapeAction);
-  assert.equal(escapeAction.type, "ESCAPE");
-  assert.equal(escapeAction.boardedCarAt, "0,1");
-  assert.equal(session.parkingCars.has("0,1"), true);
-  assert.equal(session.parkedCars.has("0,1"), true);
+  assert.ok(boardAction);
+  assert.equal(boardAction.type, "BOARD");
+  assert.equal(boardAction.pointsLeft, 0);
+  assert.equal(getActionAt(actions, 0, 2), null);
 
   applyResolvedAction({
     session,
     turn: "THIEF",
     unit: thief,
-    action: escapeAction,
+    action: boardAction,
   });
 
-  assert.equal(thief.state, "ESCAPED");
-  assert.equal(thief.inCar, false);
+  assert.equal(thief.state, "ACTIVE");
+  assert.equal(thief.inCar, true);
   assert.equal(session.parkingCars.has("0,1"), false);
   assert.equal(session.parkedCars.has("0,1"), false);
-  assert.equal(session.parkedCars.has("0,2"), true);
 });
 
-test("driving thief can disembark and walk into a base that already has a parked empty car", () => {
+test("vehicles returned from the base never block its entrance", () => {
   const mapDefinition = createEmptyMapDefinition();
-  setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
-  setLegacyTileAt(mapDefinition, 1, 1, "THIEF_SPAWN");
   setLegacyTileAt(mapDefinition, 0, 1, "THIEF_BASE");
+  setLegacyTileAt(mapDefinition, 1, 1, "PARKING");
 
   const session = createGameSession(mapDefinition);
-  const firstThief = session.thiefUnits[0];
-  const secondThief = session.thiefUnits[1];
+  session.parkingCars.clear();
+  session.parkedCars.clear();
+  const firstThief = {
+    id: "T1",
+    r: 0,
+    c: 0,
+    state: "ACTIVE",
+    inCar: true,
+    hasMoney: true,
+    carrierId: null,
+  };
+  session.thiefUnits = [firstThief];
   firstThief.inCar = true;
   firstThief.hasMoney = true;
 
@@ -483,30 +483,11 @@ test("driving thief can disembark and walk into a base that already has a parked
     action: firstEscapeAction,
   });
 
-  assert.equal(session.parkedCars.has("0,1"), true);
-  assert.equal(session.parkingCars.has("0,1"), false);
-
-  secondThief.inCar = true;
-  secondThief.hasMoney = true;
-  const secondActions = calculateReachableActions({
-    session,
-    turn: "THIEF",
-    diceValue: 1,
-    unit: secondThief,
-  });
-
-  const secondEscapeAction = getActionAt(secondActions, 0, 1);
-  assert.ok(secondEscapeAction);
-  assert.equal(secondEscapeAction.type, "ESCAPE");
-  assert.equal(secondEscapeAction.isDriving, false);
-  assert.equal(secondEscapeAction.droppedCarAt, "1,1");
-  assert.equal(
-    secondEscapeAction.trail.some((segment) => segment.movementKind === "DISEMBARK"),
-    true,
-  );
+  assert.equal(session.parkedCars.has("0,1"), false);
+  assert.equal(session.parkedCars.has("1,1"), true);
 });
 
-test("driving police can capture a driving thief with movement points left", () => {
+test("driving police capture exhausts movement and keeps the thief car", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "POLICE_SPAWN");
   setLegacyTileAt(mapDefinition, 0, 1, "THIEF_SPAWN");
@@ -530,7 +511,7 @@ test("driving police can capture a driving thief with movement points left", () 
   assert.ok(captureAction);
   assert.equal(captureAction.type, "CAPTURE");
   assert.equal(captureAction.isDriving, true);
-  assert.equal(captureAction.pointsLeft, 2);
+  assert.equal(captureAction.pointsLeft, 0);
 
   applyResolvedAction({
     session,
@@ -555,11 +536,48 @@ test("driving police can capture a driving thief with movement points left", () 
   }), 0, 0);
 
   assert.ok(boardDroppedCarAction);
+  assert.equal(boardDroppedCarAction.type, "BOARD");
   assert.equal(boardDroppedCarAction.isDriving, true);
   assert.equal(boardDroppedCarAction.boardedCarAt, "0,0");
+  assert.equal(boardDroppedCarAction.pointsLeft, 0);
 });
 
-test("driving unit must disembark before entering a cell that already has an available empty car", () => {
+test("capture takes precedence over automatic parking on an empty parking lot", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 0, "POLICE_SPAWN");
+  setLegacyTileAt(mapDefinition, 0, 1, "PARKING");
+  setLegacyTileAt(mapDefinition, 1, 1, "THIEF_SPAWN");
+
+  const session = createGameSession(mapDefinition);
+  const police = session.policeUnits[0];
+  const thief = session.thiefUnits[0];
+  police.inCar = true;
+  thief.r = 0;
+  thief.c = 1;
+  session.parkingCars.delete("0,1");
+  session.parkedCars.delete("0,1");
+
+  const action = getActionAt(calculateReachableActions({
+    session,
+    turn: "POLICE",
+    diceValue: 1,
+    unit: police,
+  }), 0, 1);
+
+  assert.ok(action);
+  assert.equal(action.type, "CAPTURE");
+  assert.equal(action.isDriving, true);
+  assert.equal(action.pointsLeft, 0);
+
+  applyResolvedAction({ session, turn: "POLICE", unit: police, action });
+
+  assert.equal(police.state, "CARRYING");
+  assert.equal(police.inCar, true);
+  assert.equal(thief.state, "CARRIED");
+  assert.equal(session.parkedCars.has("0,1"), false);
+});
+
+test("driving unit cannot enter a cell that already has an available empty car", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
   setLegacyTileAt(mapDefinition, 0, 1, "PARKING");
@@ -575,12 +593,7 @@ test("driving unit must disembark before entering a cell that already has an ava
     unit: thief,
   });
 
-  const action = getActionAt(actions, 0, 1);
-  assert.ok(action);
-  assert.equal(action.boardedCarAt, "0,1");
-  assert.equal(action.droppedCarAt, "0,0");
-  assert.equal(action.isDriving, true);
-  assert.equal(action.trail.at(0).movementKind, "DISEMBARK");
+  assert.equal(getActionAt(actions, 0, 1), null);
 });
 
 test("animals block walking and driving movement", () => {
@@ -812,4 +825,137 @@ test("driving unit cannot enter vertical crosswalk during pedestrian green", () 
   });
 
   assert.equal(getActionAt(actions, 0, 2), null);
+});
+
+test("movement search keeps a longer bank route when the short route consumes a later chokepoint", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  for (let r = 0; r < 10; r += 1) {
+    for (let c = 0; c < 10; c += 1) {
+      setLegacyTileAt(mapDefinition, r, c, "BUILDING");
+    }
+  }
+  [[3, 2], [3, 3]].forEach(([r, c]) => setLegacyTileAt(mapDefinition, r, c, "ROAD"));
+  [[2, 2], [1, 2], [1, 3], [1, 4], [2, 4]].forEach(([r, c]) =>
+    setLegacyTileAt(mapDefinition, r, c, "OVERPASS"));
+  setLegacyTileAt(mapDefinition, 3, 4, "BANK");
+  setLegacyTileAt(mapDefinition, 4, 3, "THIEF_BASE");
+
+  const session = createGameSession(mapDefinition);
+  const thief = {
+    id: "T1",
+    r: 3,
+    c: 2,
+    state: "ACTIVE",
+    inCar: true,
+    hasMoney: false,
+    carrierId: null,
+  };
+  session.thiefUnits = [thief];
+
+  const escapeAction = getActionAt(calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 6,
+    unit: thief,
+  }), 4, 3);
+
+  assert.ok(escapeAction);
+  assert.equal(escapeAction.type, "ESCAPE");
+  assert.equal(escapeAction.path.some(({ r, c }) => r === 1 && c === 3), true);
+});
+
+test("boarding the first car prevents reaching a second car in the same action", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 1, "PARKING");
+  setLegacyTileAt(mapDefinition, 0, 3, "PARKING");
+  const session = createGameSession(mapDefinition);
+  const thief = {
+    id: "T1",
+    r: 0,
+    c: 0,
+    state: "ACTIVE",
+    inCar: false,
+    hasMoney: false,
+    carrierId: null,
+  };
+  session.thiefUnits = [thief];
+
+  const actions = calculateReachableActions({
+    session,
+    turn: "THIEF",
+    diceValue: 3,
+    unit: thief,
+  });
+  const boardAction = getActionAt(actions, 0, 1);
+
+  assert.equal(boardAction.type, "BOARD");
+  assert.equal(boardAction.pointsLeft, 0);
+  assert.equal(getActionAt(actions, 0, 3), null);
+});
+
+test("an extra captured car on vehicle-only terrain returns to the nearest empty parking", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 0, "OVERPASS");
+  setLegacyTileAt(mapDefinition, 2, 0, "PARKING");
+  setLegacyTileAt(mapDefinition, 2, 2, "PARKING");
+  const session = createGameSession(mapDefinition);
+  session.parkingCars.clear();
+  session.parkedCars.clear();
+  const police = { id: "P1", r: 0, c: 0, state: "IDLE", inCar: true };
+  const thief = {
+    id: "T1",
+    r: 0,
+    c: 1,
+    state: "ACTIVE",
+    inCar: true,
+    hasMoney: false,
+    carrierId: null,
+  };
+  session.policeUnits = [police];
+  session.thiefUnits = [thief];
+
+  const action = getActionAt(calculateReachableActions({
+    session,
+    turn: "POLICE",
+    diceValue: 1,
+    unit: police,
+  }), 0, 1);
+  applyResolvedAction({ session, turn: "POLICE", unit: police, action });
+
+  assert.equal(session.parkingCars.has("0,0"), false);
+  assert.equal(session.parkingCars.has("2,0"), true);
+  assert.equal(session.parkingCars.has("2,2"), false);
+  assert.equal(session.pendingCars.length, 0);
+});
+
+test("a carried thief is jailed when police reaches the station", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 1, "POLICE_STATION");
+  const session = createGameSession(mapDefinition);
+  const police = { id: "P1", r: 0, c: 0, state: "CARRYING", inCar: false };
+  const thief = {
+    id: "T1",
+    r: 0,
+    c: 0,
+    state: "CARRIED",
+    inCar: false,
+    hasMoney: false,
+    carrierId: "P1",
+  };
+  session.policeUnits = [police];
+  session.thiefUnits = [thief];
+
+  const action = getActionAt(calculateReachableActions({
+    session,
+    turn: "POLICE",
+    diceValue: 1,
+    unit: police,
+  }), 0, 1);
+  assert.equal(action.type, "DELIVER");
+
+  applyResolvedAction({ session, turn: "POLICE", unit: police, action });
+
+  assert.equal(police.state, "IDLE");
+  assert.equal(thief.state, "JAILED");
+  assert.equal(thief.carrierId, null);
 });

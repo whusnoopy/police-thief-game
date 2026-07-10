@@ -9,7 +9,6 @@ const TERRAIN_RULES = {
   GRASS: {
     tileType: "GRASS",
     category: "TERRAIN",
-    entryCost: 2,
     walkCost: TWO_STEP_COST,
     walkableRoles: ["POLICE", "THIEF"],
     drivableRoles: [],
@@ -18,7 +17,6 @@ const TERRAIN_RULES = {
   BUILDING: {
     tileType: "BUILDING",
     category: "TERRAIN",
-    entryCost: 0,
     walkCost: null,
     walkableRoles: [],
     drivableRoles: [],
@@ -27,7 +25,6 @@ const TERRAIN_RULES = {
   CONSTRUCTION_SITE: {
     tileType: "CONSTRUCTION_SITE",
     category: "TERRAIN",
-    entryCost: 0,
     walkCost: null,
     walkableRoles: [],
     drivableRoles: [],
@@ -36,7 +33,6 @@ const TERRAIN_RULES = {
   BARRIER: {
     tileType: "BARRIER",
     category: "TERRAIN",
-    entryCost: 0,
     walkCost: null,
     walkableRoles: [],
     drivableRoles: [],
@@ -45,7 +41,6 @@ const TERRAIN_RULES = {
   ROAD: {
     tileType: "ROAD",
     category: "TERRAIN",
-    entryCost: 1,
     walkCost: ONE_STEP_COST,
     walkableRoles: ["POLICE", "THIEF"],
     drivableRoles: ["POLICE", "THIEF"],
@@ -54,7 +49,6 @@ const TERRAIN_RULES = {
   RIVER: {
     tileType: "RIVER",
     category: "TERRAIN",
-    entryCost: 0,
     walkCost: null,
     walkableRoles: [],
     drivableRoles: ["POLICE", "THIEF"],
@@ -63,7 +57,6 @@ const TERRAIN_RULES = {
   OVERPASS: {
     tileType: "OVERPASS",
     category: "TERRAIN",
-    entryCost: 0,
     walkCost: null,
     walkableRoles: [],
     drivableRoles: ["POLICE", "THIEF"],
@@ -72,7 +65,6 @@ const TERRAIN_RULES = {
   MOUNTAIN: {
     tileType: "MOUNTAIN",
     category: "TERRAIN",
-    entryCost: 0,
     walkCost: null,
     walkableRoles: [],
     drivableRoles: [],
@@ -81,7 +73,6 @@ const TERRAIN_RULES = {
   CROSSWALK: {
     tileType: "CROSSWALK_HORIZONTAL",
     category: "TERRAIN",
-    entryCost: 1,
     walkCost: ONE_STEP_COST,
     walkableRoles: ["POLICE", "THIEF"],
     drivableRoles: ["POLICE", "THIEF"],
@@ -90,7 +81,6 @@ const TERRAIN_RULES = {
   CROSSWALK_HORIZONTAL: {
     tileType: "CROSSWALK_HORIZONTAL",
     category: "TERRAIN",
-    entryCost: 1,
     walkCost: ONE_STEP_COST,
     walkableRoles: ["POLICE", "THIEF"],
     drivableRoles: ["POLICE", "THIEF"],
@@ -99,7 +89,6 @@ const TERRAIN_RULES = {
   CROSSWALK_VERTICAL: {
     tileType: "CROSSWALK_VERTICAL",
     category: "TERRAIN",
-    entryCost: 1,
     walkCost: ONE_STEP_COST,
     walkableRoles: ["POLICE", "THIEF"],
     drivableRoles: ["POLICE", "THIEF"],
@@ -111,7 +100,6 @@ const FEATURE_RULES = {
   POLICE_STATION: {
     tileType: "POLICE_STATION",
     category: "FEATURE",
-    entryCost: 1,
     walkCost: ONE_STEP_COST,
     walkableRoles: ["POLICE"],
     drivableRoles: ["POLICE"],
@@ -120,7 +108,6 @@ const FEATURE_RULES = {
   THIEF_BASE: {
     tileType: "THIEF_BASE",
     category: "FEATURE",
-    entryCost: 1,
     walkCost: ONE_STEP_COST,
     walkableRoles: ["THIEF"],
     drivableRoles: ["THIEF"],
@@ -129,7 +116,6 @@ const FEATURE_RULES = {
   BANK: {
     tileType: "BANK",
     category: "FEATURE",
-    entryCost: 1,
     walkCost: ONE_STEP_COST,
     walkableRoles: ["POLICE", "THIEF"],
     drivableRoles: ["POLICE", "THIEF"],
@@ -138,7 +124,6 @@ const FEATURE_RULES = {
   FARM: {
     tileType: "FARM",
     category: "FEATURE",
-    entryCost: 1,
     walkCost: ONE_STEP_COST,
     walkableRoles: ["POLICE", "THIEF"],
     drivableRoles: ["POLICE", "THIEF"],
@@ -147,7 +132,6 @@ const FEATURE_RULES = {
   PARKING: {
     tileType: "PARKING",
     category: "FEATURE",
-    entryCost: 1,
     walkCost: ONE_STEP_COST,
     walkableRoles: ["POLICE", "THIEF"],
     drivableRoles: ["POLICE", "THIEF"],
@@ -156,7 +140,6 @@ const FEATURE_RULES = {
   MANHOLE: {
     tileType: "MANHOLE",
     category: "FEATURE",
-    entryCost: 1,
     walkCost: ONE_STEP_COST,
     walkableRoles: ["POLICE", "THIEF"],
     drivableRoles: ["POLICE", "THIEF"],
@@ -165,7 +148,6 @@ const FEATURE_RULES = {
   TRAFFIC_LIGHT: {
     tileType: "TRAFFIC_LIGHT",
     category: "FEATURE",
-    entryCost: 1,
     walkCost: ONE_STEP_COST,
     walkableRoles: ["POLICE", "THIEF"],
     drivableRoles: ["POLICE", "THIEF"],
@@ -177,7 +159,6 @@ const SPAWN_RULES = {
   POLICE: {
     tileType: "POLICE_SPAWN",
     category: "SPAWN",
-    entryCost: 1,
     walkCost: ONE_STEP_COST,
     walkableRoles: ["POLICE", "THIEF"],
     drivableRoles: ["POLICE", "THIEF"],
@@ -186,7 +167,6 @@ const SPAWN_RULES = {
   THIEF: {
     tileType: "THIEF_SPAWN",
     category: "SPAWN",
-    entryCost: 1,
     walkCost: ONE_STEP_COST,
     walkableRoles: ["POLICE", "THIEF"],
     drivableRoles: ["POLICE", "THIEF"],

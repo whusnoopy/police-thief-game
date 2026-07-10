@@ -15,7 +15,7 @@ test("creates a new current map record when the list is empty", () => {
   assert.equal(result.maps.length, 1);
   assert.equal(result.maps[0].id, "map-new");
   assert.equal(result.maps[0].encodedMap, "v2.map-a");
-  assert.equal(result.maps[0].schemaVersion, 2);
+  assert.equal(result.maps[0].schemaVersion, 3);
 });
 
 test("updates the current map record in place and moves it to the front", () => {

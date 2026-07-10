@@ -109,7 +109,7 @@ const TILE_HELP = {
   },
   PARKING: {
     summary: "提供车辆的地点。",
-    details: ["警察和小偷都可进入。", "默认停放空车，进入后可开车。", "下车后车会留在原地。"],
+    details: ["警察和小偷都可进入。", "步行进入空车会自动上车并结束行动。", "驾车以无车停车场为终点时自动下车。"],
   },
   MANHOLE: {
     summary: "小偷可用的传送点。",
@@ -125,20 +125,10 @@ const TILE_HELP = {
   },
 };
 
-function getFallbackHelp(type) {
-  const roles = new Set(type.walkable || []);
-  const access =
-    roles.has("POLICE") && roles.has("THIEF")
-      ? "警察和小偷都可进入。"
-      : roles.has("POLICE")
-        ? "只有警察可进入。"
-        : roles.has("THIEF")
-          ? "只有小偷可进入。"
-          : "警察和小偷都不能进入。";
-
+function getFallbackHelp() {
   return {
     summary: "基础地块。",
-    details: [access, type.cost > 0 ? `移动消耗 ${type.cost} 步。` : "不能作为普通移动目标。"],
+    details: ["该地块尚未配置详细玩法说明。"],
   };
 }
 
@@ -275,7 +265,6 @@ export function renderPalette(container, { tileTypes, currentPaletteType, onSele
     onSelect(typeId, item);
   }
 
-  container.appendChild(helpPanel);
   const paletteGroups = [];
 
   function handleGroupOpen(openGroup) {
@@ -316,6 +305,8 @@ export function renderPalette(container, { tileTypes, currentPaletteType, onSele
     paletteGroups.push(groupElement);
     container.appendChild(groupElement);
   }
+
+  container.appendChild(helpPanel);
 
   container.addEventListener("mouseleave", restoreSelectedTileHelp);
 }

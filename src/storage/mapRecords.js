@@ -18,7 +18,7 @@ export function upsertMapRecordInList({
       name: name?.trim() ? name.trim() : formatDefaultMapName(new Date(now)),
       encodedMap,
       updatedAt: now,
-      schemaVersion: 2,
+      schemaVersion: 3,
     };
     currentMapId = currentMap.id;
   } else {
@@ -26,7 +26,7 @@ export function upsertMapRecordInList({
       ...currentMap,
       encodedMap,
       updatedAt: now,
-      schemaVersion: 2,
+      schemaVersion: 3,
       name: name?.trim() ? name.trim() : currentMap.name,
     };
   }

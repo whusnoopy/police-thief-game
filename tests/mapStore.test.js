@@ -35,7 +35,7 @@ function createEncodedMap() {
   return encodeMapDefinition(mapDefinition);
 }
 
-test("normalizes stored v2 map records on read", () => {
+test("normalizes stored map records to schema v3 on read", () => {
   const encodedMap = createEncodedMap();
   const storage = createMemoryStorage({
     [STORAGE_KEYS.mapList]: JSON.stringify([
@@ -53,10 +53,10 @@ test("normalizes stored v2 map records on read", () => {
   assert.equal(result.length, 1);
   assert.equal(result[0].id, "map-1");
   assert.equal(result[0].encodedMap, encodedMap);
-  assert.equal(result[0].schemaVersion, 2);
+  assert.equal(result[0].schemaVersion, 3);
 });
 
-test("returns the current map payload from v2 storage", () => {
+test("returns the current map payload from current storage", () => {
   const mapA = createEncodedMap();
   const mapB = encodeMapDefinition(createEmptyMapDefinition());
   const storage = createMemoryStorage({
@@ -92,7 +92,7 @@ test("clears the current map id when set to an empty value", () => {
   assert.equal(storage.getItem(STORAGE_KEYS.currentMapId), null);
 });
 
-test("migrates legacy map-list storage into v2 keys and removes old keys", () => {
+test("migrates legacy map-list storage into current keys and removes old keys", () => {
   const legacyMap = createEmptyMapDefinition();
   setLegacyTileAt(legacyMap, 1, 1, "POLICE_SPAWN");
   const storage = createMemoryStorage({
@@ -113,7 +113,7 @@ test("migrates legacy map-list storage into v2 keys and removes old keys", () =>
   assert.equal(result.migrated, true);
   assert.equal(migratedList.length, 1);
   assert.equal(migratedList[0].id, "legacy-map");
-  assert.equal(migratedList[0].encodedMap.startsWith("v2."), true);
+  assert.equal(migratedList[0].encodedMap.startsWith("v3."), true);
   assert.equal(storage.getItem(STORAGE_KEYS.currentMapId), "legacy-map");
   assert.equal(storage.getItem(STORAGE_KEYS.legacyMapList), null);
   assert.equal(storage.getItem(STORAGE_KEYS.legacyCurrentMapId), null);
@@ -132,7 +132,33 @@ test("migrates a legacy single-map json payload and removes the old key", () => 
 
   assert.equal(result.migrated, true);
   assert.equal(migratedList.length, 1);
-  assert.equal(migratedList[0].encodedMap.startsWith("v2."), true);
+  assert.equal(migratedList[0].encodedMap.startsWith("v3."), true);
   assert.equal(storage.getItem(STORAGE_KEYS.currentMapId), migratedList[0].id);
   assert.equal(storage.getItem(STORAGE_KEYS.legacySingleMap), null);
+});
+
+test("migrates v2 local map-list storage to v3 without changing map ids", () => {
+  const v2Payload = "v2.eyJ2IjoyLCJ0IjoiRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRSIsImYiOltbMiwyMl0sWzUsNTVdXSwicCI6WzBdLCJoIjpbOTldfQ";
+  const storage = createMemoryStorage({
+    [STORAGE_KEYS.v2MapList]: JSON.stringify([
+      {
+        id: "v2-map",
+        name: "以前保存的地图",
+        encodedMap: v2Payload,
+        updatedAt: 100,
+        schemaVersion: 2,
+      },
+    ]),
+    [STORAGE_KEYS.currentMapId]: "v2-map",
+  });
+
+  const result = migrateLegacyStorage(storage);
+  const migratedList = getMapListFromStorage(storage);
+
+  assert.equal(result.migrated, true);
+  assert.equal(migratedList[0].id, "v2-map");
+  assert.equal(migratedList[0].encodedMap.startsWith("v3."), true);
+  assert.equal(migratedList[0].schemaVersion, 3);
+  assert.equal(storage.getItem(STORAGE_KEYS.v2MapList), null);
+  assert.ok(storage.getItem(STORAGE_KEYS.mapList));
 });

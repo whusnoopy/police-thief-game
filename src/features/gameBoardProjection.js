@@ -19,16 +19,11 @@ export function projectPathPreview(action, formatMovementPoints) {
 
   action.trail.forEach((segment) => {
     costSpent += segment.cost;
-    if (segment.movementKind === "DISEMBARK") {
-      const previousSegment = preview.at(-1);
-      if (previousSegment?.r === segment.r && previousSegment?.c === segment.c) {
-        previousSegment.label = "下车";
-        return;
-      }
+    if (segment.movementKind === "BOARD" || segment.movementKind === "PARK") {
       preview.push({
         r: segment.r,
         c: segment.c,
-        label: "下车",
+        label: segment.movementKind === "BOARD" ? "上车" : "下车",
       });
       return;
     }

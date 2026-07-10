@@ -19,14 +19,15 @@ test("bootstrap initialization and map-list flow stay wired through the controll
   assert.equal(env.elements["editor-view"].classList.contains("hidden"), false);
   assert.equal(env.elements["game-view"].classList.contains("hidden"), true);
   assert.equal(env.elements["map-list-view"].classList.contains("hidden"), true);
+  assert.equal(env.elements["rules-modal"].classList.contains("hidden"), true);
   assert.equal(env.elements["editor-board"].children.length, 100);
   assert.equal(env.elements.palette.children.length > 0, true);
   assert.match(env.elements["mode-indicator"].textContent, /^编辑中：地图 /);
 
   const storedAfterInit = getMapList();
   assert.equal(storedAfterInit.length, 1);
-  assert.equal(storedAfterInit[0].encodedMap.startsWith("v2."), true);
-  assert.equal(env.window.location.search.startsWith("?m=v2."), true);
+  assert.equal(storedAfterInit[0].encodedMap.startsWith("v3."), true);
+  assert.equal(env.window.location.search.startsWith("?m=v3."), true);
 
   setLegacyTileAt(state.mapDefinition, 0, 0, "POLICE_SPAWN");
   persistCurrentMap();
@@ -58,4 +59,15 @@ test("bootstrap initialization and map-list flow stay wired through the controll
   assert.deepStrictEqual(state.mapDefinition.spawns.police, [{ r: 0, c: 0 }]);
   assert.equal(env.elements["editor-view"].classList.contains("hidden"), false);
   assert.equal(env.elements["map-list-view"].classList.contains("hidden"), true);
+
+  env.elements["btn-view-rules"].click();
+  assert.equal(env.elements["rules-modal"].classList.contains("hidden"), false);
+  env.elements["btn-close-rules-modal-footer"].click();
+  assert.equal(env.elements["rules-modal"].classList.contains("hidden"), true);
+
+  env.elements["btn-editor-help"].click();
+  assert.equal(env.elements["editor-help-tooltip"].classList.contains("hidden"), false);
+  assert.equal(env.elements["btn-editor-help"].attributes["aria-expanded"], "true");
+  env.document.dispatchEvent({ type: "keydown", key: "Escape" });
+  assert.equal(env.elements["editor-help-tooltip"].classList.contains("hidden"), true);
 });

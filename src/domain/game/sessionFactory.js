@@ -40,5 +40,6 @@ export function createGameSession(mapDefinition) {
     nextAnimalId: 1,
     parkingCars,
     parkedCars,
+    pendingCars: [],
   };
 }

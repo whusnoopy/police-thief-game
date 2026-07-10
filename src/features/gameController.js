@@ -43,6 +43,15 @@ import {
 
 const GAME_CELL_ID_PREFIX = "game-cell";
 
+export const GAME_PHASES = {
+  AWAIT_ROLL: "AWAIT_ROLL",
+  ROLLING: "ROLLING",
+  SELECT_UNIT: "SELECT_UNIT",
+  SELECT_DESTINATION: "SELECT_DESTINATION",
+  NO_MOVES: "NO_MOVES",
+  FINISHED: "FINISHED",
+};
+
 function appendCrosswalkSignals(cell, { tileType, signalPhase }) {
   if (!isCrosswalkTileType(tileType)) return;
 
@@ -58,32 +67,80 @@ function appendCrosswalkSignals(cell, { tileType, signalPhase }) {
 
 export const gameController = {
   session: null,
-  turn: "THIEF",
-  diceValue: 0,
+  fallbackTurn: "THIEF",
+  fallbackDiceValue: 0,
   isRolling: false,
-  policeUnits: [],
-  thiefUnits: [],
-  animalUnits: [],
-  parkingCars: new Set(),
-  parkedCars: new Set(),
+  rollIntervalId: null,
+  phase: GAME_PHASES.AWAIT_ROLL,
   selectedUnit: null,
   reachable: new Map(),
 
+  get turn() {
+    return this.session?.turn || this.fallbackTurn;
+  },
+
+  set turn(turn) {
+    this.fallbackTurn = turn;
+    if (this.session) this.session.turn = turn;
+  },
+
+  get diceValue() {
+    return this.session?.diceValue ?? this.fallbackDiceValue;
+  },
+
+  set diceValue(diceValue) {
+    this.fallbackDiceValue = diceValue;
+    if (this.session) this.session.diceValue = diceValue;
+  },
+
+  get policeUnits() {
+    return this.session?.policeUnits || [];
+  },
+
+  get thiefUnits() {
+    return this.session?.thiefUnits || [];
+  },
+
+  get animalUnits() {
+    return this.session?.animalUnits || [];
+  },
+
+  get parkingCars() {
+    return this.session?.parkingCars || new Set();
+  },
+
+  get parkedCars() {
+    return this.session?.parkedCars || new Set();
+  },
+
   init(mapDefinition = state.mapDefinition) {
+    this.cancelPendingRoll();
     this.session = createGameSession(mapDefinition);
     this.turn = this.session.turn;
     this.diceValue = this.session.diceValue;
     this.selectedUnit = null;
     this.reachable.clear();
-    this.policeUnits = this.session.policeUnits;
-    this.thiefUnits = this.session.thiefUnits;
-    this.animalUnits = this.session.animalUnits;
-    this.parkingCars = this.session.parkingCars;
-    this.parkedCars = this.session.parkedCars;
+    this.phase = GAME_PHASES.AWAIT_ROLL;
 
     this.setupUI();
     this.renderGameBoard();
     this.updateTurnUI();
+  },
+
+  cancelPendingRoll() {
+    if (this.rollIntervalId !== null) {
+      clearInterval(this.rollIntervalId);
+      this.rollIntervalId = null;
+    }
+    this.isRolling = false;
+  },
+
+  dispose() {
+    this.cancelPendingRoll();
+    this.phase = GAME_PHASES.FINISHED;
+    this.diceValue = 0;
+    this.selectedUnit = null;
+    this.reachable.clear();
   },
 
   getCoordKey(r, c) {
@@ -138,37 +195,33 @@ export const gameController = {
   },
 
   updateTurnUI() {
+    this.phase = GAME_PHASES.AWAIT_ROLL;
     renderTurnStart(this.turn, this.session?.signalPhase);
     this.diceValue = 0;
-    if (this.session) {
-      this.session.diceValue = 0;
-      this.session.turn = this.turn;
-    }
     this.selectedUnit = null;
     this.reachable.clear();
     this.clearHighlights();
   },
 
   rollDice() {
-    if (this.isRolling) return;
+    if (this.phase !== GAME_PHASES.AWAIT_ROLL || this.isRolling) return;
 
     this.isRolling = true;
+    this.phase = GAME_PHASES.ROLLING;
     renderDiceRolling();
 
     let rolls = 0;
-    const interval = setInterval(() => {
+    this.rollIntervalId = setInterval(() => {
       renderRollingDiceFace(getRandomDiceFace());
       rolls += 1;
 
       if (rolls <= 15) return;
 
-      clearInterval(interval);
+      clearInterval(this.rollIntervalId);
+      this.rollIntervalId = null;
       this.isRolling = false;
 
       this.diceValue = Math.floor(Math.random() * 6) + 1;
-      if (this.session) {
-        this.session.diceValue = this.diceValue;
-      }
       renderDiceResult(this.diceValue);
 
       this.onDiceRolled();
@@ -199,10 +252,12 @@ export const gameController = {
     }
 
     if (!hasMoves) {
+      this.phase = GAME_PHASES.NO_MOVES;
       renderNoMovesAvailable();
       return;
     }
 
+    this.phase = GAME_PHASES.SELECT_UNIT;
     renderAwaitUnitSelection(this.diceValue);
     this.highlightSelectableUnits(activeUnits);
   },
@@ -230,7 +285,12 @@ export const gameController = {
   },
 
   handleCellClick(r, c) {
-    if (this.diceValue === 0) return;
+    if (
+      this.diceValue === 0 ||
+      ![GAME_PHASES.SELECT_UNIT, GAME_PHASES.SELECT_DESTINATION].includes(this.phase)
+    ) {
+      return;
+    }
 
     if (!this.selectedUnit) {
       const clickedUnit = this.getUnitAt(r, c);
@@ -241,6 +301,7 @@ export const gameController = {
 
       this.selectedUnit = clickedUnit.unit;
       this.reachable = moves;
+      this.phase = GAME_PHASES.SELECT_DESTINATION;
 
       this.clearHighlights();
       highlightSelectedCell(GAME_CELL_ID_PREFIX, { r, c });
@@ -266,6 +327,7 @@ export const gameController = {
 
       this.selectedUnit = clickedUnit.unit;
       this.reachable = moves;
+      this.phase = GAME_PHASES.SELECT_DESTINATION;
       this.clearHighlights();
       highlightSelectedCell(GAME_CELL_ID_PREFIX, { r, c });
       this.highlightReachable();
@@ -303,25 +365,26 @@ export const gameController = {
   },
 
   showVictory(type) {
+    this.cancelPendingRoll();
+    this.phase = GAME_PHASES.FINISHED;
     const escaped = this.thiefUnits.filter((thief) => thief.state === "ESCAPED").length;
     const caught = this.thiefUnits.length - escaped;
     renderVictory({ type, escaped, caught });
   },
 
   skipTurn() {
+    if (this.phase !== GAME_PHASES.NO_MOVES) return;
     this.advanceTurn();
   },
 
   advanceTurn() {
+    this.cancelPendingRoll();
     const nextTurn = getNextTurn(this.turn);
     let boardChanged = false;
     if (this.session && this.turn === "POLICE") {
       boardChanged = resolveEndOfRoundEffects(this.session).boardChanged;
     }
     this.turn = nextTurn;
-    if (this.session) {
-      this.session.turn = this.turn;
-    }
     if (boardChanged) {
       this.renderGameBoard();
     }

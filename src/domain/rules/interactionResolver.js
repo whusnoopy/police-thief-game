@@ -1,18 +1,28 @@
 import { getCarriedThiefByCarrier } from "../game/sessionSelectors.js";
-
-function getCoordKey(r, c) {
-  return `${r},${c}`;
-}
+import {
+  parkAvailableVehicleAt,
+  placeVehicle,
+  retryPendingVehicles,
+} from "./vehiclePlacement.js";
 
 function addAvailableCar(session, r, c) {
-  const coordKey = getCoordKey(r, c);
-  session.parkingCars.add(coordKey);
-  session.parkedCars.add(coordKey);
+  parkAvailableVehicleAt(session, { r, c });
 }
 
-function getPreviousStepPosition(action) {
-  if (!Array.isArray(action?.path) || action.path.length < 2) return null;
-  return action.path[action.path.length - 2] || null;
+function getActionCarPickups(action) {
+  if (Array.isArray(action?.carPickups)) return action.carPickups;
+  return action?.boardedCarAt ? [action.boardedCarAt] : [];
+}
+
+function getActionCarDrops(action) {
+  if (Array.isArray(action?.carDrops)) return action.carDrops;
+  return action?.droppedCarAt ? [action.droppedCarAt] : [];
+}
+
+function returnUnitVehicleToParking(session, unit, action) {
+  if (!action.returnsVehicleToParking || !unit.inCar) return;
+  placeVehicle(session, { origin: action.to });
+  unit.inCar = false;
 }
 
 function getActiveThiefAt(session, r, c) {
@@ -44,14 +54,14 @@ function jailCarriedThief(session, policeUnit) {
 }
 
 export function applyResolvedAction({ session, turn, unit, action }) {
-  if (action.boardedCarAt) {
-    session.parkingCars.delete(action.boardedCarAt);
-    session.parkedCars.delete(action.boardedCarAt);
-  }
-  if (action.droppedCarAt) {
-    const [r, c] = action.droppedCarAt.split(",").map(Number);
+  getActionCarPickups(action).forEach((coordKey) => {
+    session.parkingCars.delete(coordKey);
+    session.parkedCars.delete(coordKey);
+  });
+  getActionCarDrops(action).forEach((coordKey) => {
+    const [r, c] = coordKey.split(",").map(Number);
     addAvailableCar(session, r, c);
-  }
+  });
 
   unit.r = action.to.r;
   unit.c = action.to.c;
@@ -77,13 +87,15 @@ export function applyResolvedAction({ session, turn, unit, action }) {
         caughtThief.inCar = false;
 
         if (policeHadCar && thiefHadCar) {
-          const previousStep = getPreviousStepPosition(action);
-          if (previousStep) {
-            addAvailableCar(session, previousStep.r, previousStep.c);
-          }
+          placeVehicle(session, {
+            origin: action.to,
+            preferredPosition: action.path?.at(-2) || null,
+          });
         }
       }
     }
+
+    returnUnitVehicleToParking(session, unit, action);
 
     if (action.type === "DELIVER" && unit.state === "CARRYING") {
       jailCarriedThief(session, unit);
@@ -91,6 +103,7 @@ export function applyResolvedAction({ session, turn, unit, action }) {
     }
 
     syncCarriedThiefPosition(session, unit);
+    retryPendingVehicles(session);
     return;
   }
 
@@ -99,10 +112,9 @@ export function applyResolvedAction({ session, turn, unit, action }) {
   }
 
   if (turn === "THIEF" && action.type === "ESCAPE") {
-    if (unit.inCar) {
-      session.parkedCars.add(getCoordKey(action.to.r, action.to.c));
-      unit.inCar = false;
-    }
+    returnUnitVehicleToParking(session, unit, action);
     unit.state = "ESCAPED";
   }
+
+  retryPendingVehicles(session);
 }
