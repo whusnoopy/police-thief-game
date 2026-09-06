@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test"
+    "test": "node --test",
+    "benchmark": "node scripts/benchmark-movement.mjs"
   },
   "devDependencies": {
     "vite": "^7.3.1"

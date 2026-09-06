@@ -16,6 +16,7 @@ import { applyResolvedAction } from "../domain/rules/interactionResolver.js";
 import { getNextTurn, getWinState } from "../domain/rules/winResolver.js";
 import { isPermanentStalemate } from "../domain/rules/stalemateResolver.js";
 import { describeAction } from "./actionSummary.js";
+import { startReachabilityJob } from "./reachabilityJob.js";
 import {
   projectPathPreview,
   projectReachablePositions,
@@ -37,6 +38,7 @@ import {
   renderAwaitUnitSelection,
   renderDiceResult,
   renderDiceRolling,
+  renderCalculatingMoves,
   renderNoMovesAvailable,
   renderRollingDiceFace,
   renderTurnStart,
@@ -51,6 +53,7 @@ const GAME_CELL_ID_PREFIX = "game-cell";
 export const GAME_PHASES = {
   AWAIT_ROLL: "AWAIT_ROLL",
   ROLLING: "ROLLING",
+  CALCULATING: "CALCULATING",
   SELECT_UNIT: "SELECT_UNIT",
   SELECT_DESTINATION: "SELECT_DESTINATION",
   NO_MOVES: "NO_MOVES",
@@ -82,6 +85,8 @@ export const gameController = {
   reachabilityCache: new Map(),
   cacheContext: null,
   pendingDestination: null,
+  searchJob: null,
+  createSearchJob: startReachabilityJob,
 
   get turn() {
     return this.session?.turn || this.fallbackTurn;
@@ -123,6 +128,7 @@ export const gameController = {
 
   init(mapDefinition = state.mapDefinition) {
     this.cancelPendingRoll();
+    this.cancelPendingSearch();
     this.session = createGameSession(mapDefinition);
     this.turn = this.session.turn;
     this.diceValue = this.session.diceValue;
@@ -148,6 +154,7 @@ export const gameController = {
 
   dispose() {
     this.cancelPendingRoll();
+    this.cancelPendingSearch();
     this.phase = GAME_PHASES.FINISHED;
     this.diceValue = 0;
     this.selectedUnit = null;
@@ -266,7 +273,36 @@ export const gameController = {
   },
 
   onDiceRolled() {
+    this.cancelPendingSearch();
     const activeUnits = this.getActiveUnitsForTurn();
+    const context = { session: this.session, turn: this.turn, diceValue: this.diceValue };
+    const job = this.createSearchJob({ ...context, units: activeUnits });
+    if (!job) return this.finishDiceSelection(activeUnits);
+    this.searchJob = job;
+    this.phase = GAME_PHASES.CALCULATING;
+    renderCalculatingMoves();
+    return job.promise.then((results) => {
+      if (this.searchJob !== job) return;
+      this.searchJob = null;
+      if (context.session !== this.session || context.turn !== this.turn || context.diceValue !== this.diceValue) return;
+      this.invalidateReachability();
+      this.cacheContext = context;
+      if (results) {
+        for (const unit of activeUnits) {
+          const moves = results.get(unit.id);
+          if (moves instanceof Map) this.reachabilityCache.set(unit, moves);
+        }
+      }
+      this.finishDiceSelection(activeUnits);
+    });
+  },
+
+  cancelPendingSearch() {
+    this.searchJob?.cancel();
+    this.searchJob = null;
+  },
+
+  finishDiceSelection(activeUnits) {
     let hasMoves = false;
 
     for (const unit of activeUnits) {
@@ -440,6 +476,7 @@ export const gameController = {
 
   advanceTurn() {
     this.cancelPendingRoll();
+    this.cancelPendingSearch();
     this.invalidateReachability();
     const nextTurn = getNextTurn(this.turn);
     let boardChanged = false;

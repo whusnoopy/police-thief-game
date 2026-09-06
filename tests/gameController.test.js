@@ -127,6 +127,39 @@ test("switching units and restarting clear a pending touch destination", () => {
   assert.equal(gameController.pendingDestination, null);
 });
 
+test("background search waits for results, reuses them and ignores completion after restart", async () => {
+  const original = gameController.createSearchJob;
+  let finish;
+  gameController.createSearchJob = () => ({ promise: new Promise((resolve) => { finish = resolve; }), cancel() {} });
+  try {
+    gameController.init(makePlayableMap());
+    gameController.diceValue = 3;
+    const unit = gameController.thiefUnits[0];
+    const moves = gameController.computeReachableForUnit(unit);
+    const pending = gameController.onDiceRolled();
+    assert.equal(gameController.phase, GAME_PHASES.CALCULATING);
+    gameController.handleCellClick(0, 0);
+    assert.equal(gameController.selectedUnit, null);
+    finish(new Map([[unit.id, moves]]));
+    await pending;
+    assert.equal(gameController.phase, GAME_PHASES.SELECT_UNIT);
+    assert.equal(gameController.calculateReachableForUnit(unit), moves);
+
+    const stale = gameController.onDiceRolled();
+    gameController.init(makePlayableMap());
+    finish(new Map([[unit.id, moves]]));
+    await stale;
+    assert.equal(gameController.phase, GAME_PHASES.AWAIT_ROLL);
+    assert.equal(gameController.reachabilityCache.size, 0);
+
+    gameController.diceValue = 3;
+    const failed = gameController.onDiceRolled();
+    finish(null);
+    await failed;
+    assert.equal(gameController.phase, GAME_PHASES.SELECT_UNIT);
+  } finally { gameController.createSearchJob = original; gameController.dispose(); }
+});
+
 test("animal units render on the game board", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "POLICE_SPAWN");

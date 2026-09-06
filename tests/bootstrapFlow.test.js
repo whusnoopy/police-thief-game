@@ -8,6 +8,8 @@ env.installGlobals();
 
 const { init } = await import("../src/app/bootstrap.js");
 const { state } = await import("../src/app/state.js");
+const { undoMap } = await import("../src/features/editorController.js");
+const { showMapList, importMapFile } = await import("../src/features/mapListController.js");
 const { getMapList, getCurrentMapId, persistCurrentMap } = await import(
   "../src/storage/mapRepository.js"
 );
@@ -79,4 +81,31 @@ test("bootstrap initialization and map-list flow stay wired through the controll
   assert.equal(env.elements["btn-editor-help"].attributes["aria-expanded"], "true");
   env.document.dispatchEvent({ type: "keydown", key: "Escape" });
   assert.equal(env.elements["editor-help-tooltip"].classList.contains("hidden"), true);
+});
+
+test("continuing the current map from its card retains undo history", () => {
+  state.mode = "EDITOR";
+  state.currentPaletteType = "GRASS";
+  env.document.getElementById("editor-cell-4-4").dispatchEvent({ type: "pointerdown", button: 0, pointerId: 1 });
+  env.document.dispatchEvent({ type: "pointerup", pointerId: 1 });
+  assert.equal(state.mapDefinition.terrain[4][4], "GRASS");
+  const currentMap = state.mapDefinition;
+  showMapList();
+  env.elements["map-list-grid"].querySelectorAll("button").find((button) => button.innerHTML === "📝 继续编辑").click();
+  assert.equal(state.mode, "EDITOR");
+  assert.equal(state.mapDefinition, currentMap);
+  undoMap();
+  assert.equal(state.mapDefinition.terrain[4][4], "ROAD");
+});
+
+test("file import reports an invalid file without changing the editor or library", async () => {
+  const before = getMapList();
+  const current = state.mapDefinition;
+  showMapList();
+  await importMapFile({ size: 5, text: async () => "{bad}" });
+  assert.match(env.elements["map-import-status"].textContent, /未导入任何地图/);
+  assert.deepEqual(getMapList(), before);
+  assert.equal(state.mapDefinition, current);
+  assert.equal(env.elements["btn-import-library"].disabled, false);
+  assert.equal(state.mode, "MAP_LIST");
 });

@@ -13,6 +13,7 @@ import {
 import { upsertMapRecordInList } from "./mapRecords.js";
 import { resolveInitialMapLoad } from "./mapLoadPlan.js";
 import { createResilientStorage } from "./resilientStorage.js";
+import { planMapImport } from "./mapBackup.js";
 
 let currentShareLink = "";
 let storageProblem = "";
@@ -59,12 +60,24 @@ function downloadJson(name, value) {
 
 export function createMapBackup() {
   const encodedMap = encodeMapDefinition(state.mapDefinition);
+  const maps = getMapList();
+  const name = maps.find((record) => record.id === getCurrentMapId())?.name || "当前地图";
   return {
     version: 1,
-    currentMap: { encodedMap, mapDefinition: state.mapDefinition, shareUrl: buildMapShareUrl(encodedMap) },
-    maps: getMapList(),
+    currentMap: { name, encodedMap, mapDefinition: state.mapDefinition, shareUrl: buildMapShareUrl(encodedMap) },
+    maps,
     unreadableStorage: { ...unreadableStorage },
   };
+}
+
+export function exportMapBackup() {
+  downloadJson("police-thief-maps-backup.json", createMapBackup());
+}
+
+export function importMapBackup(text) {
+  const plan = planMapImport(text, getMapList());
+  const saved = plan.imported + plan.corrupt === 0 || setMapList(plan.maps);
+  return { ...plan, saved };
 }
 
 export function exportMapRecord(record) {
@@ -72,9 +85,7 @@ export function exportMapRecord(record) {
 }
 
 export function initStorageNotice() {
-  els.btnExportMapBackup?.addEventListener("click", () => {
-    downloadJson("police-thief-maps-backup.json", createMapBackup());
-  });
+  els.btnExportMapBackup?.addEventListener("click", exportMapBackup);
   els.btnRetryMapSave?.addEventListener("click", retryMapSave);
 }
 
@@ -106,13 +117,18 @@ export function formatDuplicateMapName(sourceName, existingMaps) {
   return `${sourceName}（副本${index}）`;
 }
 
+function refreshDataNotice(maps) {
+  dataProblem = Object.keys(unreadableStorage).length
+    ? "部分地图库数据无法读取，原始数据已保留，导出备份会包含原文。"
+    : maps.some((record) => record.isCorrupt)
+      ? "部分地图无法读取，已保留原始数据；可在地图库导出原始备份。" : "";
+  renderStorageNotice();
+}
+
 export function getMapList() {
   try {
     const maps = getMapListFromStorage(getStorage());
-    if (maps.some((record) => record.isCorrupt)) {
-      dataProblem = "部分地图无法读取，已保留原始数据；可在地图库导出原始备份。";
-      renderStorageNotice();
-    }
+    refreshDataNotice(maps);
     return maps;
   } catch (error) {
     preserveUnreadableStorage(error);
@@ -126,8 +142,10 @@ export function getMapList() {
 export function setMapList(list) {
   try {
     setMapListToStorage(getStorage(), list);
+    refreshDataNotice(list);
     return true;
   } catch {
+    refreshDataNotice(list);
     return false;
   }
 }

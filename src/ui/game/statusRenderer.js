@@ -60,6 +60,11 @@ export function renderDiceResult(diceValue) {
   els.diceValueEl.textContent = String(diceValue);
 }
 
+export function renderCalculatingMoves() {
+  els.gameMessage.textContent = "正在计算可走路线…";
+  setActionButtons({ rollHidden: true, rollDisabled: true, skipHidden: true });
+}
+
 export function renderNoMovesAvailable() {
   els.gameMessage.textContent = "无路可走！所有角色均无法行动。";
   setActionButtons({ rollHidden: true, rollDisabled: true, skipHidden: false });

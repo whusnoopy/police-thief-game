@@ -147,6 +147,13 @@
           </button>
         </div>
         <div class="map-list-container">
+          <div class="map-backup-actions">
+            <button id="btn-export-library" class="btn info" type="button">导出全部地图</button>
+            <button id="btn-import-library" class="btn secondary" type="button">导入地图备份</button>
+            <input id="map-backup-input" type="file" accept=".json,application/json" hidden />
+          </div>
+          <p class="map-backup-help">备份可在平板和电脑之间迁移。导入会新增地图，跳过重复内容，保留已有地图。</p>
+          <p id="map-import-status" class="map-import-status" role="status" aria-live="polite"></p>
           <div id="map-list-grid" class="map-list-grid">
             <!-- 地图卡片由 JS 渲染 -->
           </div>

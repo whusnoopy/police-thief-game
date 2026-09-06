@@ -9,7 +9,7 @@ import { encodeLegacyMapDefinition } from "./helpers/legacyPayload.js";
 const env = createTestEnvironment();
 env.installGlobals();
 const { state } = await import("../src/app/state.js");
-const { getMapList, getCurrentMapId, persistCurrentMap, loadInitialMapIntoState, createMapBackup, retryMapSave } =
+const { getMapList, setMapList, getCurrentMapId, persistCurrentMap, loadInitialMapIntoState, createMapBackup, retryMapSave, importMapBackup } =
   await import("../src/storage/mapRepository.js");
 const { showMapList } = await import("../src/features/mapListController.js");
 const realStorage = env.localStorage;
@@ -28,6 +28,39 @@ beforeEach(() => {
   loadInitialMapIntoState();
   realStorage.clear();
   env.window.location.search = "";
+});
+
+test("removing the last damaged record clears its notice but keeps unrelated unreadable source notices", () => {
+  realStorage.setItem(STORAGE_KEYS.mapList, JSON.stringify([goodRecord, brokenRecord]));
+  getMapList();
+  assert.equal(env.elements["storage-notice"].classList.contains("hidden"), false);
+  setMapList([goodRecord]);
+  assert.equal(env.elements["storage-notice"].classList.contains("hidden"), true);
+  realStorage.setItem(STORAGE_KEYS.legacySingleMap, "bad legacy");
+  loadInitialMapIntoState();
+  setMapList([goodRecord]);
+  assert.equal(env.elements["storage-notice"].classList.contains("hidden"), false);
+});
+
+test("backup import survives quota failure and retry without replacing current map", () => {
+  realStorage.setItem(STORAGE_KEYS.mapList, JSON.stringify([goodRecord]));
+  realStorage.setItem(STORAGE_KEYS.currentMapId, goodRecord.id);
+  loadInitialMapIntoState();
+  const editorMap = state.mapDefinition;
+  const importedMap = createEmptyMapDefinition();
+  setLegacyTileAt(importedMap, 4, 4, "BANK");
+  realStorage.setItem = () => { throw new DOMException("full", "QuotaExceededError"); };
+  const result = importMapBackup(JSON.stringify({ ...goodRecord, encodedMap: encodeMapDefinition(importedMap) }));
+  assert.equal(result.imported, 1);
+  assert.equal(result.saved, false);
+  assert.equal(getCurrentMapId(), goodRecord.id);
+  assert.equal(state.mapDefinition, editorMap);
+  assert.equal(getMapList().length, 2);
+  assert.equal(JSON.parse(realStorage.getItem(STORAGE_KEYS.mapList)).length, 1);
+  realStorage.setItem = originalSet;
+  retryMapSave();
+  assert.equal(JSON.parse(realStorage.getItem(STORAGE_KEYS.mapList)).length, 2);
+  assert.equal(env.elements["storage-notice"].classList.contains("hidden"), true);
 });
 
 test("reading a damaged record never rewrites the library and shows an explicit damaged card", () => {

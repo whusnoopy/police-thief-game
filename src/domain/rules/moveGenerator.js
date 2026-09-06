@@ -4,7 +4,7 @@ import {
   isCrosswalkTileType,
   isStepAlongAxis,
 } from "../map/crosswalk.js";
-import { getTileTypeAt, getFeaturePositionsByKind } from "../map/mapQueries.js";
+import { getFeaturePositionsByKind } from "../map/mapQueries.js";
 import {
   getUnitAt,
   hasAnimalAt,
@@ -85,11 +85,6 @@ function isCrosswalkMoveBlocked({ session, fromTileType, toTileType, isDriving, 
   });
 }
 
-function getNormalizedTileTypeAt(mapDefinition, r, c) {
-  const cellRule = getCellRuleAt(mapDefinition, r, c);
-  return cellRule.tileType;
-}
-
 function chooseBetterAction(existing, candidate) {
   if (!existing) return true;
   if (candidate.hasMoney !== existing.hasMoney) return candidate.hasMoney;
@@ -99,8 +94,20 @@ function chooseBetterAction(existing, candidate) {
   return candidate.path.length < existing.path.length;
 }
 
-function getPossibleMoves(session, node, isThief) {
-  const possibleMoves = [];
+function createSearchBoard(session, role, unit) {
+  const cells = Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, index) => {
+    const r = Math.floor(index / GRID_SIZE);
+    const c = index % GRID_SIZE;
+    return {
+      r, c,
+      rule: getCellRuleAt(session.mapDefinition, r, c),
+      occupant: getUnitAt(session, r, c),
+      animal: hasAnimalAt(session, r, c),
+      availableCar: hasAvailableCar(session, r, c),
+      parkedCar: hasParkedCar(session, r, c),
+    };
+  });
+  const manholes = getFeaturePositionsByKind(session.mapDefinition, "MANHOLE");
   const directions = [
     [0, 1],
     [0, -1],
@@ -108,26 +115,34 @@ function getPossibleMoves(session, node, isThief) {
     [-1, 0],
   ];
 
-  directions.forEach(([dr, dc]) => {
-    possibleMoves.push({
-      nr: node.r + dr,
-      nc: node.c + dc,
-      isTeleport: false,
+  // These rules and occupants remain fixed for one search. Boarding/capture
+  // ends the action, so no intermediate step changes the board's occupancy.
+  return [false, true].map((isDriving) => cells.map((from) => {
+    const candidates = directions.map(([dr, dc]) => ({ nr: from.r + dr, nc: from.c + dc, isTeleport: false }));
+    if (role === "THIEF" && !isDriving && from.rule.tileType === "MANHOLE") {
+      for (const position of manholes) {
+        if (position.r !== from.r || position.c !== from.c) candidates.push({ nr: position.r, nc: position.c, isTeleport: true });
+      }
+    }
+    return candidates.flatMap((move) => {
+      const { nr, nc, isTeleport } = move;
+      if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) return [];
+      const to = cells[nr * GRID_SIZE + nc];
+      if (to.animal || !canEnterCell(to.rule, role, isDriving)) return [];
+      if (to.occupant && (role === "THIEF" || to.occupant.role === "POLICE" || unit.state === "CARRYING")) return [];
+      if (isDriving && !isTeleport && to.parkedCar) return [];
+      if (!isTeleport && isCrosswalkMoveBlocked({
+        session, fromTileType: from.rule.tileType, toTileType: to.rule.tileType,
+        isDriving, dr: nr - from.r, dc: nc - from.c,
+      })) return [];
+      const cost = getMoveCost(isDriving, to.rule, isTeleport);
+      if (cost === null) return [];
+      return [{
+        ...move, cost, cellRule: to.rule, occupant: to.occupant,
+        availableCar: to.availableCar, bit: getVisitedBit(nr, nc),
+      }];
     });
-  });
-
-  if (isThief && !node.isDriving && getTileTypeAt(session.mapDefinition, node.r, node.c) === "MANHOLE") {
-    getFeaturePositionsByKind(session.mapDefinition, "MANHOLE").forEach((position) => {
-      if (position.r === node.r && position.c === node.c) return;
-      possibleMoves.push({
-        nr: position.r,
-        nc: position.c,
-        isTeleport: true,
-      });
-    });
-  }
-
-  return possibleMoves;
+  }));
 }
 
 function getMoveCost(isDriving, cellRule, isTeleport) {
@@ -235,9 +250,19 @@ function isVisitedSubset(subset, superset) {
   return (subset & superset) === subset;
 }
 
-function shouldExpandState(frontiers, node) {
+function shouldExpandState(frontiers, node, needsPathVariants) {
   const stateKey = getSearchStateKey(node);
   const frontier = frontiers.get(stateKey) || [];
+  if (!needsPathVariants) {
+    // With money status fixed, all nonterminal edges have positive costs and
+    // cannot change travel mode. A cheapest route is simple, so keeping other
+    // visited sets cannot improve any destination. Equal costs prefer fewer cells.
+    const best = frontier[0];
+    if (best && (best.costSpent < node.costSpent ||
+      (best.costSpent === node.costSpent && best.pathLength <= node.path.length))) return false;
+    frontiers.set(stateKey, [{ costSpent: node.costSpent, pathLength: node.path.length }]);
+    return true;
+  }
   if (
     frontier.some(
       (entry) =>
@@ -283,6 +308,8 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
   const stateFrontiers = new Map();
   const isThief = turn === "THIEF";
   const role = isThief ? "THIEF" : "POLICE";
+  const searchBoard = createSearchBoard(session, role, unit);
+  const needsPathVariants = isThief && !unit.hasMoney;
   const queue = new MinCostQueue();
   queue.push({
     type: "MOVE",
@@ -305,7 +332,7 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
 
   while (queue.length > 0) {
     const current = queue.shift();
-    if (!shouldExpandState(stateFrontiers, current)) continue;
+    if (!shouldExpandState(stateFrontiers, current, needsPathVariants)) continue;
 
     if (current.trail.length > 0) {
       recordReachableAction(results, session, current);
@@ -315,50 +342,17 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
       continue;
     }
 
-    const possibleMoves = getPossibleMoves(session, current, isThief);
+    const possibleMoves = searchBoard[Number(current.isDriving)][current.r * GRID_SIZE + current.c];
     for (const move of possibleMoves) {
-      const { nr, nc } = move;
-      const dr = nr - current.r;
-      const dc = nc - current.c;
-
-      if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) continue;
-      if (current.path.some((point) => point.r === nr && point.c === nc)) continue;
-      if (hasAnimalAt(session, nr, nc)) continue;
-
-      const cellRule = getCellRuleAt(session.mapDefinition, nr, nc);
+      const { nr, nc, cellRule, cost, occupant } = move;
+      if ((current.visitedMask & move.bit) !== 0n) continue;
       const tileType = cellRule.tileType;
-      const currentTileType = getNormalizedTileTypeAt(session.mapDefinition, current.r, current.c);
-      const destinationHasAvailableCar = hasAvailableCar(session, nr, nc);
-      const destinationHasParkedCar = hasParkedCar(session, nr, nc);
-      if (!canEnterCell(cellRule, role, current.isDriving)) continue;
-      if (
-        !move.isTeleport &&
-        isCrosswalkMoveBlocked({
-          session,
-          fromTileType: currentTileType,
-          toTileType: tileType,
-          isDriving: current.isDriving,
-          dr,
-          dc,
-        })
-      ) {
-        continue;
-      }
-      if (current.isDriving && !move.isTeleport && destinationHasParkedCar) continue;
-
-      const cost = getMoveCost(current.isDriving, cellRule, move.isTeleport);
-      if (cost === null || current.pointsLeft < cost) continue;
+      if (current.pointsLeft < cost) continue;
 
       const nextHasMoney = Boolean(current.hasMoney || (isThief && tileType === "BANK"));
       if (isThief && tileType === "THIEF_BASE" && !nextHasMoney) continue;
 
-      const occupant = getUnitAt(session, nr, nc);
       const pointsLeftAfterMove = current.pointsLeft - cost;
-
-      if (occupant) {
-        if (isThief) continue;
-        if (occupant.role === "POLICE" || unit.state === "CARRYING") continue;
-      }
 
       let nextDriving = current.isDriving;
       let carPickups = current.carPickups;
@@ -366,7 +360,7 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
       if (
         !nextDriving &&
         !move.isTeleport &&
-        destinationHasAvailableCar &&
+        move.availableCar &&
         canEnterCell(cellRule, role, true) &&
         cellRule.driveCost !== null
       ) {
@@ -402,7 +396,7 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
         droppedCarAt: null,
         carPickups,
         carDrops: [],
-        visitedMask: current.visitedMask | getVisitedBit(nr, nc),
+        visitedMask: current.visitedMask | move.bit,
         landingTileType: tileType,
       };
 

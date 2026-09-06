@@ -31,15 +31,15 @@ function createMapActions({ mapObj, isCurrentMap, onLoad, onRename, onDelete, on
   btnDuplicate.onclick = () => onDuplicate(mapObj);
 
   actions.append(btnLoad, btnShare, btnDuplicate, btnRename, btnDelete);
+  const btnExport = document.createElement("button");
+  btnExport.className = "btn secondary btn-full";
+  btnExport.textContent = mapObj.isCorrupt ? "导出原始备份" : "导出地图备份";
+  btnExport.onclick = () => onExport(mapObj.isCorrupt && Object.hasOwn(mapObj, "rawRecord") ? mapObj.rawRecord : mapObj);
+  actions.appendChild(btnExport);
   if (mapObj.isCorrupt) {
     btnLoad.disabled = true;
     btnShare.disabled = true;
     btnDuplicate.disabled = true;
-    const btnExport = document.createElement("button");
-    btnExport.className = "btn secondary btn-full";
-    btnExport.textContent = "导出原始备份";
-    btnExport.onclick = () => onExport(mapObj.rawRecord ?? mapObj);
-    actions.appendChild(btnExport);
   }
   return actions;
 }

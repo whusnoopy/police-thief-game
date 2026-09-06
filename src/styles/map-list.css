@@ -28,6 +28,12 @@
   gap: 20px;
 }
 
+.map-backup-actions { display: flex; gap: 12px; }
+.map-backup-actions .btn { width: auto; min-height: 44px; margin-bottom: 0; }
+.map-backup-help, .map-import-status { margin: 10px 0 16px; line-height: 1.5; }
+.map-backup-help { font-size: 0.9rem; color: #526271; }
+.map-import-status:empty { display: none; }
+
 .map-card {
   border: 2px solid #ecf0f1;
   border-radius: 8px;
