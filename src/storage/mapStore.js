@@ -1,5 +1,6 @@
 import { encodeMapDefinition, normalizeEncodedMap } from "../domain/map/mapCodec.js";
-import { createEmptyMapDefinition, legacyTileMatrixToMapDefinition } from "../domain/map/mapModel.js";
+import { legacyTileMatrixToMapDefinition } from "../domain/map/mapModel.js";
+import { GRID_SIZE, TILE_TYPES } from "../config/constants.js";
 
 export const STORAGE_KEYS = {
   mapList: "policeThief.maps.v3",
@@ -23,10 +24,6 @@ export function formatDefaultMapName(date = new Date()) {
   return `地图 ${month}/${day} ${hours}:${minutes}`;
 }
 
-function encodeEmptyMap() {
-  return encodeMapDefinition(createEmptyMapDefinition());
-}
-
 function tryNormalizeEncodedMap(encodedMap) {
   try {
     return normalizeEncodedMap(encodedMap);
@@ -36,62 +33,56 @@ function tryNormalizeEncodedMap(encodedMap) {
 }
 
 export function normalizeStoredEncodedMap(encodedMap) {
-  return tryNormalizeEncodedMap(encodedMap) || encodeEmptyMap();
+  return tryNormalizeEncodedMap(encodedMap) || encodedMap;
 }
 
 export function normalizeMapRecord(record = {}, options = {}) {
+  const rawRecord = record;
+  record = record && typeof record === "object" && !Array.isArray(record) ? record : {};
   const { idFactory = generateMapId } = options;
   const timestamp = record.updatedAt || record.date || Date.now();
+  const source = record.encodedMap ?? record.data ?? "";
+  const encodedMap = tryNormalizeEncodedMap(source);
 
   return {
     id: record.id || idFactory(),
     name: record.name || formatDefaultMapName(new Date(timestamp)),
-    encodedMap: normalizeStoredEncodedMap(record.encodedMap || record.data || ""),
+    encodedMap: encodedMap || source,
     updatedAt: timestamp,
     schemaVersion: 3,
+    ...(!encodedMap ? {
+      isCorrupt: true,
+      rawRecord: Object.hasOwn(record, "rawRecord") ? record.rawRecord : rawRecord,
+    } : {}),
   };
 }
 
-export function getMapListFromStorage(storage, options = {}) {
-  const storedList = storage.getItem(STORAGE_KEYS.mapList);
+function readMapList(storage, key, options) {
+  const storedList = storage.getItem(key);
   if (!storedList) return [];
 
   try {
     const parsed = JSON.parse(storedList);
-    return Array.isArray(parsed)
-      ? parsed.map((record) => normalizeMapRecord(record, options))
-      : [];
+    if (!Array.isArray(parsed)) throw new Error("Map list must be an array");
+    return parsed.map((record, index) => normalizeMapRecord(record, {
+      idFactory: () => `recovered_${key}_${index}`,
+      ...options,
+    }));
   } catch (error) {
-    return [];
+    throw Object.assign(new Error("地图库数据无法读取，原始数据已保留。"), { storageKey: key, cause: error });
   }
+}
+
+export function getMapListFromStorage(storage, options = {}) {
+  return readMapList(storage, STORAGE_KEYS.mapList, options);
 }
 
 function getLegacyMapListFromStorage(storage, options = {}) {
-  const storedList = storage.getItem(STORAGE_KEYS.legacyMapList);
-  if (!storedList) return [];
-
-  try {
-    const parsed = JSON.parse(storedList);
-    return Array.isArray(parsed)
-      ? parsed.map((record) => normalizeMapRecord(record, options))
-      : [];
-  } catch (error) {
-    return [];
-  }
+  return readMapList(storage, STORAGE_KEYS.legacyMapList, options);
 }
 
 function getV2MapListFromStorage(storage, options = {}) {
-  const storedList = storage.getItem(STORAGE_KEYS.v2MapList);
-  if (!storedList) return [];
-
-  try {
-    const parsed = JSON.parse(storedList);
-    return Array.isArray(parsed)
-      ? parsed.map((record) => normalizeMapRecord(record, options))
-      : [];
-  } catch (error) {
-    return [];
-  }
+  return readMapList(storage, STORAGE_KEYS.v2MapList, options);
 }
 
 export function setMapListToStorage(storage, list) {
@@ -114,7 +105,11 @@ export function setCurrentMapIdToStorage(storage, mapId) {
 function normalizeLegacyJsonMap(legacyJsonMap) {
   try {
     const parsed = JSON.parse(legacyJsonMap);
-    if (!Array.isArray(parsed)) return null;
+    if (
+      !Array.isArray(parsed) || parsed.length !== GRID_SIZE ||
+      !parsed.every((row) => Array.isArray(row) && row.length === GRID_SIZE &&
+        row.every((tile) => typeof tile === "string" && Object.hasOwn(TILE_TYPES, tile)))
+    ) return null;
     return encodeMapDefinition(legacyTileMatrixToMapDefinition(parsed));
   } catch (error) {
     return null;
@@ -125,11 +120,10 @@ function getLegacySingleEncodedMapFromStorage(storage) {
   const storedMap = storage.getItem(STORAGE_KEYS.legacySingleMap);
   if (!storedMap) return null;
 
-  if (storedMap.trim().startsWith("[")) {
-    return normalizeLegacyJsonMap(storedMap);
-  }
-
-  return tryNormalizeEncodedMap(storedMap);
+  const result = storedMap.trim().startsWith("[")
+    ? normalizeLegacyJsonMap(storedMap) : tryNormalizeEncodedMap(storedMap);
+  if (!result) throw Object.assign(new Error("旧地图无法读取，原始数据已保留。"), { storageKey: STORAGE_KEYS.legacySingleMap });
+  return result;
 }
 
 function clearLegacyStorage(storage) {

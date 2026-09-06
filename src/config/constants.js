@@ -18,6 +18,8 @@ export function normalizeSignalPhase(signalPhase) {
 export const NPC_CONFIG = {
   FARM_MAX_ANIMALS: 3,
   ANIMAL_MAX_MOVE_STEPS: 3,
+  ANIMAL_STUCK_ROUNDS: 3,
+  ANIMAL_MAX_ROUNDS: 6,
 };
 
 export const ANIMAL_EMOJIS = ["🐷", "🐮"];

@@ -49,6 +49,26 @@ h1 {
   display: none !important;
 }
 
+.storage-notice {
+  padding: 14px 18px;
+  border: 1px solid #e3b35e;
+  border-radius: 8px;
+  background: #fff4da;
+  color: #714712;
+  line-height: 1.5;
+}
+
+.storage-notice-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.storage-notice-actions .btn {
+  width: auto;
+  margin-bottom: 0;
+}
+
 .btn {
   padding: 10px 15px;
   border: none;

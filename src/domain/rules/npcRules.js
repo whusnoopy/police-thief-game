@@ -81,7 +81,12 @@ export function getFarmSpawnCandidates(session, farmPosition) {
       r: farmPosition.r + dr,
       c: farmPosition.c + dc,
     }))
-    .filter((position) => canAnimalOccupyCell(session, position.r, position.c));
+    .filter((position) => (
+      canAnimalOccupyCell(session, position.r, position.c) &&
+      ORTHOGONAL_DIRECTIONS.some(([dr, dc]) =>
+        canAnimalOccupyCell(session, position.r + dr, position.c + dc),
+      )
+    ));
 }
 
 export function getAnimalCountForFarm(session, farmPosition) {
@@ -97,6 +102,7 @@ export function spawnAnimalsNearFarms(session, options = {}) {
   const spawnedAnimals = [];
 
   getFeaturePositionsByKind(session?.mapDefinition, "FARM").forEach((farmPosition) => {
+    if (options.restingFarmKeys?.has(getFarmKey(farmPosition))) return;
     if (getAnimalCountForFarm(session, farmPosition) >= maxAnimalsPerFarm) return;
 
     const spawnCandidates = getFarmSpawnCandidates(session, farmPosition);
@@ -144,9 +150,20 @@ export function moveAnimals(session, options = {}) {
   const config = options.config || NPC_CONFIG;
   const maxMoveSteps = getConfigValue(config, "ANIMAL_MAX_MOVE_STEPS");
   const movedAnimals = [];
+  const returnedAnimals = [];
 
   (session?.animalUnits || []).forEach((animal) => {
     const startPosition = { r: animal.r, c: animal.c };
+    animal.roundsOnBoard = (animal.roundsOnBoard || 0) + 1;
+    animal.stuckRounds = getAnimalMoveCandidates(session, animal).length === 0
+      ? (animal.stuckRounds || 0) + 1 : 0;
+    if (
+      animal.stuckRounds >= getConfigValue(config, "ANIMAL_STUCK_ROUNDS") ||
+      animal.roundsOnBoard >= getConfigValue(config, "ANIMAL_MAX_ROUNDS")
+    ) {
+      returnedAnimals.push(animal);
+      return;
+    }
     const stepCount = getRandomMoveStepCount(maxMoveSteps, rng);
 
     for (let step = 0; step < stepCount; step += 1) {
@@ -163,19 +180,25 @@ export function moveAnimals(session, options = {}) {
     }
   });
 
+  session.animalUnits = (session.animalUnits || []).filter((animal) => !returnedAnimals.includes(animal));
   return {
-    animalChanged: movedAnimals.length > 0,
+    animalChanged: movedAnimals.length > 0 || returnedAnimals.length > 0,
     movedAnimals,
+    returnedAnimals,
   };
 }
 
 export function resolveAnimalTurn(session, options = {}) {
   const moveResult = moveAnimals(session, options);
-  const spawnResult = spawnAnimalsNearFarms(session, options);
+  const spawnResult = spawnAnimalsNearFarms(session, {
+    ...options,
+    restingFarmKeys: new Set(moveResult.returnedAnimals.map((animal) => animal.farmKey)),
+  });
 
   return {
     animalChanged: moveResult.animalChanged || spawnResult.animalChanged,
     movedAnimals: moveResult.movedAnimals,
     spawnedAnimals: spawnResult.spawnedAnimals,
+    returnedAnimals: moveResult.returnedAnimals,
   };
 }

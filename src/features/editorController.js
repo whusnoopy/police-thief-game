@@ -11,6 +11,7 @@ import {
   shouldShowMarkerForTileType,
 } from "../domain/map/cellDisplay.js";
 import { persistCurrentMap } from "../storage/mapRepository.js";
+import { validateMapDefinition } from "../domain/rules/mapValidation.js";
 import {
   getBoardCellElement,
   renderBoard,
@@ -228,20 +229,7 @@ export function clearMap() {
 }
 
 export function validateMap() {
-  const hasPolice = state.mapDefinition.spawns.police.length > 0;
-  const hasThief = state.mapDefinition.spawns.thief.length > 0;
-  const hasThiefBase = getFeaturePositionsByKind(state.mapDefinition, "THIEF_BASE").length > 0;
-  const hasBank = getFeaturePositionsByKind(state.mapDefinition, "BANK").length > 0;
-
-  if (!hasPolice || !hasThief) {
-    alert("必须至少放置一个警察出生点和一个小偷出生点！");
-    return false;
-  }
-
-  if (!hasThiefBase || !hasBank) {
-    alert("必须至少放置一个小偷基地和一个银行！");
-    return false;
-  }
-
-  return true;
+  const result = validateMapDefinition(state.mapDefinition);
+  if (!result.valid) alert(`这张地图还不能开始游戏：\n${result.errors.join("\n")}`);
+  return result.valid;
 }

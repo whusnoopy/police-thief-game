@@ -77,6 +77,13 @@ export function renderAwaitDestinationSelection() {
 export function renderVictory({ type, escaped = 0, caught = 0 }) {
   els.victoryModal.classList.remove("hidden");
 
+  if (type === "DRAW") {
+    els.victoryTitle.textContent = "🤝 平局";
+    els.victoryTitle.style.color = "var(--warning-color)";
+    els.victoryMessage.textContent = "双方都已无路可走，即使掷出 6 或切换红绿灯也无法行动。可以编辑地图后再玩。";
+    return;
+  }
+
   if (type === "POLICE") {
     els.victoryTitle.textContent = "🚓 警察胜利！";
     els.victoryTitle.style.color = "var(--primary-color)";

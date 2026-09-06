@@ -16,6 +16,14 @@
         <div id="mode-indicator" class="badge">地图编辑模式</div>
       </header>
 
+      <div id="storage-notice" class="storage-notice hidden" role="status" aria-live="polite">
+        <p id="storage-notice-message"></p>
+        <div class="storage-notice-actions">
+          <button id="btn-export-map-backup" class="btn secondary" type="button">导出地图备份</button>
+          <button id="btn-retry-map-save" class="btn primary" type="button">重试保存</button>
+        </div>
+      </div>
+
       <main id="editor-view" class="view active">
         <div class="palette-panel">
           <div class="editor-actions">
@@ -42,7 +50,7 @@
                 </button>
                 <div id="editor-help-tooltip" class="editor-help-tooltip hidden" role="tooltip">
                   <p>点击上方地块类型，再在右侧棋盘上涂抹即可编辑。</p>
-                  <p>开始游戏前必须要放置的地块包括警察出生点、小偷出生点、小偷基地和银行。</p>
+                  <p>开始游戏前必须放置警察出生点、小偷出生点、小偷基地和银行，并连接取钱、逃脱路线。小偷多于警察时，还需要可到达的警察局。</p>
                   <p>地图会自动保存，清空按钮可将地图所有地块重置为普通道路，地图库按钮可进入管理多张地图。</p>
                 </div>
               </div>
@@ -189,7 +197,8 @@
             <p><span class="emoji">🏢🏗️🚧</span> 建筑物、建筑工地、路障不可进入</p>
             <p><span class="emoji">🚨</span> 警察局仅警察可进入，押送小偷进入警局将让警察可再次抓人</p>
             <p><span class="emoji">🏦</span> 银行的钱无限，小偷必须自己进入银行拿到钱后，才能回小偷基地逃脱</p>
-            <p><span class="emoji">🚜🐷🐮</span> 农场会在上下左右可通行空格刷新动物；每个农场最多 3 只，动物每轮随机移动，所在格不可进入</p>
+            <p><span class="emoji">🚜🐷🐮</span> 农场会在相邻且有出口的空格刷新动物；每个农场最多 3 只。动物受困 3 轮或在外停留 6 轮后回农场，回场当轮该农场不刷新动物，留出通行机会</p>
+            <p><span class="emoji">🤝</span> 跳过回合时，若双方即使掷出 6、切换红绿灯且动物离开后也完全无法行动，则以平局结束</p>
             <p><span class="emoji">🟢🔴</span> 斑马线两侧的小灯只表示行人信号；绿灯时行人可按斑马线方向通过，红灯时车辆可按垂直方向通过；每两次行动切换一次</p>
             <p><span class="emoji">🏚️</span> 小偷基地仅带钱小偷可进入，进入即逃脱；若驾车到达，汽车会自动回到最近的空停车场</p>
             <p><span class="emoji">🕳️</span> 井盖对警察等同道路，小偷站在井盖上可 1 步传送到其他任何井盖</p>

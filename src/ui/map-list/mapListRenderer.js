@@ -1,7 +1,7 @@
 import { renderBoard } from "../board/boardRenderer.js";
 import { escapeHTML } from "../../utils/helpers.js";
 
-function createMapActions({ mapObj, isCurrentMap, onLoad, onRename, onDelete, onShare, onDuplicate }) {
+function createMapActions({ mapObj, isCurrentMap, onLoad, onRename, onDelete, onShare, onDuplicate, onExport }) {
   const actions = document.createElement("div");
   actions.className = "map-card-actions";
 
@@ -31,10 +31,20 @@ function createMapActions({ mapObj, isCurrentMap, onLoad, onRename, onDelete, on
   btnDuplicate.onclick = () => onDuplicate(mapObj);
 
   actions.append(btnLoad, btnShare, btnDuplicate, btnRename, btnDelete);
+  if (mapObj.isCorrupt) {
+    btnLoad.disabled = true;
+    btnShare.disabled = true;
+    btnDuplicate.disabled = true;
+    const btnExport = document.createElement("button");
+    btnExport.className = "btn secondary btn-full";
+    btnExport.textContent = "导出原始备份";
+    btnExport.onclick = () => onExport(mapObj.rawRecord ?? mapObj);
+    actions.appendChild(btnExport);
+  }
   return actions;
 }
 
-function createMapCard({ mapObj, currentMapId, resolveMapDefinition, onLoad, onRename, onDelete, onShare, onDuplicate }) {
+function createMapCard({ mapObj, currentMapId, resolveMapDefinition, onLoad, onRename, onDelete, onShare, onDuplicate, onExport }) {
   const card = document.createElement("div");
   card.className = "map-card";
 
@@ -60,8 +70,12 @@ function createMapCard({ mapObj, currentMapId, resolveMapDefinition, onLoad, onR
   thumb.className = "map-card-thumb";
   const boardElement = document.createElement("div");
   boardElement.className = "board grid-10x10 mini-board";
-  renderBoard(boardElement, { mapDefinition: resolveMapDefinition(mapObj) });
-  thumb.appendChild(boardElement);
+  if (mapObj.isCorrupt) {
+    thumb.textContent = "地图无法读取，原始数据已保留";
+  } else {
+    renderBoard(boardElement, { mapDefinition: resolveMapDefinition(mapObj) });
+    thumb.appendChild(boardElement);
+  }
 
   card.append(
     header,
@@ -74,6 +88,7 @@ function createMapCard({ mapObj, currentMapId, resolveMapDefinition, onLoad, onR
       onDelete,
       onShare,
       onDuplicate,
+      onExport,
     }),
   );
 
@@ -90,6 +105,7 @@ export function renderMapListGrid(container, options) {
     onDelete,
     onShare,
     onDuplicate,
+    onExport,
   } = options;
 
   container.innerHTML = "";
@@ -104,6 +120,7 @@ export function renderMapListGrid(container, options) {
         onDelete,
         onShare,
         onDuplicate,
+        onExport,
       }),
     );
   });

@@ -82,4 +82,14 @@ test("previous v2 share links remain readable and normalize to v3", () => {
 
 test("unsupported payloads still throw", () => {
   assert.throws(() => decodeMapDefinition("legacy-payload"), /Unsupported map payload/);
+  assert.throws(() => decodeMapDefinition("_".repeat(100)), /unknown legacy terrain code/);
+});
+
+test("incomplete and unknown versioned data is rejected instead of becoming an empty map", () => {
+  const encodePayload = (payload) => `v3.${Buffer.from(JSON.stringify(payload)).toString("base64url")}`;
+  assert.throws(() => decodeMapDefinition(encodePayload({})), /Invalid map payload/);
+  assert.throws(() => decodeMapDefinition(encodePayload({ v: 3, t: "E", f: [], p: [], h: [] })), /Invalid map payload/);
+  const payload = { v: 3, t: "E".repeat(100), f: [[99, 5]], p: [], h: [] };
+  assert.throws(() => decodeMapDefinition(encodePayload(payload)), /Invalid map payload/);
+  assert.throws(() => decodeMapDefinition(encodePayload({ ...payload, f: [], p: [0], h: [0] })), /overlapping/);
 });

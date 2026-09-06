@@ -11,6 +11,7 @@ import {
 import { gameController } from "../features/gameController.js";
 import {
   loadInitialMapIntoState,
+  initStorageNotice,
   persistCurrentMap,
   updateModeIndicatorForEditor,
 } from "../storage/mapRepository.js";
@@ -38,6 +39,7 @@ function backToEditor(options = {}) {
 }
 
 export function init() {
+  initStorageNotice();
   initEditor();
   initMapList();
   loadInitialMapIntoState();

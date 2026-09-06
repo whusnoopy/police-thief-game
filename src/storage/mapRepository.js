@@ -4,17 +4,94 @@ import { getAppShellState } from "../app/appShellState.js";
 import { renderAppShell } from "../app/appShellRenderer.js";
 import {
   getCurrentMapIdFromStorage,
-  getStoredEncodedMapFromStorage,
+  getMapListFromStorage,
   migrateLegacyStorage,
-  normalizeMapRecord,
   STORAGE_KEYS,
   setCurrentMapIdToStorage,
   setMapListToStorage,
 } from "./mapStore.js";
 import { upsertMapRecordInList } from "./mapRecords.js";
 import { resolveInitialMapLoad } from "./mapLoadPlan.js";
+import { createResilientStorage } from "./resilientStorage.js";
 
 let currentShareLink = "";
+let storageProblem = "";
+let dataProblem = "";
+let unreadableStorage = {};
+let mapStorage;
+
+function renderStorageNotice() {
+  if (!els.storageNotice || !els.storageNoticeMessage) return;
+  const message = [storageProblem, dataProblem].filter(Boolean).join(" ");
+  els.storageNoticeMessage.textContent = message;
+  els.storageNotice.classList.toggle("hidden", !message);
+}
+
+function getStorage() {
+  mapStorage ||= createResilientStorage(() => localStorage, (error) => {
+    storageProblem = error
+      ? "地图修改尚未保存到浏览器。请导出地图备份；存储恢复后可重试保存。"
+      : "";
+    renderStorageNotice();
+  });
+  return mapStorage;
+}
+
+function preserveUnreadableStorage(error) {
+  if (!error.storageKey) return;
+  const storage = getStorage();
+  unreadableStorage[error.storageKey] = storage.getItem(error.storageKey);
+  storage.protectItem(error.storageKey);
+  dataProblem = "部分地图库数据无法读取，原始数据已保留，导出备份会包含原文。";
+  renderStorageNotice();
+}
+
+function downloadJson(name, value) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function createMapBackup() {
+  const encodedMap = encodeMapDefinition(state.mapDefinition);
+  return {
+    version: 1,
+    currentMap: { encodedMap, mapDefinition: state.mapDefinition, shareUrl: buildMapShareUrl(encodedMap) },
+    maps: getMapList(),
+    unreadableStorage: { ...unreadableStorage },
+  };
+}
+
+export function exportMapRecord(record) {
+  downloadJson("police-thief-map-backup.json", record);
+}
+
+export function initStorageNotice() {
+  els.btnExportMapBackup?.addEventListener("click", () => {
+    downloadJson("police-thief-maps-backup.json", createMapBackup());
+  });
+  els.btnRetryMapSave?.addEventListener("click", retryMapSave);
+}
+
+export function retryMapSave() {
+  const storage = getStorage();
+  const recovered = storage.recoverReads((key, stored, buffered) => {
+    if (key !== STORAGE_KEYS.mapList) return buffered;
+    const read = (value) => getMapListFromStorage({ getItem: () => value });
+    const savedMaps = read(stored);
+    const bufferedMaps = read(buffered);
+    const ids = new Set(bufferedMaps.map((record) => record.id));
+    return JSON.stringify([...bufferedMaps, ...savedMaps.filter((record) => !ids.has(record.id))]);
+  });
+  if (!recovered) return;
+  try { migrateLegacyStorage(storage); } catch (error) { preserveUnreadableStorage(error); }
+  persistCurrentMap();
+}
 
 export { formatDefaultMapName } from "./mapStore.js";
 
@@ -30,39 +107,37 @@ export function formatDuplicateMapName(sourceName, existingMaps) {
 }
 
 export function getMapList() {
-  let rawList = [];
-
   try {
-    const storedList = localStorage.getItem(STORAGE_KEYS.mapList);
-    const parsed = storedList ? JSON.parse(storedList) : [];
-    rawList = Array.isArray(parsed) ? parsed : [];
+    const maps = getMapListFromStorage(getStorage());
+    if (maps.some((record) => record.isCorrupt)) {
+      dataProblem = "部分地图无法读取，已保留原始数据；可在地图库导出原始备份。";
+      renderStorageNotice();
+    }
+    return maps;
   } catch (error) {
-    rawList = [];
+    preserveUnreadableStorage(error);
+    // Continue with a separate in-memory library. The protected original key
+    // cannot be overwritten, even by subsequent autosaves or a retry.
+    try { getStorage().setItem(STORAGE_KEYS.mapList, "[]"); } catch { /* notice is already visible */ }
+    return [];
   }
-
-  const normalized = rawList.map((record) => normalizeMapRecord(record));
-  const needsRewrite = normalized.some((record, index) => {
-    const raw = rawList[index] || {};
-    return (
-      raw.encodedMap !== record.encodedMap ||
-      raw.updatedAt !== record.updatedAt ||
-      raw.schemaVersion !== 3
-    );
-  });
-  if (needsRewrite) setMapList(normalized);
-  return normalized;
 }
 
 export function setMapList(list) {
-  setMapListToStorage(localStorage, list);
+  try {
+    setMapListToStorage(getStorage(), list);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function getCurrentMapId() {
-  return getCurrentMapIdFromStorage(localStorage);
+  return getCurrentMapIdFromStorage(getStorage());
 }
 
 export function setCurrentMapId(mapId) {
-  setCurrentMapIdToStorage(localStorage, mapId);
+  try { setCurrentMapIdToStorage(getStorage(), mapId); } catch { /* retain current id in memory */ }
 }
 
 export function getCurrentMapName() {
@@ -193,7 +268,11 @@ export function upsertCurrentMapInList(
 
 export function updateMapUrl(encodedMap = encodeMapDefinition(state.mapDefinition)) {
   const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?m=${encodedMap}`;
-  window.history.replaceState({ path: newUrl }, "", newUrl);
+  try {
+    window.history.replaceState({ path: newUrl }, "", newUrl);
+  } catch (error) {
+    console.warn("地图地址未能更新，可从地图库分享或导出。", error);
+  }
 }
 
 export function persistCurrentMap(options = {}) {
@@ -205,8 +284,15 @@ export function persistCurrentMap(options = {}) {
 }
 
 export function loadInitialMapIntoState() {
-  migrateLegacyStorage(localStorage);
-  const savedEncodedMap = getStoredEncodedMapFromStorage(localStorage);
+  mapStorage = null;
+  storageProblem = "";
+  dataProblem = "";
+  unreadableStorage = {};
+  try { migrateLegacyStorage(getStorage()); } catch (error) { preserveUnreadableStorage(error); }
+  const maps = getMapList();
+  const currentMap = maps.find((record) => record.id === getCurrentMapId()) || maps[0];
+  if (currentMap && !currentMap.isCorrupt) setCurrentMapId(currentMap.id);
+  const savedEncodedMap = currentMap?.encodedMap || null;
   const urlParams = new URLSearchParams(window.location.search);
   const sharedEncodedMap = urlParams.get("m");
   const loadPlan = resolveInitialMapLoad({
@@ -215,5 +301,6 @@ export function loadInitialMapIntoState() {
   });
 
   setMapDefinition(loadPlan.mapDefinition);
-  persistCurrentMap({ forceNewMap: loadPlan.forceNewMap });
+  persistCurrentMap({ forceNewMap: loadPlan.forceNewMap || Boolean(currentMap?.isCorrupt) });
+  renderStorageNotice();
 }

@@ -7,6 +7,7 @@ import { renderEditorBoard } from "./editorController.js";
 import { renderMapListGrid, setMapListEmptyState } from "../ui/map-list/mapListRenderer.js";
 import {
   formatDefaultMapName,
+  exportMapRecord,
   formatDuplicateMapName,
   getCurrentMapId,
   getMapList,
@@ -47,6 +48,7 @@ export function renderMapList() {
   renderMapListGrid(els.mapListGrid, {
     maps,
     currentMapId,
+    onExport: exportMapRecord,
     resolveMapDefinition(mapObj) {
       try {
         return decodeMapDefinition(mapObj.encodedMap);

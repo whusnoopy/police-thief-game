@@ -1,4 +1,8 @@
 const DEFAULT_ELEMENT_IDS = [
+  "storage-notice",
+  "storage-notice-message",
+  "btn-export-map-backup",
+  "btn-retry-map-save",
   "editor-view",
   "game-view",
   "map-list-view",

@@ -14,6 +14,7 @@ import {
 import { resolveEndOfRoundEffects } from "../domain/rules/endOfRoundEffects.js";
 import { applyResolvedAction } from "../domain/rules/interactionResolver.js";
 import { getNextTurn, getWinState } from "../domain/rules/winResolver.js";
+import { isPermanentStalemate } from "../domain/rules/stalemateResolver.js";
 import {
   projectPathPreview,
   projectReachablePositions,
@@ -374,6 +375,10 @@ export const gameController = {
 
   skipTurn() {
     if (this.phase !== GAME_PHASES.NO_MOVES) return;
+    if (isPermanentStalemate(this.session)) {
+      this.showVictory("DRAW");
+      return;
+    }
     this.advanceTurn();
   },
 

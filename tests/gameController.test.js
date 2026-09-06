@@ -91,3 +91,14 @@ test("skip turn only works after the rolled side has no legal moves", () => {
   gameController.skipTurn();
   assert.notEqual(gameController.turn, initialTurn);
 });
+
+test("skipping a permanently blocked game finishes as a draw", () => {
+  const map = createEmptyMapDefinition({ terrain: Array.from({ length: 10 }, () => Array(10).fill("BUILDING")) });
+  setLegacyTileAt(map, 0, 0, "THIEF_SPAWN");
+  setLegacyTileAt(map, 9, 9, "POLICE_SPAWN");
+  gameController.init(map);
+  gameController.phase = GAME_PHASES.NO_MOVES;
+  gameController.skipTurn();
+  assert.equal(gameController.phase, GAME_PHASES.FINISHED);
+  assert.match(env.elements["victory-title"].textContent, /平局/);
+});

@@ -13,18 +13,18 @@ function tryDecodeMapDefinition(encodedMap) {
 
 export function resolveInitialMapLoad({ savedEncodedMap = null, sharedEncodedMap = null } = {}) {
   const sharedMapDefinition = tryDecodeMapDefinition(sharedEncodedMap);
+  const savedMapDefinition = tryDecodeMapDefinition(savedEncodedMap);
   if (sharedMapDefinition) {
     return {
       source: "url",
       mapDefinition: sharedMapDefinition,
       forceNewMap: Boolean(
         savedEncodedMap &&
-          normalizeEncodedMap(savedEncodedMap) !== normalizeEncodedMap(sharedEncodedMap),
+          (!savedMapDefinition || normalizeEncodedMap(savedEncodedMap) !== normalizeEncodedMap(sharedEncodedMap)),
       ),
     };
   }
 
-  const savedMapDefinition = tryDecodeMapDefinition(savedEncodedMap);
   if (savedMapDefinition) {
     return {
       source: "storage",

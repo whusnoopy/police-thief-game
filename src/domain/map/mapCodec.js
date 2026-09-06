@@ -85,6 +85,26 @@ function decodeJsonPayload(encodedPayload) {
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
+function validateJsonPayload(payload, version) {
+  const terrainTypes = version === 2 ? TERRAIN_TILE_TYPES : TERRAIN_TYPE_BY_CODE;
+  const featureTypes = version === 2 ? FEATURE_TILE_TYPES : FEATURE_TYPE_BY_CODE;
+  const validIndex = (value) => Number.isInteger(value) && value >= 0 && value < GRID_SIZE * GRID_SIZE;
+  if (
+    !payload || payload.v !== version || typeof payload.t !== "string" ||
+    // Old v2 saves sometimes carried extra trailing terrain characters.
+    (version === 2 ? payload.t.length < GRID_SIZE * GRID_SIZE : payload.t.length !== GRID_SIZE * GRID_SIZE) ||
+    [...payload.t].some((char) => !terrainTypes[BASE64_ALPHABET.indexOf(char)]) ||
+    !Array.isArray(payload.f) || !Array.isArray(payload.p) || !Array.isArray(payload.h) ||
+    !payload.p.every(validIndex) || !payload.h.every(validIndex) ||
+    !payload.f.every((entry) => Array.isArray(entry) && Number.isInteger(entry[0]) &&
+      featureTypes[entry[0]] && validIndex(entry[1]) &&
+      (version === 2 || ((entry[2] === undefined || (entry[2] !== null && typeof entry[2] === "object" && !Array.isArray(entry[2]))) &&
+        (entry[3] === undefined || typeof entry[3] === "string"))))
+  ) throw new Error("Invalid map payload: incomplete or unsupported map data");
+  const occupied = [...payload.p, ...payload.h, ...payload.f.map((entry) => entry[1])];
+  if (new Set(occupied).size !== occupied.length) throw new Error("Invalid map payload: overlapping cells");
+}
+
 function encodeTerrainMatrix(terrainMatrix) {
   let chars = "";
   for (let r = 0; r < GRID_SIZE; r += 1) {
@@ -147,6 +167,7 @@ export function encodeMapDefinition(mapDefinition) {
 
 function decodeV2MapDefinition(encodedMap) {
   const payload = decodeJsonPayload(encodedMap.slice(V2_MAP_DEFINITION_PREFIX.length));
+  validateJsonPayload(payload, 2);
   const mapDefinition = createEmptyMapDefinition();
   mapDefinition.terrain = decodeTerrainMatrix(payload.t || "", TERRAIN_TILE_TYPES);
   mapDefinition.features = Array.isArray(payload.f)
@@ -175,6 +196,7 @@ function decodeV2MapDefinition(encodedMap) {
 
 function decodeV3MapDefinition(encodedMap) {
   const payload = decodeJsonPayload(encodedMap.slice(CURRENT_MAP_DEFINITION_PREFIX.length));
+  validateJsonPayload(payload, 3);
   const mapDefinition = createEmptyMapDefinition({
     meta: {
       name: typeof payload.m?.n === "string" ? payload.m.n : "",
@@ -245,6 +267,9 @@ function decodeLegacyUrlSafeBase64ToTileMatrix(chars) {
 }
 
 function decodeLegacyMapDefinition(encodedMap) {
+  if (encodedMap.length === 100 && [...encodedMap].some((char) => !LEGACY_INT_TILE_MAP[BASE64_ALPHABET.indexOf(char)])) {
+    throw new Error("Invalid map payload: unknown legacy terrain code");
+  }
   return legacyTileMatrixToMapDefinition(decodeLegacyUrlSafeBase64ToTileMatrix(encodedMap));
 }
 

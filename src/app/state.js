@@ -14,6 +14,10 @@ export function setMapDefinition(mapDefinition) {
 }
 
 export const els = {
+  storageNotice: document.getElementById("storage-notice"),
+  storageNoticeMessage: document.getElementById("storage-notice-message"),
+  btnExportMapBackup: document.getElementById("btn-export-map-backup"),
+  btnRetryMapSave: document.getElementById("btn-retry-map-save"),
   editorView: document.getElementById("editor-view"),
   gameView: document.getElementById("game-view"),
   mapListView: document.getElementById("map-list-view"),
