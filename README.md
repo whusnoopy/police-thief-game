@@ -37,6 +37,12 @@ npm test
 
 运行 `npm run benchmark` 可测量复杂高架桥场景的首次寻路耗时。测试与结果记录见 [后续修复计划](docs/improvement-plan.md)。
 
+## Visual study
+
+绘本棋盘样板位于 `experiments/storybook/`：运行开发服务器后打开 `/experiments/storybook/`，可比较生成素材与原有符号、试画连续道路和河岸，并查看现有规则计算的可达格。样板使用独立示例，不读写玩家地图，也不进入默认生产构建。
+
+评估、素材范围与接入步骤见 [视觉升级方案](docs/visual-upgrade-plan.md)。生成素材及提示位于 `experiments/storybook/assets/`。
+
 ## Deploy
 
 当前生产部署方式改为上传 `dist/` 内容，而不是直接上传源码：

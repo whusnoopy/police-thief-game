@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>绘本棋盘 · 美术试验</title>
+    <link rel="stylesheet" href="./preview.css" />
+    <script type="module" src="./preview.js"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div><p class="eyebrow">警察抓小偷 / 美术试验 01</p><h1>小镇里的追逐</h1></div>
+        <span class="edition">清爽绘本 · 10 × 10</span>
+      </header>
+      <p class="intro">让道路连起来，让河岸转个弯。角色、地形和行动提示，各自清楚地站在自己的位置上。</p>
+      <div class="workspace">
+        <aside class="controls">
+          <section>
+            <h2>看一看</h2>
+            <div class="segmented" aria-label="地图外观">
+              <button type="button" data-look="art" aria-pressed="true">绘本素材</button>
+              <button type="button" data-look="emoji" aria-pressed="false">现有符号</button>
+            </div>
+            <label class="toggle"><input id="show-grid" type="checkbox" checked />显示格线</label>
+            <label class="toggle"><input id="show-moves" type="checkbox" />小偷掷出 4 点时的可达格</label>
+          </section>
+          <section>
+            <h2>试试拼接</h2>
+            <p>选一种地形，再点击空格。相邻道路与河岸会一起更新。</p>
+            <div class="brushes" aria-label="地形画笔">
+              <button type="button" data-brush="inspect" aria-pressed="true">查看</button>
+              <button type="button" data-brush="ROAD" aria-pressed="false"><i class="swatch road"></i>道路</button>
+              <button type="button" data-brush="RIVER" aria-pressed="false"><i class="swatch river"></i>河流</button>
+              <button type="button" data-brush="GRASS" aria-pressed="false"><i class="swatch grass"></i>草地</button>
+            </div>
+            <button id="reset" class="quiet" type="button">恢复示例地图</button>
+          </section>
+          <section class="inspector" aria-live="polite">
+            <span class="eyebrow" id="cell-position">第 4 行 · 第 4 列</span>
+            <h2 id="cell-name">银行</h2>
+            <p id="cell-rule"></p>
+          </section>
+        </aside>
+        <section class="board-area" aria-label="地图预览">
+          <div class="board-heading"><span>河湾小镇</span><span id="mode-caption">绘本素材</span></div>
+          <div class="board-frame"><div id="board" class="art with-grid" aria-label="10 行 10 列地图"></div></div>
+          <div class="legend"><span><i class="swatch grass"></i>草地 · 步行 2</span><span><i class="swatch road"></i>道路 · 步行 1 / 车辆 0.5</span><span><i class="swatch river"></i>河流 · 仅车辆 2</span></div>
+          <p id="feedback" class="feedback" role="status">点击地块查看规则。这个样板可以试画，不会保存到地图库。</p>
+        </section>
+        <aside class="asset-gallery">
+          <h2>第一组素材</h2>
+          <p>相同的色彩、光线和轮廓语言。</p>
+          <div class="asset-card"><img src="./assets/police.png" alt="蓝色制服的绘本警察" /><div><strong>警察</strong><span>蓝色帽徽 · P 编号</span></div></div>
+          <div class="asset-card"><img src="./assets/thief.png" alt="珊瑚红帽子的绘本小偷" /><div><strong>小偷</strong><span>条纹上衣 · T 编号</span></div></div>
+          <div class="asset-card"><img src="./assets/bank.png" alt="柔和绿色屋顶的绘本银行" /><div><strong>银行</strong><span>金币门楣 · 独立地标</span></div></div>
+          <p class="asset-note">编号、取钱和押送状态由清楚的小标记表达，缩小后也能辨认。</p>
+        </aside>
+      </div>
+      <footer>视觉原型 · 地形可达提示使用现有游戏规则 · 点击绘制仅演示邻格衔接</footer>
+    </main>
+  </body>
+</html>
