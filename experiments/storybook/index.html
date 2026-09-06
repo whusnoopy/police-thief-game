@@ -10,7 +10,7 @@
   <body>
     <main>
       <header>
-        <div><p class="eyebrow">警察抓小偷 / 美术试验 01</p><h1>小镇里的追逐</h1></div>
+        <div><p class="eyebrow">警察抓小偷 / 绘本素材全景</p><h1>小镇里的追逐</h1></div>
         <span class="edition">清爽绘本 · 10 × 10</span>
       </header>
       <p class="intro">让道路连起来，让河岸转个弯。角色、地形和行动提示，各自清楚地站在自己的位置上。</p>
@@ -24,6 +24,7 @@
             </div>
             <label class="toggle"><input id="show-grid" type="checkbox" checked />显示格线</label>
             <label class="toggle"><input id="show-moves" type="checkbox" />小偷掷出 4 点时的可达格</label>
+            <button id="signal" class="quiet" type="button" aria-pressed="false">行人绿灯 · 点击切换</button>
           </section>
           <section>
             <h2>试试拼接</h2>
@@ -34,6 +35,11 @@
               <button type="button" data-brush="RIVER" aria-pressed="false"><i class="swatch river"></i>河流</button>
               <button type="button" data-brush="GRASS" aria-pressed="false"><i class="swatch grass"></i>草地</button>
             </div>
+            <details class="more-brushes"><summary>高架桥与斑马线</summary><div class="brushes">
+              <button type="button" data-brush="OVERPASS" aria-pressed="false">高架桥</button>
+              <button type="button" data-brush="CROSSWALK_HORIZONTAL" aria-pressed="false">横向斑马线</button>
+              <button type="button" data-brush="CROSSWALK_VERTICAL" aria-pressed="false">纵向斑马线</button>
+            </div></details>
             <button id="reset" class="quiet" type="button">恢复示例地图</button>
           </section>
           <section class="inspector" aria-live="polite">
@@ -45,18 +51,29 @@
         <section class="board-area" aria-label="地图预览">
           <div class="board-heading"><span>河湾小镇</span><span id="mode-caption">绘本素材</span></div>
           <div class="board-frame"><div id="board" class="art with-grid" aria-label="10 行 10 列地图"></div></div>
-          <div class="legend"><span><i class="swatch grass"></i>草地 · 步行 2</span><span><i class="swatch road"></i>道路 · 步行 1 / 车辆 0.5</span><span><i class="swatch river"></i>河流 · 仅车辆 2</span></div>
+          <div class="legend"><span><i class="swatch grass"></i>草地 · 步行 2</span><span><i class="swatch road"></i>道路 · 步行 1 / 车辆 0.5</span><span><i class="swatch river"></i>河流 · 仅车辆 2</span><span><i class="swatch overpass"></i>高架桥 · 仅车辆 0.25</span></div>
           <p id="feedback" class="feedback" role="status">点击地块查看规则。这个样板可以试画，不会保存到地图库。</p>
         </section>
-        <aside class="asset-gallery">
-          <h2>第一组素材</h2>
-          <p>相同的色彩、光线和轮廓语言。</p>
-          <div class="asset-card"><img src="./assets/police.png" alt="蓝色制服的绘本警察" /><div><strong>警察</strong><span>蓝色帽徽 · P 编号</span></div></div>
-          <div class="asset-card"><img src="./assets/thief.png" alt="珊瑚红帽子的绘本小偷" /><div><strong>小偷</strong><span>条纹上衣 · T 编号</span></div></div>
-          <div class="asset-card"><img src="./assets/bank.png" alt="柔和绿色屋顶的绘本银行" /><div><strong>银行</strong><span>金币门楣 · 独立地标</span></div></div>
-          <p class="asset-note">编号、取钱和押送状态由清楚的小标记表达，缩小后也能辨认。</p>
+        <aside class="scene-controls">
+          <h2>角色与场景</h2><p>切换状态，看看小格子里是否清楚。</p>
+          <label for="police-state">警察 P1</label>
+          <select id="police-state"><option value="walk">步行</option><option value="car">驾车</option><option value="escort">步行押送 T2</option><option value="car-escort">驾车押送 T2</option></select>
+          <label for="thief-state">小偷 T1</label>
+          <select id="thief-state"><option value="walk">步行</option><option value="money">步行携款</option><option value="car">驾车</option><option value="car-money">驾车携款</option></select>
+          <label class="toggle"><input id="bank-occupant" type="checkbox" />小偷站在银行（携款）</label>
+          <div id="state-legend" class="state-legend"></div>
+          <p class="asset-note">这是状态展示，不执行回合。下方可查看全部主体素材和叠加样例。</p>
+          <a href="#catalogue">查看素材总览 ↓</a>
         </aside>
       </div>
+      <section class="catalogue-section" aria-labelledby="combinations-title">
+        <h2 id="combinations-title">小格子里的不同状态</h2><p>按 60 像素格子展示。编号、携款和押送标记独立于角色图片。</p>
+        <div id="state-examples"></div>
+      </section>
+      <section id="catalogue" class="catalogue-section" aria-labelledby="catalogue-title">
+        <h2 id="catalogue-title">主体素材总览</h2><p>同一套绘本画风，建筑、车辆和动物都有各自清楚的轮廓。</p>
+        <div id="asset-catalogue"></div>
+      </section>
       <footer>视觉原型 · 地形可达提示使用现有游戏规则 · 点击绘制仅演示邻格衔接</footer>
     </main>
   </body>

@@ -38,6 +38,38 @@ input { width: 17px; height: 17px; accent-color: #648974; }
 .map-cell:hover { background-color: #fff8cb30; }.map-cell:focus-visible { outline-offset: -3px; }
 .map-cell img { pointer-events: none; user-select: none; -webkit-user-drag: none; width: 92%; max-width: none; height: 92%; object-fit: contain; position: absolute; bottom: 5%; }
 .map-cell .bank-art { width: 112%; height: 112%; bottom: 1%; }
+.map-cell .building-art { width: 106%; height: 106%; bottom: 2%; z-index: 1; }
+.map-cell .unit-art { z-index: 3; }
+.map-cell.occupied-feature .building-art { width: 80%; height: 80%; left: -8%; bottom: 22%; }
+.map-cell.occupied-feature .unit-art { width: 75%; height: 75%; right: -3%; bottom: 10%; }
+.map-cell.occupied-feature .unit-ring { right: 0; width: 55%; }
+.map-cell .parked-art { width: 72%; height: 72%; bottom: 0; right: -3%; z-index: 3; }
+.map-cell .parking-marker { align-self: start; margin: 3px 0 0 3px; transform: scale(.75); transform-origin: top left; }
+.state-badge { position: absolute; bottom: 1px; left: 1px; width: 20px; height: 20px; z-index: 7; background: #fff9e8; border: 1px solid #c3b38e; border-radius: 5px; padding: 1px; pointer-events: none; }
+.state-badge svg { width: 100%; height: 100%; }
+.spawn-marker { position: absolute; left: 3px; bottom: 3px; width: 16px; height: 16px; border: 1px dashed #4b7795; color: #4b7795; border-radius: 50%; font: 700 10px/14px sans-serif; }
+.spawn-marker.thief { color: #ac6754; border-color: #ac6754; }
+.functional-icon { display: block; width: 45%; height: 65%; }.functional-icon svg { width: 100%; height: 100%; }
+.crosswalk-signal { position: absolute; width: 7px; height: 7px; border: 1px solid #49615b; border-radius: 50%; z-index: 4; }
+.crosswalk-signal.green { background: #61a566; }.crosswalk-signal.red { background: #d77c68; }
+.crosswalk-signal.left { left: 2px; top: calc(50% - 3px); }.crosswalk-signal.right { right: 2px; top: calc(50% - 3px); }
+.crosswalk-signal.top { top: 2px; left: calc(50% - 3px); }.crosswalk-signal.bottom { bottom: 2px; left: calc(50% - 3px); }
+.unit-ring { z-index: 2; }.unit-ring.animal { background: #e7cc8a77; box-shadow: inset 0 0 0 1.5px #ae995e; }
+.path-cell .move-dot { border-color: #b88a3c; background: #ffdc8630; }.path-step { position: absolute; bottom: 1px; right: 1px; z-index: 8; min-width: 15px; padding: 1px 3px; border-radius: 4px; background: #9f6a29; color: white; font-size: 10px; }
+.asset-fallback { display: inline-block; padding: 3px; border: 1px dashed #958a70; border-radius: 4px; background: #fff4d9; font-size: 10px; z-index: 3; }
+.swatch.overpass { background: #a9b5b5; }
+.more-brushes { font-size: 12px; margin-top: 10px; }.more-brushes summary { cursor: pointer; min-height: 32px; line-height: 32px; }
+.scene-controls h2 { margin-bottom: 10px; }.scene-controls p { color: #77847a; font-size: 12px; }
+.scene-controls > label:not(.toggle) { display: block; margin: 18px 0 6px; font-size: 12px; }
+.scene-controls select { width: 100%; min-height: 44px; border: 1px solid #d7dfd0; background: #fffdf6; color: inherit; font: inherit; font-size: 12px; border-radius: 8px; padding: 6px; }
+.scene-controls .toggle { margin-top: 12px; }.scene-controls a { color: #4e7b6b; font-size: 12px; }
+.state-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; font-size: 11px; color: #6c7d6e; }.state-legend span { display: flex; align-items: center; gap: 5px; }.state-legend svg { width: 22px; height: 22px; }
+.catalogue-section { margin-top: 28px; padding-top: 24px; border-top: 1px solid #dde2d6; }.catalogue-section > p { font-size: 12px; color: #77847a; }
+#asset-catalogue { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 12px; }
+.asset-card .catalogue-art { display: grid; place-items: center; padding: 0; height: 120px; border: 0; background: #edf0e3; }
+.catalogue-art img { width: 100%; height: 120px; background: none; }.asset-card div span { overflow-wrap: anywhere; }
+#state-examples { display: flex; gap: 28px; flex-wrap: wrap; }#state-examples figure { margin: 6px 0; }#state-examples figcaption { margin-top: 10px; font-size: 12px; text-align: center; }
+.state-example { width: 60px; height: 60px; margin: 0 auto; background: #ddd6bd; border: 1px solid #c5bc9f; }
 .unit-ring { position: absolute; bottom: 11%; width: 62%; height: 22%; border-radius: 50%; background: #a7c1d77a; box-shadow: inset 0 0 0 1.5px #507b9f; }
 .unit-ring.thief { background: #e0aa9380; box-shadow: inset 0 0 0 1.5px #b67661; }
 .unit-badge { position: absolute; top: 2px; right: 1px; z-index: 6; background: #3d6d91; color: #fff; padding: 1px 4px; border-radius: 4px; font-size: clamp(8px, .85vw, 11px); font-weight: 750; }
@@ -66,3 +98,7 @@ footer { margin-top: 28px; padding-top: 18px; border-top: 1px solid #e0e4d6; fon
 @media (min-width: 1000px) and (max-height: 900px) { main { padding-top: 24px; }.board-area { width: min(100%, calc(100svh - 260px)); justify-self: center; } }
 @media (max-width: 1100px) { main { padding: 26px 24px; }.workspace { grid-template-columns: 190px minmax(0,1fr); gap: 22px; }.asset-gallery { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }.asset-gallery h2,.asset-gallery > p { grid-column: 1 / -1; margin: 0; }.asset-card { margin: 0; }.asset-card img { height: 112px; } }
 @media (max-width: 850px) { h1 { font-size: 29px; }.workspace { display: flex; flex-direction: column; gap: 20px; }.controls { width: 100%; display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; }.controls section { border: 0; padding: 0; }.controls .inspector { display: none; }.board-area { width: min(100%, 624px); align-self: center; }.asset-gallery { display: grid; width: 100%; }.intro { margin-bottom: 24px; }.map-cell .unit-badge { font-size: 10px; }.feature-label { font-size: 9px; } }
+@media (max-width: 1100px) { .scene-controls { grid-column: 1 / -1; }#asset-catalogue { grid-template-columns: repeat(4,minmax(0,1fr)); } }
+@media (max-width: 850px) { .scene-controls { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }.scene-controls h2,.scene-controls > p,.scene-controls .state-legend { grid-column: 1 / -1; }.scene-controls > label:not(.toggle) { margin: 6px 0; }.scene-controls #police-state { grid-column: 1; }.scene-controls label[for="thief-state"] { grid-column: 2; grid-row: 3; }.scene-controls #thief-state { grid-column: 2; grid-row: 4; } }
+
+.feature-label { white-space: nowrap; }

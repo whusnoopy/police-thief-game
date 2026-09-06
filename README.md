@@ -39,9 +39,9 @@ npm test
 
 ## Visual study
 
-绘本棋盘样板位于 `experiments/storybook/`：运行开发服务器后打开 `/experiments/storybook/`，可比较生成素材与原有符号、试画连续道路和河岸，并查看现有规则计算的可达格。样板使用独立示例，不读写玩家地图，也不进入默认生产构建。
+绘本棋盘样板位于 `experiments/storybook/`：运行开发服务器后打开 `/experiments/storybook/`，可查看全部 14 张主体素材、试画连续地形与斑马线、切换驾车/携款/押送/银行占位场景，并查看现有规则计算的可达格和路线。样板使用独立示例，不读写玩家地图，也不进入默认生产构建。
 
-评估、素材范围与接入步骤见 [视觉升级方案](docs/visual-upgrade-plan.md)。生成素材及提示位于 `experiments/storybook/assets/`。
+评估、素材范围与后续正式接入步骤见 [视觉升级方案](docs/visual-upgrade-plan.md)。文件、尺寸和生成提示见 [素材目录](experiments/storybook/assets/README.md)。
 
 ## Deploy
 
