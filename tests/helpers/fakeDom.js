@@ -11,6 +11,15 @@ const DEFAULT_ELEMENT_IDS = [
   "palette",
   "mode-indicator",
   "btn-clear-map",
+  "btn-undo-map",
+  "btn-redo-map",
+  "unit-counts",
+  "last-action",
+  "move-preview",
+  "move-preview-text",
+  "move-confirm-actions",
+  "btn-confirm-move",
+  "btn-cancel-move",
   "btn-start-game",
   "editor-help-wrapper",
   "btn-editor-help",
@@ -313,6 +322,13 @@ class FakeElement {
   querySelectorAll(selector) {
     return this.ownerDocument.querySelectorAll(selector, this);
   }
+
+  closest(selector) {
+    if (createSelectorMatcher(selector)(this)) return this;
+    return this.parentNode?.closest?.(selector) || null;
+  }
+
+  remove() { this.parentNode?.removeChild(this); }
 }
 
 class FakeDocument {

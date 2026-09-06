@@ -38,6 +38,15 @@ test("bootstrap initialization and map-list flow stay wired through the controll
   assert.equal(env.elements["map-list-view"].classList.contains("hidden"), false);
   assert.equal(env.elements["map-list-grid"].children.length, 1);
 
+  env.setPromptResponses(["重命名后的地图"]);
+  const renameButton = env.elements["map-list-grid"].querySelectorAll("button")
+    .find((button) => button.innerHTML === "✏️ 重命名");
+  renameButton.click();
+  assert.equal(state.mode, "MAP_LIST");
+  assert.equal(env.elements["map-list-view"].classList.contains("hidden"), false);
+  assert.equal(env.elements["editor-view"].classList.contains("hidden"), true);
+  assert.equal(getMapList()[0].name, "重命名后的地图");
+
   env.setPromptResponses(["空白图"]);
   env.elements["btn-create-map"].click();
 

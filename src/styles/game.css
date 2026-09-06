@@ -273,6 +273,27 @@
   text-align: center;
 }
 
+.unit-counts {
+  white-space: pre-line;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.move-preview,
+.last-action {
+  background: #fff;
+  border: 1px solid #d6e2eb;
+  border-radius: 8px;
+  padding: 10px 14px;
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+
+.move-preview { border-color: var(--primary-color); background: #eef7ff; }
+.move-confirm-actions { margin-top: 10px; }
+.move-confirm-actions .btn { margin-bottom: 0; min-height: 44px; }
+.last-action { color: #415669; }
+
 .dice-actions {
   margin-top: auto;
   min-height: 52px;

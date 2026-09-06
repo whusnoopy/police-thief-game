@@ -29,6 +29,104 @@ test("crosswalk signal lights rerender on signal phase change", () => {
   assert.equal(env.elements["game-board"].querySelectorAll(".red").length, 2);
 });
 
+function makePlayableMap() {
+  const map = createEmptyMapDefinition();
+  [[9, 9, "POLICE_SPAWN"], [0, 0, "THIEF_SPAWN"], [0, 1, "BANK"], [0, 2, "THIEF_BASE"]]
+    .forEach(([r, c, tile]) => setLegacyTileAt(map, r, c, tile));
+  return map;
+}
+
+function tap(r, c, pointerType = "touch") {
+  const cell = env.document.getElementById(`game-cell-${r}-${c}`);
+  cell.dispatchEvent({ type: "pointerdown", pointerType });
+  cell.dispatchEvent({ type: "click" });
+}
+
+test("touch and pen preview safely, cancel preserves the turn, and confirm resolves once", () => {
+  gameController.init(makePlayableMap());
+  gameController.diceValue = 3;
+  gameController.onDiceRolled();
+  tap(0, 0);
+  tap(0, 1);
+  assert.equal(gameController.thiefUnits[0].c, 0);
+  assert.equal(gameController.thiefUnits[0].hasMoney, false);
+  assert.match(env.elements["move-preview-text"].textContent, /拿到钱/);
+  assert.equal(env.elements["move-confirm-actions"].classList.contains("hidden"), false);
+  gameController.clearPathHover();
+  assert.ok(gameController.pendingDestination);
+  gameController.cancelMovePreview();
+  assert.equal(gameController.phase, GAME_PHASES.SELECT_DESTINATION);
+  assert.equal(gameController.turn, "THIEF");
+  tap(0, 1, "pen");
+  gameController.confirmMove();
+  assert.equal(gameController.thiefUnits[0].c, 1);
+  assert.equal(gameController.thiefUnits[0].hasMoney, true);
+  assert.equal(gameController.turn, "POLICE");
+  assert.match(env.elements["last-action"].textContent, /拿到钱/);
+  assert.match(env.elements["last-action"].textContent, /剩余 2 步作废/);
+  assert.match(env.elements["unit-counts"].textContent, /活动 1/);
+  gameController.confirmMove();
+  assert.equal(gameController.turn, "POLICE");
+});
+
+test("mouse still moves directly and escape counts and narration survive the final move", () => {
+  gameController.init(makePlayableMap());
+  gameController.diceValue = 3;
+  gameController.onDiceRolled();
+  tap(0, 0, "mouse");
+  tap(0, 2, "mouse");
+  assert.equal(gameController.phase, GAME_PHASES.FINISHED);
+  assert.match(env.elements["unit-counts"].textContent, /活动 0.*逃脱 1/);
+  assert.match(env.elements["last-action"].textContent, /拿到钱.*成功逃脱/);
+});
+
+test("each unit search is reused through highlighting and reselection, then invalidated by turn and dice", () => {
+  const map = makePlayableMap();
+  setLegacyTileAt(map, 5, 5, "THIEF_SPAWN");
+  gameController.init(map);
+  const original = gameController.computeReachableForUnit;
+  let searches = 0;
+  gameController.computeReachableForUnit = function (unit) { searches++; return original.call(this, unit); };
+  try {
+    gameController.diceValue = 2;
+    gameController.onDiceRolled();
+    assert.equal(searches, 2);
+    gameController.handleCellClick(0, 0);
+    gameController.handleCellClick(5, 5);
+    gameController.handleCellClick(0, 0);
+    assert.equal(searches, 2);
+    const first = gameController.calculateReachableForUnit(gameController.thiefUnits[0]);
+    gameController.diceValue = 1;
+    assert.notEqual(gameController.calculateReachableForUnit(gameController.thiefUnits[0]), first);
+    assert.equal(searches, 3);
+    gameController.advanceTurn();
+    gameController.advanceTurn();
+    gameController.diceValue = 1;
+    gameController.calculateReachableForUnit(gameController.thiefUnits[0]);
+    assert.equal(searches, 4);
+    gameController.dispose();
+    assert.equal(gameController.reachabilityCache.size, 0);
+  } finally { gameController.computeReachableForUnit = original; }
+});
+
+test("switching units and restarting clear a pending touch destination", () => {
+  const map = makePlayableMap();
+  setLegacyTileAt(map, 5, 5, "THIEF_SPAWN");
+  gameController.init(map);
+  gameController.diceValue = 3;
+  gameController.onDiceRolled();
+  tap(0, 0); tap(0, 1); tap(5, 5);
+  gameController.confirmMove();
+  assert.equal(gameController.thiefUnits[0].c, 0);
+  assert.equal(gameController.thiefUnits[1].c, 5);
+  assert.equal(gameController.pendingDestination, null);
+  tap(5, 6);
+  gameController.init(map);
+  gameController.confirmMove();
+  assert.equal(gameController.phase, GAME_PHASES.AWAIT_ROLL);
+  assert.equal(gameController.pendingDestination, null);
+});
+
 test("animal units render on the game board", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "POLICE_SPAWN");

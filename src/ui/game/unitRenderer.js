@@ -16,9 +16,19 @@ function getAnimalEmoji(unit) {
 
 function appendUnitToken(cell, { emoji, cssClass, id, isDriving }) {
   const token = document.createElement("div");
-  token.className = `character ${cssClass}${isDriving ? " driving-token" : ""}`;
+  token.className = `character ${cssClass}${isDriving ? " driving-token" : ""}${Array.from(emoji).length > 1 ? " multi-symbol-token" : ""}`;
   token.textContent = emoji;
   token.dataset.id = id;
+  if (cssClass !== "animal-token") {
+    token.title = `${cssClass === "police-token" ? "警察" : "小偷"} ${id.slice(1)}`;
+    token.setAttribute("role", "img");
+    token.setAttribute("aria-label", `${token.title} ${emoji}`);
+    const badge = document.createElement("span");
+    badge.className = "unit-id-badge";
+    badge.textContent = id;
+    badge.setAttribute("aria-hidden", "true");
+    token.appendChild(badge);
+  }
   cell.appendChild(token);
 }
 

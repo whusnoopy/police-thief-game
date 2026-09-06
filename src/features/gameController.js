@@ -15,6 +15,7 @@ import { resolveEndOfRoundEffects } from "../domain/rules/endOfRoundEffects.js";
 import { applyResolvedAction } from "../domain/rules/interactionResolver.js";
 import { getNextTurn, getWinState } from "../domain/rules/winResolver.js";
 import { isPermanentStalemate } from "../domain/rules/stalemateResolver.js";
+import { describeAction } from "./actionSummary.js";
 import {
   projectPathPreview,
   projectReachablePositions,
@@ -40,6 +41,9 @@ import {
   renderRollingDiceFace,
   renderTurnStart,
   renderVictory,
+  renderUnitCounts,
+  renderMovePreview,
+  hideMovePreview,
 } from "../ui/game/statusRenderer.js";
 
 const GAME_CELL_ID_PREFIX = "game-cell";
@@ -75,6 +79,9 @@ export const gameController = {
   phase: GAME_PHASES.AWAIT_ROLL,
   selectedUnit: null,
   reachable: new Map(),
+  reachabilityCache: new Map(),
+  cacheContext: null,
+  pendingDestination: null,
 
   get turn() {
     return this.session?.turn || this.fallbackTurn;
@@ -120,7 +127,10 @@ export const gameController = {
     this.turn = this.session.turn;
     this.diceValue = this.session.diceValue;
     this.selectedUnit = null;
-    this.reachable.clear();
+    this.reachable = new Map();
+    this.invalidateReachability();
+    this.pendingDestination = null;
+    els.lastAction.textContent = "行动结果会显示在这里。";
     this.phase = GAME_PHASES.AWAIT_ROLL;
 
     this.setupUI();
@@ -141,7 +151,9 @@ export const gameController = {
     this.phase = GAME_PHASES.FINISHED;
     this.diceValue = 0;
     this.selectedUnit = null;
-    this.reachable.clear();
+    this.reachable = new Map();
+    this.invalidateReachability();
+    this.cancelMovePreview();
   },
 
   getCoordKey(r, c) {
@@ -157,7 +169,7 @@ export const gameController = {
   },
 
   setupUI() {
-    ["btnRollDice", "btnSkipTurn"].forEach((key) => {
+    ["btnRollDice", "btnSkipTurn", "btnConfirmMove", "btnCancelMove"].forEach((key) => {
       const oldElement = els[key];
       const newElement = oldElement.cloneNode(true);
       oldElement.parentNode.replaceChild(newElement, oldElement);
@@ -166,6 +178,8 @@ export const gameController = {
 
     els.btnRollDice.addEventListener("click", () => this.rollDice());
     els.btnSkipTurn.addEventListener("click", () => this.skipTurn());
+    els.btnConfirmMove.addEventListener("click", () => this.confirmMove());
+    els.btnCancelMove.addEventListener("click", () => this.cancelMovePreview());
   },
 
   renderGameBoard() {
@@ -181,9 +195,15 @@ export const gameController = {
         appendParkedCar(cell);
       },
       bindCell: (cell, { r, c }) => {
+        let pointerType = "mouse";
+        cell.addEventListener("pointerdown", (event) => { pointerType = event.pointerType; });
         cell.addEventListener("mouseenter", () => this.handleCellHover(r, c));
         cell.addEventListener("mouseleave", () => this.clearPathHover());
-        cell.addEventListener("click", () => this.handleCellClick(r, c));
+        cell.addEventListener("click", (event) => {
+          const inputType = event.pointerType || pointerType;
+          pointerType = "mouse";
+          this.handleCellClick(r, c, { previewOnly: inputType === "touch" || inputType === "pen" });
+        });
       },
     });
 
@@ -193,6 +213,7 @@ export const gameController = {
       thiefUnits: this.thiefUnits,
       animalUnits: this.session?.animalUnits || this.animalUnits,
     });
+    renderUnitCounts(this.session);
   },
 
   updateTurnUI() {
@@ -200,7 +221,10 @@ export const gameController = {
     renderTurnStart(this.turn, this.session?.signalPhase);
     this.diceValue = 0;
     this.selectedUnit = null;
-    this.reachable.clear();
+    this.reachable = new Map();
+    this.invalidateReachability();
+    this.pendingDestination = null;
+    hideMovePreview();
     this.clearHighlights();
   },
 
@@ -272,7 +296,23 @@ export const gameController = {
 
   calculateReachableForUnit(unit) {
     if (!this.session) return new Map();
+    const context = this.cacheContext;
+    if (!context || context.session !== this.session || context.turn !== this.turn || context.diceValue !== this.diceValue) {
+      this.invalidateReachability();
+      this.cacheContext = { session: this.session, turn: this.turn, diceValue: this.diceValue };
+    }
+    if (!this.reachabilityCache.has(unit)) {
+      this.reachabilityCache.set(unit, this.computeReachableForUnit(unit));
+    }
+    return this.reachabilityCache.get(unit);
+  },
 
+  invalidateReachability() {
+    this.reachabilityCache.clear();
+    this.cacheContext = null;
+  },
+
+  computeReachableForUnit(unit) {
     return calculateReachableActions({
       session: this.session,
       turn: this.turn,
@@ -285,7 +325,7 @@ export const gameController = {
     return getSessionUnitAt(this.session, r, c);
   },
 
-  handleCellClick(r, c) {
+  handleCellClick(r, c, { previewOnly = false } = {}) {
     if (
       this.diceValue === 0 ||
       ![GAME_PHASES.SELECT_UNIT, GAME_PHASES.SELECT_DESTINATION].includes(this.phase)
@@ -313,7 +353,12 @@ export const gameController = {
 
     const key = this.getCoordKey(r, c);
     if (this.reachable.has(key)) {
-      this.moveSelectedUnit(r, c);
+      if (previewOnly) {
+        this.pendingDestination = { r, c };
+        this.previewAction(r, c, true);
+      } else {
+        this.moveSelectedUnit(r, c);
+      }
       return;
     }
 
@@ -328,10 +373,12 @@ export const gameController = {
 
       this.selectedUnit = clickedUnit.unit;
       this.reachable = moves;
+      this.cancelMovePreview();
       this.phase = GAME_PHASES.SELECT_DESTINATION;
       this.clearHighlights();
       highlightSelectedCell(GAME_CELL_ID_PREFIX, { r, c });
       this.highlightReachable();
+      renderAwaitDestinationSelection();
     }
   },
 
@@ -340,9 +387,14 @@ export const gameController = {
     const action = this.reachable.get(this.getCoordKey(r, c));
     if (!unit || !action || !this.session) return;
 
+    const summary = describeAction({ session: this.session, turn: this.turn, unit, action, diceValue: this.diceValue });
+
     this.clearHighlights();
     this.selectedUnit = null;
-    this.reachable.clear();
+    this.reachable = new Map();
+    this.invalidateReachability();
+    this.pendingDestination = null;
+    hideMovePreview();
 
     applyResolvedAction({
       session: this.session,
@@ -350,6 +402,8 @@ export const gameController = {
       unit,
       action,
     });
+
+    els.lastAction.textContent = `刚才：${summary}`;
 
     this.renderGameBoard();
     this.checkWinCondition();
@@ -368,6 +422,7 @@ export const gameController = {
   showVictory(type) {
     this.cancelPendingRoll();
     this.phase = GAME_PHASES.FINISHED;
+    this.cancelMovePreview();
     const escaped = this.thiefUnits.filter((thief) => thief.state === "ESCAPED").length;
     const caught = this.thiefUnits.length - escaped;
     renderVictory({ type, escaped, caught });
@@ -375,6 +430,7 @@ export const gameController = {
 
   skipTurn() {
     if (this.phase !== GAME_PHASES.NO_MOVES) return;
+    els.lastAction.textContent = `${this.turn === "THIEF" ? "小偷" : "警察"}本轮无路可走，跳过行动。`;
     if (isPermanentStalemate(this.session)) {
       this.showVictory("DRAW");
       return;
@@ -384,6 +440,7 @@ export const gameController = {
 
   advanceTurn() {
     this.cancelPendingRoll();
+    this.invalidateReachability();
     const nextTurn = getNextTurn(this.turn);
     let boardChanged = false;
     if (this.session && this.turn === "POLICE") {
@@ -405,9 +462,12 @@ export const gameController = {
   },
 
   handleCellHover(r, c) {
-    if (this.diceValue === 0 || !this.selectedUnit) return;
+    if (this.diceValue === 0 || !this.selectedUnit || this.pendingDestination) return;
+    this.previewAction(r, c);
+  },
 
-    this.clearPathHover();
+  previewAction(r, c, needsConfirmation = false) {
+    clearPathPreview(els.gameBoard);
     const action = this.reachable.get(this.getCoordKey(r, c));
     if (!action) return;
 
@@ -415,9 +475,24 @@ export const gameController = {
       GAME_CELL_ID_PREFIX,
       projectPathPreview(action, (points) => this.formatMovementPoints(points)),
     );
+    renderMovePreview(describeAction({ session: this.session, turn: this.turn, unit: this.selectedUnit, action, diceValue: this.diceValue }), needsConfirmation);
+  },
+
+  confirmMove() {
+    if (this.phase !== GAME_PHASES.SELECT_DESTINATION || !this.pendingDestination) return;
+    const { r, c } = this.pendingDestination;
+    this.moveSelectedUnit(r, c);
+  },
+
+  cancelMovePreview() {
+    this.pendingDestination = null;
+    clearPathPreview(els.gameBoard);
+    hideMovePreview();
   },
 
   clearPathHover() {
+    if (this.pendingDestination) return;
     clearPathPreview(els.gameBoard);
+    hideMovePreview();
   },
 };

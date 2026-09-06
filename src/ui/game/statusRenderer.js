@@ -40,7 +40,7 @@ export function renderTurnStart(turn, signalPhase) {
   els.diceEl.classList.remove("rolling");
   els.diceEl.textContent = "🎲";
   els.diceValueEl.textContent = "?";
-  els.gameMessage.textContent = "点击骰子投掷";
+  els.gameMessage.textContent = "点击下方按钮掷骰子";
   setActionButtons({ rollHidden: false, rollDisabled: false, skipHidden: true });
 }
 
@@ -71,7 +71,25 @@ export function renderAwaitUnitSelection(diceValue) {
 }
 
 export function renderAwaitDestinationSelection() {
-  els.gameMessage.textContent = "请点击高亮格子移动";
+  els.gameMessage.textContent = "选择高亮落点；触屏先预览，再确认移动。";
+}
+
+export function renderUnitCounts(session) {
+  const thieves = session.thiefUnits;
+  const count = (status) => thieves.filter((unit) => unit.state === status).length;
+  const carrying = session.policeUnits.filter((unit) => unit.state === "CARRYING").length;
+  els.unitCounts.textContent = `警察 ${session.policeUnits.length}（押送中 ${carrying}）\n小偷：活动 ${count("ACTIVE")} · 押送中 ${count("CARRIED")} · 入狱 ${count("JAILED")} · 逃脱 ${count("ESCAPED")}`;
+}
+
+export function renderMovePreview(text, needsConfirmation) {
+  els.movePreview.classList.remove("hidden");
+  els.movePreviewText.textContent = `预计：${text}`;
+  els.moveConfirmActions.classList.toggle("hidden", !needsConfirmation);
+}
+
+export function hideMovePreview() {
+  els.movePreview.classList.add("hidden");
+  els.moveConfirmActions.classList.add("hidden");
 }
 
 export function renderVictory({ type, escaped = 0, caught = 0 }) {
@@ -87,7 +105,7 @@ export function renderVictory({ type, escaped = 0, caught = 0 }) {
   if (type === "POLICE") {
     els.victoryTitle.textContent = "🚓 警察胜利！";
     els.victoryTitle.style.color = "var(--primary-color)";
-    els.victoryMessage.textContent = "所有小偷都被抓捕归案！";
+    els.victoryMessage.textContent = "所有小偷都已被抓住（含押送中），警察获胜，无需继续押回警局。";
     return;
   }
 

@@ -34,6 +34,10 @@
             >
               🚀 开始游戏
             </button>
+            <div class="editor-history-actions">
+              <button id="btn-undo-map" class="btn secondary" type="button" disabled title="Ctrl / ⌘ Z">↶ 撤销</button>
+              <button id="btn-redo-map" class="btn secondary" type="button" disabled title="Ctrl / ⌘ Shift Z">↷ 重做</button>
+            </div>
             <div class="editor-utility-actions">
               <button id="btn-clear-map" class="btn danger" type="button">清空</button>
               <button id="btn-map-list" class="btn info" type="button">地图库</button>
@@ -49,13 +53,14 @@
                   ℹ️
                 </button>
                 <div id="editor-help-tooltip" class="editor-help-tooltip hidden" role="tooltip">
-                  <p>点击上方地块类型，再在右侧棋盘上涂抹即可编辑。</p>
+                  <p>选择地块类型后，用鼠标左键、手指或触控笔在棋盘上拖绘。一次拖绘可整体撤销，放山与周边变化、清空地图也可撤销。</p>
                   <p>开始游戏前必须放置警察出生点、小偷出生点、小偷基地和银行，并连接取钱、逃脱路线。小偷多于警察时，还需要可到达的警察局。</p>
                   <p>地图会自动保存，清空按钮可将地图所有地块重置为普通道路，地图库按钮可进入管理多张地图。</p>
                 </div>
               </div>
             </div>
           </div>
+
           <div id="palette" class="palette">
             <!-- 生成的地块选项和当前地块说明会放在这里 -->
           </div>
@@ -87,6 +92,7 @@
             </div>
           </div>
 
+          <p id="unit-counts" class="unit-counts" aria-live="polite"></p>
           <div class="dice-panel">
             <h3>获取步数</h3>
             <div id="dice" class="dice">🎲</div>
@@ -94,7 +100,7 @@
               <span>步数: </span>
               <span id="dice-value">?</span>
             </div>
-            <p id="game-message" class="game-message">点击骰子投掷</p>
+            <p id="game-message" class="game-message">点击下方按钮掷骰子</p>
             <div class="dice-actions">
               <button id="btn-roll-dice" class="btn primary">🎲 掷骰子</button>
               <button id="btn-skip-turn" class="btn warning hidden">
@@ -113,10 +119,20 @@
           </div>
         </div>
 
-        <div class="board-container">
-          <div id="game-board" class="board grid-10x10">
-            <!-- 游戏棋盘通过 JS 渲染 -->
+        <div class="game-board-area">
+          <div class="board-container">
+            <div id="game-board" class="board grid-10x10">
+              <!-- 游戏棋盘通过 JS 渲染 -->
+            </div>
           </div>
+          <div id="move-preview" class="move-preview hidden" aria-live="polite">
+            <p id="move-preview-text"></p>
+            <div id="move-confirm-actions" class="move-confirm-actions hidden">
+              <button id="btn-confirm-move" class="btn success" type="button">确认移动</button>
+              <button id="btn-cancel-move" class="btn secondary" type="button">取消预览</button>
+            </div>
+          </div>
+          <p id="last-action" class="last-action" role="status" aria-live="polite">行动结果会显示在这里。</p>
         </div>
       </main>
 
@@ -190,6 +206,8 @@
             </button>
           </div>
           <div class="rules-list">
+            <p><span class="emoji">👆</span> 掷骰后选择己方角色。触屏点击高亮落点可预览路线与结果，再按“确认移动”；鼠标悬停预览、点击直接移动。每次行动结束即换手，未用步数作废。</p>
+            <p><span class="emoji">🏁</span> 抓住全部小偷（含押送中）即警察获胜；全部小偷带钱逃脱即小偷获胜。若部分逃脱、部分被抓且没有活动小偷，则以混合结局结束。</p>
             <p><span class="emoji">⬜🔵🔴</span> 道路消耗 1 步，出生点等同道路</p>
             <p><span class="emoji">🌊🌉</span> 河流和高架桥只允许车辆通行；车辆过河每格消耗 2 步，过高架桥每格消耗 0.25 步</p>
             <p><span class="emoji">↔️↕️</span> 斑马线分横向和纵向；行人只能按斑马线方向在绿灯时通过，车辆只能按垂直方向在红灯时通过</p>

@@ -23,6 +23,9 @@
     transform 0.1s;
 }
 
+#editor-board { touch-action: none; }
+#game-board { touch-action: manipulation; }
+
 .cell.type-GRASS,
 .placement-ghost.type-GRASS {
   background-color: var(--grass-color);
@@ -305,8 +308,26 @@
   font-size: calc(var(--cell-size) * 0.5);
 }
 
+.character.multi-symbol-token {
+  font-size: calc(var(--cell-size) * 0.36);
+  white-space: nowrap;
+}
+
 .police-token {
   border: 3px solid var(--primary-color);
+}
+
+.unit-id-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  border-radius: 4px;
+  padding: 1px 3px;
+  background: #fff;
+  color: #243746;
+  border: 1px solid currentColor;
+  font: 700 10px/1.1 sans-serif;
+  pointer-events: none;
 }
 
 .thief-token {

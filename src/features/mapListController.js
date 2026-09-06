@@ -70,13 +70,11 @@ export function renderMapList() {
       hideMapList();
     },
     onRename(mapObj) {
-      const isCurrentMap = mapObj.id === currentMapId;
       const newName = prompt("请输入新名称:", mapObj.name);
       if (!newName || newName.trim() === "") return;
 
       mapObj.name = newName.trim();
       setMapList(maps);
-      if (isCurrentMap) updateModeIndicatorForEditor();
       renderMapList();
     },
     onDelete(mapObj) {

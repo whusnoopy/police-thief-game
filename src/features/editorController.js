@@ -2,6 +2,7 @@ import { TILE_TYPES } from "../config/constants.js";
 import { els, setMapDefinition, state } from "../app/state.js";
 import {
   createEmptyMapDefinition,
+  cloneMapDefinition,
   getTilePlacementPlan,
   setLegacyTileAt,
 } from "../domain/map/mapModel.js";
@@ -27,21 +28,88 @@ const PLACEMENT_PREVIEW_CLASSES = [
   "placement-center",
 ];
 
-let isMouseDown = false;
 let pointerStateBound = false;
 let placementPreviewStateBound = false;
+let historyMap = null;
+let stroke = null;
+const undoStack = [];
+const redoStack = [];
+const HISTORY_LIMIT = 50;
+
+function syncHistoryButtons() {
+  els.btnUndoMap.disabled = undoStack.length === 0;
+  els.btnRedoMap.disabled = redoStack.length === 0;
+}
+
+function recordEdit(before) {
+  if (JSON.stringify(before) === JSON.stringify(state.mapDefinition)) return;
+  undoStack.push(before);
+  if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+  redoStack.length = 0;
+  persistCurrentMap();
+  syncHistoryButtons();
+}
+
+function finishStroke(event) {
+  if (!stroke || (event?.pointerId !== undefined && event.pointerId !== stroke.pointerId)) return;
+  const finished = stroke;
+  stroke = null;
+  if (finished.map === state.mapDefinition) recordEdit(finished.before);
+  clearPlacementPreview();
+}
+
+function restoreHistory(from, to) {
+  finishStroke();
+  if (state.mode !== "EDITOR" || from.length === 0) return;
+  to.push(cloneMapDefinition(state.mapDefinition));
+  setMapDefinition(from.pop());
+  historyMap = state.mapDefinition;
+  renderEditorBoard();
+  persistCurrentMap();
+}
+
+export function undoMap() { restoreHistory(undoStack, redoStack); }
+export function redoMap() { restoreHistory(redoStack, undoStack); }
+
+function paintStrokeTo(r, c) {
+  if (!stroke || state.mode !== "EDITOR" || stroke.map !== state.mapDefinition) return;
+  const previous = stroke.last || { r, c };
+  const steps = Math.max(Math.abs(r - previous.r), Math.abs(c - previous.c), 1);
+  for (let step = 1; step <= steps; step += 1) {
+    paintPlacement(
+      Math.round(previous.r + (r - previous.r) * step / steps),
+      Math.round(previous.c + (c - previous.c) * step / steps),
+    );
+  }
+  stroke.last = { r, c };
+}
 
 function bindPointerState() {
   if (pointerStateBound) return;
 
-  document.addEventListener("mousedown", () => {
-    isMouseDown = true;
+  document.addEventListener("pointerup", finishStroke);
+  document.addEventListener("pointercancel", finishStroke);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) finishStroke();
   });
-  document.addEventListener("mouseup", () => {
-    isMouseDown = false;
+  window.addEventListener?.("blur", () => finishStroke());
+  els.editorBoard.addEventListener("lostpointercapture", finishStroke);
+  els.editorBoard.addEventListener("pointermove", (event) => {
+    if (!stroke || event.pointerId !== stroke.pointerId) return;
+    if (event.pointerType === "mouse" && event.buttons === 0) { finishStroke(); return; }
+    const cell = document.elementFromPoint(event.clientX, event.clientY)?.closest(".cell");
+    if (!cell || !els.editorBoard.contains(cell)) { stroke.last = null; return; }
+    paintStrokeTo(Number(cell.dataset.r), Number(cell.dataset.c));
   });
-  document.addEventListener("mouseleave", () => {
-    isMouseDown = false;
+  document.addEventListener("keydown", (event) => {
+    if (state.mode !== "EDITOR" || !(event.ctrlKey || event.metaKey) || event.altKey) return;
+    const target = event.target;
+    if (["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName) || target?.isContentEditable) return;
+    if ([els.rulesModal, els.shareLinkModal, els.victoryModal].some((modal) => !modal.classList.contains("hidden"))) return;
+    const key = event.key.toLowerCase();
+    if (key !== "z" && key !== "y") return;
+    event.preventDefault();
+    if (key === "y" || event.shiftKey) redoMap(); else undoMap();
   });
 
   pointerStateBound = true;
@@ -170,7 +238,6 @@ function paintPlacement(r, c) {
   setLegacyTileAt(state.mapDefinition, r, c, state.currentPaletteType);
   syncPlacementCells(plan, { r, c });
   syncPaletteRequirementStatus();
-  persistCurrentMap();
   renderPlacementPreview(getCurrentPlacementPlan(r, c), { r, c });
   return true;
 }
@@ -195,37 +262,49 @@ export function initEditor() {
   syncPaletteRequirementStatus();
 
   els.btnClearMap.addEventListener("click", clearMap);
+  els.btnUndoMap.addEventListener("click", undoMap);
+  els.btnRedoMap.addEventListener("click", redoMap);
 }
 
 export function renderEditorBoard() {
+  if (historyMap !== state.mapDefinition) {
+    stroke = null;
+    undoStack.length = 0;
+    redoStack.length = 0;
+    historyMap = state.mapDefinition;
+  }
   renderBoard(els.editorBoard, {
     mapDefinition: state.mapDefinition,
     cellIdPrefix: EDITOR_CELL_ID_PREFIX,
     bindCell(cell, { r, c }) {
-      cell.addEventListener("mousedown", (event) => {
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+      cell.addEventListener("pointerdown", (event) => {
+        if (state.mode !== "EDITOR" || event.button !== 0 || event.isPrimary === false || stroke) return;
         event.preventDefault();
-        paintPlacement(r, c);
+        stroke = { pointerId: event.pointerId, before: cloneMapDefinition(state.mapDefinition), map: state.mapDefinition, last: null };
+        els.editorBoard.setPointerCapture?.(event.pointerId);
+        paintStrokeTo(r, c);
       });
-      cell.addEventListener("mouseenter", () => {
-        if (isMouseDown) {
-          paintPlacement(r, c);
-          return;
-        }
-
-        previewPlacement(r, c);
+      cell.addEventListener("pointerenter", (event) => {
+        if (!stroke && event.pointerType !== "touch") previewPlacement(r, c);
       });
       cell.addEventListener("mouseleave", clearPlacementPreview);
     },
   });
   syncPaletteRequirementStatus();
+  syncHistoryButtons();
 }
 
 export function clearMap() {
   if (!confirm("确定要清空地图吗？所有地块将被重置为普通道路。")) return;
 
+  finishStroke();
+  const before = cloneMapDefinition(state.mapDefinition);
   setMapDefinition(createEmptyMapDefinition());
+  historyMap = state.mapDefinition;
+  recordEdit(before);
   renderEditorBoard();
-  persistCurrentMap();
 }
 
 export function validateMap() {
