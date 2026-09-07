@@ -1,3 +1,5 @@
+import { renderTileIcon } from '../board/storybookArt.js';
+
 const PALETTE_GROUPS = [
   {
     id: "terrain",
@@ -139,7 +141,7 @@ function renderTileHelpPanel(panel, type) {
 
   const title = document.createElement("strong");
   title.className = "tile-help-title";
-  title.textContent = `${type.emoji} ${type.name}`;
+  title.textContent = type.name;
 
   const summary = document.createElement("span");
   summary.className = "tile-help-summary";
@@ -177,7 +179,7 @@ function createPaletteItem(type, currentPaletteType, onPreview, onSelect) {
 
   const icon = document.createElement("span");
   icon.className = "palette-icon";
-  icon.textContent = type.emoji;
+  renderTileIcon(icon, type.id);
 
   const name = document.createElement("span");
   name.className = "palette-name";

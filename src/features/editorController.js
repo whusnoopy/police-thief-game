@@ -7,16 +7,14 @@ import {
   setLegacyTileAt,
 } from "../domain/map/mapModel.js";
 import { getFeaturePositionsByKind, getTileTypeAt } from "../domain/map/mapQueries.js";
-import {
-  getMarkerEmojiForTileType,
-  shouldShowMarkerForTileType,
-} from "../domain/map/cellDisplay.js";
+import { renderTileIcon } from '../ui/board/storybookArt.js';
 import { persistCurrentMap } from "../storage/mapRepository.js";
 import { validateMapDefinition } from "../domain/rules/mapValidation.js";
 import {
   getBoardCellElement,
   renderBoard,
   syncBoardCell,
+  syncBoardTerrain,
 } from "../ui/board/boardRenderer.js";
 import { renderPalette, updatePaletteRequirementStatus } from "../ui/editor/editorRenderer.js";
 
@@ -142,7 +140,7 @@ function clearPlacementPreview() {
 function bindPlacementPreviewState() {
   if (placementPreviewStateBound) return;
 
-  els.editorBoard.addEventListener("mouseleave", clearPlacementPreview);
+  els.editorBoard.addEventListener("pointerleave", clearPlacementPreview);
   placementPreviewStateBound = true;
 }
 
@@ -167,12 +165,7 @@ function createPlacementGhost(tileType) {
   ghost.className = `placement-ghost type-${tileType}`;
   ghost.setAttribute("aria-hidden", "true");
 
-  if (shouldShowMarkerForTileType(tileType)) {
-    const marker = document.createElement("span");
-    marker.className = "placement-ghost-marker";
-    marker.textContent = getMarkerEmojiForTileType(tileType);
-    ghost.appendChild(marker);
-  }
+  renderTileIcon(ghost, tileType);
 
   return ghost;
 }
@@ -197,6 +190,7 @@ function renderPlacementPreview(plan, centerPosition) {
 }
 
 function syncPlacementCells(plan, fallbackPosition) {
+  syncBoardTerrain(els.editorBoard, state.mapDefinition);
   const positions = getUniquePlacementPositions(
     plan.placements.length > 0
       ? plan.placements
@@ -289,7 +283,9 @@ export function renderEditorBoard() {
       cell.addEventListener("pointerenter", (event) => {
         if (!stroke && event.pointerType !== "touch") previewPlacement(r, c);
       });
-      cell.addEventListener("mouseleave", clearPlacementPreview);
+      // Match pointerenter: a compatibility mouseleave can arrive after the
+      // next cell's pointerenter and would erase that cell's fresh preview.
+      cell.addEventListener("pointerleave", clearPlacementPreview);
     },
   });
   syncPaletteRequirementStatus();

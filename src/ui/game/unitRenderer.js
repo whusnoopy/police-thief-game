@@ -1,84 +1,47 @@
-import { getBoardCellElement } from "../board/boardRenderer.js";
+import { getBoardCellElement } from '../board/boardRenderer.js';
+import { appendSprite, appendStateBadge, TILE_ASSETS } from '../board/storybookArt.js';
 
-function getPoliceEmoji(unit) {
-  if (unit.inCar) return unit.state === "CARRYING" ? "🚔" : "🚓";
-  return unit.state === "CARRYING" ? "👮🎒" : "👮";
-}
-
-function getThiefEmoji(unit) {
-  if (unit.hasMoney) return unit.inCar ? "🚗💰" : "🏃💰";
-  return unit.inCar ? "🚗" : "🏃";
-}
-
-function getAnimalEmoji(unit) {
-  return unit.emoji || "🐷";
-}
-
-function appendUnitToken(cell, { emoji, cssClass, id, isDriving }) {
-  const token = document.createElement("div");
-  token.className = `character ${cssClass}${isDriving ? " driving-token" : ""}${Array.from(emoji).length > 1 ? " multi-symbol-token" : ""}`;
-  token.textContent = emoji;
-  token.dataset.id = id;
-  if (cssClass !== "animal-token") {
-    token.title = `${cssClass === "police-token" ? "警察" : "小偷"} ${id.slice(1)}`;
-    token.setAttribute("role", "img");
-    token.setAttribute("aria-label", `${token.title} ${emoji}`);
-    const badge = document.createElement("span");
-    badge.className = "unit-id-badge";
-    badge.textContent = id;
-    badge.setAttribute("aria-hidden", "true");
+function appendUnitToken(cell, unit, side) {
+  const animal = side === 'animal';
+  const role = animal ? (unit.emoji === '🐮' || unit.emoji === '🐄' ? 'cow' : 'pig') : side;
+  const asset = unit.inCar ? (side === 'police' ? 'police-car' : 'car') : role;
+  const name = animal ? (role === 'cow' ? '牛' : '猪') : `${side === 'police' ? '警察' : '小偷'} ${unit.id.slice(1)}`;
+  const status = `${unit.inCar ? '，驾车' : ''}${unit.hasMoney ? '，携款' : ''}${unit.state === 'CARRYING' ? '，押送小偷' : ''}`;
+  const token = document.createElement('div');
+  token.className = `character ${side}-token${unit.inCar ? ' driving-token' : ''}`;
+  token.dataset.id = unit.id;
+  token.title = `${name}${status}`;
+  token.setAttribute('role', 'img');
+  token.setAttribute('aria-label', token.title);
+  appendSprite(token, asset, 'unit-art', name);
+  if (!animal) {
+    const badge = document.createElement('span');
+    badge.className = 'unit-id-badge';
+    badge.textContent = unit.id;
+    badge.setAttribute('aria-hidden', 'true');
     token.appendChild(badge);
   }
+  if (unit.hasMoney) appendStateBadge(token, 'money');
+  if (unit.state === 'CARRYING') appendStateBadge(token, 'escort');
+  if (Object.keys(TILE_ASSETS).some(type => cell.classList.contains(`type-${type}`))) cell.classList.add('occupied-feature');
   cell.appendChild(token);
 }
 
 export function appendParkedCar(cell) {
-  const parkedCar = document.createElement("span");
-  parkedCar.className = "parked-car";
-  parkedCar.textContent = "🚗";
+  const parkedCar = document.createElement('span');
+  parkedCar.className = 'parked-car';
+  parkedCar.setAttribute('role', 'img');
+  parkedCar.setAttribute('aria-label', '空车');
+  appendSprite(parkedCar, 'car', 'parked-art', '空车');
   cell.appendChild(parkedCar);
 }
 
-function renderAnimalUnits({ cellIdPrefix, animalUnits }) {
-  animalUnits.forEach((animal) => {
-    const cell = getBoardCellElement(cellIdPrefix, animal.r, animal.c);
-    if (!cell) return;
-
-    appendUnitToken(cell, {
-      emoji: getAnimalEmoji(animal),
-      cssClass: "animal-token",
-      id: animal.id,
-      isDriving: false,
-    });
-  });
-}
-
 export function renderUnits({ cellIdPrefix, policeUnits, thiefUnits, animalUnits = [] }) {
-  renderAnimalUnits({ cellIdPrefix, animalUnits });
-
-  policeUnits.forEach((police) => {
-    const cell = getBoardCellElement(cellIdPrefix, police.r, police.c);
-    if (!cell) return;
-
-    appendUnitToken(cell, {
-      emoji: getPoliceEmoji(police),
-      cssClass: "police-token",
-      id: police.id,
-      isDriving: police.inCar,
+  for (const [side, units] of [['animal', animalUnits], ['police', policeUnits], ['thief', thiefUnits]]) {
+    units.forEach(unit => {
+      if (side === 'thief' && unit.state !== 'ACTIVE') return;
+      const cell = getBoardCellElement(cellIdPrefix, unit.r, unit.c);
+      if (cell) appendUnitToken(cell, unit, side);
     });
-  });
-
-  thiefUnits.forEach((thief) => {
-    if (thief.state !== "ACTIVE") return;
-
-    const cell = getBoardCellElement(cellIdPrefix, thief.r, thief.c);
-    if (!cell) return;
-
-    appendUnitToken(cell, {
-      emoji: getThiefEmoji(thief),
-      cssClass: "thief-token",
-      id: thief.id,
-      isDriving: thief.inCar,
-    });
-  });
+  }
 }

@@ -1,0 +1,45 @@
+/* Continuous terrain lives on the board; cell overlays never replace it. */
+.board.grid-10x10 { gap: 0; background-color: #b9cea0; background-size: 100% 100%; background-origin: content-box; background-clip: content-box; background-repeat: no-repeat; border-color: #d6d4bf; }
+.board .story-cell { background: transparent; box-shadow: inset -1px -1px #465d4d20; }
+.story-sprite { display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; pointer-events: none; -webkit-user-drag: none; }
+.story-cell .tile-art, .story-icon .tile-art { position: absolute; width: 104%; height: 104%; bottom: 1%; left: -2%; z-index: 1; }
+.tile-label { position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%); white-space: nowrap; background: #fff9e8e6; border-radius: 3px; color: #655f4c; font: 9px/1.3 sans-serif; padding: 0 2px; z-index: 2; pointer-events: none; }
+.story-cell.occupied-feature > .tile-art { width: 78%; height: 78%; left: -5%; bottom: 23%; }
+.story-cell.occupied-feature .character { width: 72%; height: 78%; right: 0; bottom: 5%; }
+.story-cell.occupied-feature > .tile-label { left: 2px; transform: none; max-width: 95%; }
+.spawn-sign, .parking-sign, .manhole-sign, .legacy-signal-sign { position: absolute; pointer-events: none; }
+.spawn-sign { left: 3px; bottom: 3px; width: 18px; height: 18px; border: 1px dashed currentColor; border-radius: 50%; font: 700 11px/16px sans-serif; text-align: center; color: #4b7795; }
+.thief-sign { color: #ac6754; }
+.parking-sign { top: 8%; left: 8%; color: #557c8a; border: 2px solid #71939b; border-radius: 4px; padding: 0 4px; font: 700 calc(var(--cell-size, 40px) * .35)/1.2 sans-serif; }
+.manhole-sign { width: 44%; aspect-ratio: 1; border: 3px double #7d8d81; border-radius: 50%; background: repeating-linear-gradient(45deg,#9baa94 0 2px,#bbc5a9 2px 5px); }
+.legacy-signal-sign { font-size: 12px; color: #94bd90; background: #526c6a; padding: 1px 3px; border-radius: 3px; }
+.story-cell .character { width: 92%; height: 94%; bottom: 2%; border: 0; border-radius: 0; background: transparent; box-shadow: none; pointer-events: none; }
+.character::before { content: ''; position: absolute; width: 62%; height: 20%; bottom: 8%; border-radius: 50%; background: #a7c1d77a; box-shadow: inset 0 0 0 1px #507b9f; z-index: -1; }
+.thief-token::before { background: #e0aa9380; box-shadow: inset 0 0 0 1px #b67661; }
+.animal-token::before { background: #e7cc8a77; box-shadow: inset 0 0 0 1px #ae995e; }
+.story-cell .unit-id-badge { top: 0; right: 0; background: #3d6d91; color: white; border: 0; font-size: 10px; }
+.thief-token .unit-id-badge { background: #b96e56; }
+.unit-state-badge { position: absolute; bottom: 0; left: 0; width: 18px; height: 18px; padding: 1px; background: #fff9e8; border: 1px solid #c3b38e; border-radius: 4px; }
+.unit-state-badge svg { width: 100%; height: 100%; display: block; }
+.story-cell .parked-car { left: auto; right: 0; bottom: 0; width: 72%; height: 72%; }
+.story-fallback { display: inline-block; background: #fff4d9; border: 1px dashed #958a70; border-radius: 3px; font-size: 10px; padding: 1px; z-index: 3; }
+.story-cell .step-badge { z-index: 15; }
+.story-cell.path-hover::before { content: ''; position: absolute; inset: 0; background: #f3c66b40; pointer-events: none; z-index: 4; }
+.story-cell.unit-selected, .story-cell.path-hover { background: transparent; }
+.board .story-cell.reachable { box-shadow: inset 0 0 0 3px var(--success-color); }
+.board .story-cell.selectable-unit { box-shadow: inset 0 0 0 3px var(--primary-color); }
+.board .story-cell.placement-valid { box-shadow: inset 0 0 0 4px var(--success-color); }
+.board .story-cell.placement-invalid { box-shadow: inset 0 0 0 4px var(--danger-color); }
+.story-icon { position: relative; display: inline-flex; justify-content: center; align-items: center; width: 40px; height: 40px; --cell-size: 40px; background: #ddd6bd; border-radius: 5px; }
+.story-icon .tile-label { display: none; }
+.story-icon.type-GRASS { background: #b9cea0; }
+.story-icon.type-RIVER { background: repeating-linear-gradient(170deg,#8ebdc4 0 12px,#b8d8d8 13px,#8ebdc4 15px); }
+.story-icon.type-OVERPASS { background: repeating-linear-gradient(90deg,#a9b5b5 0 12px,#dce1d8 13px,#a9b5b5 15px); }
+.story-icon.type-CROSSWALK_HORIZONTAL { background: repeating-linear-gradient(90deg,#ddd6bd 0 5px,#fffdf1 5px 9px); }
+.story-icon.type-CROSSWALK_VERTICAL { background: repeating-linear-gradient(0deg,#ddd6bd 0 5px,#fffdf1 5px 9px); }
+.story-cell .placement-ghost { width: auto; height: auto; }
+.mini-board { gap: 0 !important; }
+.mini-board .tile-label { display: none; }
+.mini-board .spawn-sign { width: 10px; height: 10px; font-size: 7px; line-height: 8px; left: 1px; bottom: 1px; }
+.mini-board .parking-sign { font-size: 8px; padding: 0 1px; border-width: 1px; }
+.mini-board .manhole-sign { border-width: 1px; }

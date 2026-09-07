@@ -24,6 +24,22 @@ function resetMap(type = "GRASS") {
   renderEditorBoard();
 }
 
+test('continuous terrain refreshes after painting, undo and redo without replacing hit targets', () => {
+  resetMap();
+  const board = env.elements['editor-board'];
+  const before = board.style.backgroundImage;
+  const neighbor = env.document.getElementById('editor-cell-0-1');
+  draw(0, 0); endDraw();
+  const after = board.style.backgroundImage;
+  assert.notEqual(after, before);
+  assert.equal(env.document.getElementById('editor-cell-0-1'), neighbor);
+  assert.match(decodeURIComponent(after), /data-tile="0,1" data-mask="6"/);
+  undoMap();
+  assert.equal(board.style.backgroundImage, before);
+  redoMap();
+  assert.equal(board.style.backgroundImage, after);
+});
+
 test("editor previews valid and invalid tile placement before painting", () => {
   initEditor();
   const paletteGroups = env.elements.palette.querySelectorAll(".palette-group");
@@ -98,7 +114,47 @@ test("editor previews valid and invalid tile placement before painting", () => {
   assert.equal(bankCell.classList.contains("placement-valid"), true);
   assert.equal(env.elements["editor-board"].querySelectorAll(".placement-ghost").length, 1);
   assert.equal(bankGhost.classList.contains("type-BANK"), true);
-  assert.equal(bankGhost.textContent, "🏦");
+  assert.equal(bankGhost.querySelectorAll('.tile-art').length, 1);
+  assert.match(bankGhost.querySelectorAll('.tile-art')[0].src, /bank\.webp/);
+});
+
+test('hover preview survives compatibility mouse events while crossing cells', () => {
+  resetMap('BANK');
+  const board = env.elements['editor-board'];
+  const before = JSON.stringify(state.mapDefinition);
+  let previous = null;
+  for (const c of [2, 3, 4, 3]) {
+    const cell = env.document.getElementById(`editor-cell-3-${c}`);
+    previous?.dispatchEvent({ type: 'pointerleave', pointerType: 'mouse' });
+    cell.dispatchEvent({ type: 'pointerenter', pointerType: 'mouse' });
+    // Browsers can deliver compatibility mouseleave after the new pointerenter.
+    previous?.dispatchEvent({ type: 'mouseleave' });
+    assert.equal(cell.classList.contains('placement-center'), true);
+    assert.equal(board.querySelectorAll('.placement-ghost').length, 1);
+    previous = cell;
+  }
+  board.dispatchEvent({ type: 'pointerleave', pointerType: 'mouse' });
+  assert.equal(board.querySelectorAll('.placement-ghost').length, 0);
+  previous.dispatchEvent({ type: 'pointerenter', pointerType: 'touch' });
+  assert.equal(board.querySelectorAll('.placement-ghost').length, 0);
+  assert.equal(JSON.stringify(state.mapDefinition), before);
+});
+
+test('pen hover moves the full mountain footprint and clears it on exit', () => {
+  resetMap('MOUNTAIN');
+  const board = env.elements['editor-board'];
+  const first = env.document.getElementById('editor-cell-4-4');
+  const next = env.document.getElementById('editor-cell-4-5');
+  first.dispatchEvent({ type: 'pointerenter', pointerType: 'pen' });
+  assert.equal(board.querySelectorAll('.placement-ghost').length, 5);
+  first.dispatchEvent({ type: 'pointerleave', pointerType: 'pen' });
+  next.dispatchEvent({ type: 'pointerenter', pointerType: 'pen' });
+  first.dispatchEvent({ type: 'mouseleave' });
+  assert.equal(next.classList.contains('placement-center'), true);
+  assert.equal(board.querySelectorAll('.placement-ghost').length, 5);
+  assert.equal(env.document.getElementById('editor-cell-4-3').classList.contains('placement-preview'), false);
+  next.dispatchEvent({ type: 'pointerleave', pointerType: 'pen' });
+  assert.equal(board.querySelectorAll('.placement-ghost').length, 0);
 });
 
 test("right click, middle click and secondary touch never paint", () => {

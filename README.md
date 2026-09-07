@@ -39,6 +39,8 @@ npm test
 
 ## Visual study
 
+正式游戏已使用绘本素材：编辑器、游戏棋盘与地图库共用连续地形和主体图片，携款、押送、角色编号及路径独立叠加。发布资源为 14 张 192 像素 WebP，合计约 132 KiB；原始 PNG 不进入生产构建。
+
 绘本棋盘样板位于 `experiments/storybook/`：运行开发服务器后打开 `/experiments/storybook/`，可查看全部 14 张主体素材、试画连续地形与斑马线、切换驾车/携款/押送/银行占位场景，并查看现有规则计算的可达格和路线。样板使用独立示例，不读写玩家地图，也不进入默认生产构建。
 
 评估、素材范围与后续正式接入步骤见 [视觉升级方案](docs/visual-upgrade-plan.md)。文件、尺寸和生成提示见 [素材目录](experiments/storybook/assets/README.md)。
