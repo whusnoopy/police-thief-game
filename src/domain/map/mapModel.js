@@ -175,17 +175,6 @@ function getMountainPlacementPlan(mapDefinition, r, c) {
         ...position,
         reason: "SPECIAL_CELL",
       });
-      return;
-    }
-
-    if (
-      (position.r !== r || position.c !== c) &&
-      isMountainTerrainAt(mapDefinition, position.r, position.c)
-    ) {
-      blockers.push({
-        ...position,
-        reason: "MOUNTAIN_BUFFER",
-      });
     }
   });
 
@@ -193,7 +182,12 @@ function getMountainPlacementPlan(mapDefinition, r, c) {
     canPlace: blockers.length === 0,
     placements: [
       { r, c, tileType: "MOUNTAIN" },
-      ...neighborPositions.map((position) => ({ ...position, tileType: "GRASS" })),
+      // Keeping adjacent mountains makes the local rule equivalent to a grass
+      // buffer around the whole mountain range, including concave boundaries.
+      ...neighborPositions.map((position) => ({
+        ...position,
+        tileType: isMountainTerrainAt(mapDefinition, position.r, position.c) ? "MOUNTAIN" : "GRASS",
+      })),
     ],
     previewPositions: affectedPositions,
     blockers,

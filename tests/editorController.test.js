@@ -202,6 +202,28 @@ test("mountain footprint and clear map restore together, and new edits discard r
   assert.equal(env.elements["btn-redo-map"].disabled, true);
 });
 
+test('dragging a mountain range preserves peaks and undoes the whole range and buffer', () => {
+  resetMap('MOUNTAIN');
+  const before = JSON.stringify(state.mapDefinition);
+  draw(4, 3, { pointerType: 'touch', isPrimary: true });
+  env.document.elementFromPoint = () => env.document.getElementById('editor-cell-4-6');
+  env.elements['editor-board'].dispatchEvent({ type: 'pointermove', pointerId: 1, pointerType: 'touch', clientX: 1, clientY: 1 });
+  endDraw();
+  assert.deepEqual(state.mapDefinition.terrain[4].slice(3, 7), Array(4).fill('MOUNTAIN'));
+  assert.deepEqual(state.mapDefinition.terrain[3].slice(3, 7), Array(4).fill('GRASS'));
+  const after = JSON.stringify(state.mapDefinition);
+  undoMap();
+  assert.equal(JSON.stringify(state.mapDefinition), before);
+  assert.equal(env.elements['btn-undo-map'].disabled, true);
+  redoMap();
+  assert.equal(JSON.stringify(state.mapDefinition), after);
+  const cell = env.document.getElementById('editor-cell-4-7');
+  cell.dispatchEvent({ type: 'pointerenter', pointerType: 'mouse' });
+  const oldPeakGhost = env.document.getElementById('editor-cell-4-6').querySelectorAll('.placement-ghost')[0];
+  assert.equal(oldPeakGhost.classList.contains('type-MOUNTAIN'), true);
+  assert.equal(cell.classList.contains('placement-valid'), true);
+});
+
 test("cancelled pen gesture commits once and history does not cross maps", () => {
   resetMap();
   draw(0, 0, { pointerType: "pen" });

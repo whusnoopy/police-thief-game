@@ -40,6 +40,9 @@ test("v3 codec preserves terrain, feature config, metadata, and spawns", () => {
   };
   mapDefinition.features.find((feature) => feature.kind === "FARM").id = "main-farm";
   setLegacyTileAt(mapDefinition, 7, 7, "MOUNTAIN");
+  setLegacyTileAt(mapDefinition, 7, 8, "MOUNTAIN");
+  assert.equal(mapDefinition.terrain[7][7], 'MOUNTAIN');
+  assert.equal(mapDefinition.terrain[7][8], 'MOUNTAIN');
   setLegacyTileAt(mapDefinition, 8, 1, "POLICE_SPAWN");
   setLegacyTileAt(mapDefinition, 9, 8, "THIEF_SPAWN");
 
