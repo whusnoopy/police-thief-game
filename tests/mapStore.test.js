@@ -35,6 +35,15 @@ function createEncodedMap() {
   return encodeMapDefinition(mapDefinition);
 }
 
+test("legacy JSON containing new ramp types stays unreadable rather than losing ramp terrain", () => {
+  const terrain = createEmptyMapDefinition().terrain;
+  terrain[4][4] = "OVERPASS_RAMP_N";
+  const raw = JSON.stringify(terrain);
+  const storage = createMemoryStorage({ [STORAGE_KEYS.legacySingleMap]: raw });
+  assert.throws(() => migrateLegacyStorage(storage), /旧地图无法读取/);
+  assert.equal(storage.getItem(STORAGE_KEYS.legacySingleMap), raw);
+});
+
 test("normalizes stored map records to schema v3 on read", () => {
   const encodedMap = createEncodedMap();
   const storage = createMemoryStorage({

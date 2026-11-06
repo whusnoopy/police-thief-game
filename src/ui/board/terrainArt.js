@@ -1,12 +1,16 @@
 import { isCrosswalkTileType } from "../../domain/map/crosswalk.js";
+import { getBridgeConnectionMask, isBridgeTileType, isRampTileType } from "../../domain/map/bridgeTopology.js";
+import { MAP_RULESETS } from "../../domain/map/mapCompatibility.js";
 
 export function terrainFamily(type) {
+  if (isRampTileType(type)) return "OVERPASS";
   return isCrosswalkTileType(type) ? "ROAD" : type;
 }
 
 // Bit order N/E/S/W. Features keep their underlying terrain. Neither diagonal
 // contacts nor decorative corner curves alter the square-cell movement graph.
 export function neighborMask(map, r, c) {
+  if (map.ruleset === MAP_RULESETS.RAMPS && isBridgeTileType(map.terrain[r]?.[c])) return getBridgeConnectionMask(map, r, c);
   const family = terrainFamily(map.terrain[r]?.[c]);
   return [[-1,0],[0,1],[1,0],[0,-1]].reduce((mask,[dr,dc],i) =>
     mask | (terrainFamily(map.terrain[r+dr]?.[c+dc]) === family ? 1 << i : 0), 0);
@@ -63,6 +67,7 @@ export function terrainArt(map) {
     content+=`<path transform="translate(${x} ${y})" d="${edge}" fill="none" stroke="${stroke}" stroke-width="${type==="OVERPASS"?4:2}" opacity=".6"/>`;
   }
   for(let r=1;r<10;r++) for(let c=1;c<10;c++) for(const type of ["ROAD","RIVER","OVERPASS"]) {
+    if(type==="OVERPASS" && map.ruleset===MAP_RULESETS.RAMPS) continue;
     const cells=[[r-1,c-1],[r-1,c],[r,c],[r,c-1]];
     const occupied=cells.map(([rr,cc])=>at(rr,cc)===type);
     if(occupied.filter(Boolean).length!==3) continue;

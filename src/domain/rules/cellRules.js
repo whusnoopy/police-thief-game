@@ -1,4 +1,5 @@
 import { getFeatureAt, getSpawnSideAt, getTerrainAt } from "../map/mapQueries.js";
+import { RAMP_TILE_TYPES } from "../map/bridgeTopology.js";
 
 const QUARTER_STEP_COST = 1;
 const HALF_STEP_COST = 2;
@@ -94,6 +95,14 @@ const TERRAIN_RULES = {
     drivableRoles: ["POLICE", "THIEF"],
     driveCost: HALF_STEP_COST,
   },
+  ...Object.fromEntries(RAMP_TILE_TYPES.map((tileType) => [tileType, {
+    tileType,
+    category: "TERRAIN",
+    walkCost: null,
+    walkableRoles: [],
+    drivableRoles: ["POLICE", "THIEF"],
+    driveCost: QUARTER_STEP_COST,
+  }])),
 };
 
 const FEATURE_RULES = {

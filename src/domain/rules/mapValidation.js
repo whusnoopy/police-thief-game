@@ -2,6 +2,7 @@ import { GRID_SIZE, SIGNAL_PHASES } from "../../config/constants.js";
 import { getAllowedCrosswalkAxis, isCrosswalkTileType, isStepAlongAxis } from "../map/crosswalk.js";
 import { getFeaturePositionsByKind } from "../map/mapQueries.js";
 import { getCellRuleAt } from "./cellRules.js";
+import { getMapGameplayBlocker } from "../map/mapCompatibility.js";
 
 const DIRECTIONS = [[-1, 0], [0, 1], [1, 0], [0, -1]];
 const PHASES = [SIGNAL_PHASES.PEDESTRIAN_GREEN, SIGNAL_PHASES.PEDESTRIAN_RED];
@@ -66,6 +67,8 @@ export function getPotentialRoutes(mapDefinition, start, role, carTransferPositi
 }
 
 export function validateMapDefinition(mapDefinition) {
+  const blocker = getMapGameplayBlocker(mapDefinition);
+  if (blocker) return { valid: false, errors: [blocker] };
   const errors = [];
   const police = mapDefinition.spawns.police;
   const thieves = mapDefinition.spawns.thief;

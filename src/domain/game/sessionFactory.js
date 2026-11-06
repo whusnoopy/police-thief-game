@@ -1,8 +1,11 @@
 import { SIGNAL_PHASES } from "../../config/constants.js";
 import { cloneMapDefinition } from "../map/mapModel.js";
 import { getFeaturePositionsByKind } from "../map/mapQueries.js";
+import { getMapGameplayBlocker } from "../map/mapCompatibility.js";
 
 export function createGameSession(mapDefinition) {
+  const blocker = getMapGameplayBlocker(mapDefinition);
+  if (blocker) throw new Error(blocker);
   const sessionMapDefinition = cloneMapDefinition(mapDefinition);
 
   const policeUnits = sessionMapDefinition.spawns.police.map((position, index) => ({

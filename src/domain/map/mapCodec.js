@@ -2,7 +2,6 @@ import { GRID_SIZE } from "../../config/constants.js";
 import {
   DEFAULT_TERRAIN_TILE_TYPE,
   FEATURE_TILE_TYPES,
-  TERRAIN_TILE_TYPES,
   createEmptyMapDefinition,
   createEmptyTerrainMatrix,
   indexToPosition,
@@ -10,15 +9,18 @@ import {
   normalizeMapDefinition,
   positionToIndex,
 } from "./mapModel.js";
+import { MAP_RULESETS, normalizeMapCompatibility } from "./mapCompatibility.js";
+import { isBridgeTileType, isRampTileType } from "./bridgeTopology.js";
 
-const CURRENT_MAP_DEFINITION_PREFIX = "v3.";
+const V4_MAP_DEFINITION_PREFIX = "v4.";
+const V3_MAP_DEFINITION_PREFIX = "v3.";
 const V2_MAP_DEFINITION_PREFIX = "v2.";
 const BASE64_ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 // These codes are persistence contracts. Never derive them from array order or
 // reuse a retired value; new tile types must receive a new explicit code.
-const TERRAIN_CODE_BY_TYPE = Object.freeze({
+const LEGACY_TERRAIN_CODE_BY_TYPE = Object.freeze({
   GRASS: 0,
   BUILDING: 1,
   CONSTRUCTION_SITE: 2,
@@ -31,6 +33,18 @@ const TERRAIN_CODE_BY_TYPE = Object.freeze({
   OVERPASS: 9,
   MOUNTAIN: 10,
 });
+const TERRAIN_CODE_BY_TYPE = Object.freeze({
+  ...LEGACY_TERRAIN_CODE_BY_TYPE,
+  OVERPASS_RAMP_N: 11,
+  OVERPASS_RAMP_E: 12,
+  OVERPASS_RAMP_S: 13,
+  OVERPASS_RAMP_W: 14,
+});
+// v2 used array indices. Freeze that historical order before adding any tiles.
+const V2_TERRAIN_TYPES = Object.freeze(Object.keys(LEGACY_TERRAIN_CODE_BY_TYPE));
+const LEGACY_TERRAIN_TYPE_BY_CODE = Object.freeze(
+  Object.fromEntries(Object.entries(LEGACY_TERRAIN_CODE_BY_TYPE).map(([type, code]) => [code, type])),
+);
 const FEATURE_CODE_BY_TYPE = Object.freeze({
   POLICE_STATION: 0,
   THIEF_BASE: 1,
@@ -86,7 +100,7 @@ function decodeJsonPayload(encodedPayload) {
 }
 
 function validateJsonPayload(payload, version) {
-  const terrainTypes = version === 2 ? TERRAIN_TILE_TYPES : TERRAIN_TYPE_BY_CODE;
+  const terrainTypes = version === 2 ? V2_TERRAIN_TYPES : version === 3 ? LEGACY_TERRAIN_TYPE_BY_CODE : TERRAIN_TYPE_BY_CODE;
   const featureTypes = version === 2 ? FEATURE_TILE_TYPES : FEATURE_TYPE_BY_CODE;
   const validIndex = (value) => Number.isInteger(value) && value >= 0 && value < GRID_SIZE * GRID_SIZE;
   if (
@@ -103,6 +117,30 @@ function validateJsonPayload(payload, version) {
   ) throw new Error("Invalid map payload: incomplete or unsupported map data");
   const occupied = [...payload.p, ...payload.h, ...payload.f.map((entry) => entry[1])];
   if (new Set(occupied).size !== occupied.length) throw new Error("Invalid map payload: overlapping cells");
+  if (version === 4) {
+    if (occupied.some((index) => isBridgeTileType(terrainTypes[BASE64_ALPHABET.indexOf(payload.t[index])]))) {
+      throw new Error("Invalid map payload: facilities and spawns cannot occupy a bridge");
+    }
+    if (payload.b !== MAP_RULESETS.RAMPS ||
+        (payload.m !== undefined && (!payload.m || typeof payload.m !== "object" || Array.isArray(payload.m) ||
+          (payload.m.n !== undefined && typeof payload.m.n !== "string")))) {
+      throw new Error("Invalid map payload: unsupported ramp rules or metadata");
+    }
+    normalizeMapCompatibility({ ruleset: payload.b, upgrade: payload.u });
+    validateUpgradeSource(payload.u);
+  } else if (payload.b !== undefined || payload.u !== undefined) {
+    throw new Error("Invalid map payload: ramp rules require v4");
+  }
+}
+
+function validateUpgradeSource(upgrade) {
+  if (upgrade === undefined) return;
+  // A source is an original old-format snapshot, never another upgrade draft.
+  // Reject nested v4 snapshots rather than recursively decoding arbitrary data.
+  if (upgrade.source.encodedMap.startsWith(V4_MAP_DEFINITION_PREFIX) ||
+      decodeMapDefinition(upgrade.source.encodedMap).ruleset !== MAP_RULESETS.LEGACY) {
+    throw new Error("Invalid map upgrade source");
+  }
 }
 
 function encodeTerrainMatrix(terrainMatrix) {
@@ -134,7 +172,8 @@ function decodeTerrainMatrix(chars, typeByCode = TERRAIN_TYPE_BY_CODE) {
 export function isMapDefinitionEncodedMap(encodedMap) {
   return (
     typeof encodedMap === "string" &&
-    (encodedMap.startsWith(CURRENT_MAP_DEFINITION_PREFIX) ||
+    (encodedMap.startsWith(V4_MAP_DEFINITION_PREFIX) ||
+      encodedMap.startsWith(V3_MAP_DEFINITION_PREFIX) ||
       encodedMap.startsWith(V2_MAP_DEFINITION_PREFIX))
   );
 }
@@ -149,8 +188,12 @@ export function isLegacyEncodedMap(encodedMap) {
 
 export function encodeMapDefinition(mapDefinition) {
   const normalized = normalizeMapDefinition(mapDefinition);
+  const isRampMap = normalized.ruleset === MAP_RULESETS.RAMPS;
+  if (!isRampMap && normalized.terrain.some((row) => row.some(isRampTileType))) {
+    throw new Error("Ramp terrain requires ramp rules and v4 encoding");
+  }
   const payload = {
-    v: 3,
+    v: isRampMap ? 4 : 3,
     t: encodeTerrainMatrix(normalized.terrain),
     f: normalized.features.map((feature) => [
       FEATURE_CODE_BY_TYPE[feature.kind],
@@ -161,15 +204,17 @@ export function encodeMapDefinition(mapDefinition) {
     p: normalized.spawns.police.map(positionToIndex),
     h: normalized.spawns.thief.map(positionToIndex),
     m: normalized.meta.name ? { n: normalized.meta.name } : undefined,
+    ...(isRampMap ? { b: MAP_RULESETS.RAMPS, ...(normalized.upgrade ? { u: normalized.upgrade } : {}) } : {}),
   };
-  return `${CURRENT_MAP_DEFINITION_PREFIX}${encodeJsonPayload(payload)}`;
+  if (isRampMap) validateJsonPayload(payload, 4);
+  return `${isRampMap ? V4_MAP_DEFINITION_PREFIX : V3_MAP_DEFINITION_PREFIX}${encodeJsonPayload(payload)}`;
 }
 
 function decodeV2MapDefinition(encodedMap) {
   const payload = decodeJsonPayload(encodedMap.slice(V2_MAP_DEFINITION_PREFIX.length));
   validateJsonPayload(payload, 2);
   const mapDefinition = createEmptyMapDefinition();
-  mapDefinition.terrain = decodeTerrainMatrix(payload.t || "", TERRAIN_TILE_TYPES);
+  mapDefinition.terrain = decodeTerrainMatrix(payload.t || "", V2_TERRAIN_TYPES);
   mapDefinition.features = Array.isArray(payload.f)
     ? payload.f
         .map(([kindIndex, positionIndex], index) => {
@@ -194,10 +239,12 @@ function decodeV2MapDefinition(encodedMap) {
   return normalizeMapDefinition(mapDefinition);
 }
 
-function decodeV3MapDefinition(encodedMap) {
-  const payload = decodeJsonPayload(encodedMap.slice(CURRENT_MAP_DEFINITION_PREFIX.length));
-  validateJsonPayload(payload, 3);
+function decodeModernMapDefinition(encodedMap, version) {
+  const payload = decodeJsonPayload(encodedMap.slice(3));
+  validateJsonPayload(payload, version);
   const mapDefinition = createEmptyMapDefinition({
+    ruleset: version === 4 ? MAP_RULESETS.RAMPS : MAP_RULESETS.LEGACY,
+    ...(version === 4 && payload.u !== undefined ? { upgrade: payload.u } : {}),
     meta: {
       name: typeof payload.m?.n === "string" ? payload.m.n : "",
     },
@@ -274,8 +321,12 @@ function decodeLegacyMapDefinition(encodedMap) {
 }
 
 export function decodeMapDefinition(encodedMap) {
-  if (typeof encodedMap === "string" && encodedMap.startsWith(CURRENT_MAP_DEFINITION_PREFIX)) {
-    return decodeV3MapDefinition(encodedMap);
+  if (typeof encodedMap === "string" && encodedMap.startsWith(V4_MAP_DEFINITION_PREFIX)) {
+    return decodeModernMapDefinition(encodedMap, 4);
+  }
+
+  if (typeof encodedMap === "string" && encodedMap.startsWith(V3_MAP_DEFINITION_PREFIX)) {
+    return decodeModernMapDefinition(encodedMap, 3);
   }
 
   if (typeof encodedMap === "string" && encodedMap.startsWith(V2_MAP_DEFINITION_PREFIX)) {

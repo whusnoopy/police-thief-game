@@ -1,4 +1,5 @@
 import { renderTileIcon } from '../board/storybookArt.js';
+import { BRIDGE_DIRECTIONS } from '../../domain/map/bridgeTopology.js';
 
 const PALETTE_GROUPS = [
   {
@@ -53,6 +54,10 @@ const REQUIRED_TILE_LABELS = {
 };
 
 const TILE_HELP = {
+  ...Object.fromEntries(BRIDGE_DIRECTIONS.map(({ direction, name }) => [`OVERPASS_RAMP_${direction}`, {
+    summary: `向${name}上坡，反向可下桥；两侧封闭。`,
+    details: ["高端连接高架，低端连接可驾车的陆上地块。", "只允许车辆，进入每格消耗 0.25 步。", "上下桥地图当前只开放查看和编辑，暂未开放游玩。"],
+  }])),
   GRASS: {
     summary: "普通可通行地形，行人移动较慢。",
     details: ["警察和小偷都可进入。", "步行每格消耗 2 步。", "车辆不能驶入。"],

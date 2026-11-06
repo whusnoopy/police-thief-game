@@ -1,6 +1,7 @@
 import { encodeMapDefinition, normalizeEncodedMap } from "../domain/map/mapCodec.js";
 import { legacyTileMatrixToMapDefinition } from "../domain/map/mapModel.js";
 import { GRID_SIZE, TILE_TYPES } from "../config/constants.js";
+import { isRampTileType } from "../domain/map/bridgeTopology.js";
 
 export const STORAGE_KEYS = {
   mapList: "policeThief.maps.v3",
@@ -49,7 +50,10 @@ export function normalizeMapRecord(record = {}, options = {}) {
     name: record.name || formatDefaultMapName(new Date(timestamp)),
     encodedMap: encodedMap || source,
     updatedAt: timestamp,
-    schemaVersion: 3,
+    schemaVersion: encodedMap?.startsWith("v4.") ? 4 : 3,
+    ...(encodedMap && (record.originalEncodedMap || encodedMap !== source) ? {
+      originalEncodedMap: record.originalEncodedMap || source,
+    } : {}),
     ...(!encodedMap ? {
       isCorrupt: true,
       rawRecord: Object.hasOwn(record, "rawRecord") ? record.rawRecord : rawRecord,
@@ -108,7 +112,7 @@ function normalizeLegacyJsonMap(legacyJsonMap) {
     if (
       !Array.isArray(parsed) || parsed.length !== GRID_SIZE ||
       !parsed.every((row) => Array.isArray(row) && row.length === GRID_SIZE &&
-        row.every((tile) => typeof tile === "string" && Object.hasOwn(TILE_TYPES, tile)))
+        row.every((tile) => typeof tile === "string" && Object.hasOwn(TILE_TYPES, tile) && !isRampTileType(tile)))
     ) return null;
     return encodeMapDefinition(legacyTileMatrixToMapDefinition(parsed));
   } catch (error) {

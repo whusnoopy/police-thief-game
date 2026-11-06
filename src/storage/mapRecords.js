@@ -12,13 +12,21 @@ export function upsertMapRecordInList({
   let currentMap =
     !forceNew && currentMapId ? maps.find((mapItem) => mapItem.id === currentMapId) : null;
 
+  // New bridge semantics must be saved as a copy of an old-format record.
+  // Subsequent saves of that v4 copy can update it normally.
+  if (encodedMap.startsWith("v4.") && currentMap && !currentMap.encodedMap.startsWith("v4.")) currentMap = null;
+  const schemaVersion = encodedMap.startsWith("v4.") ? 4 : 3;
+
   if (!currentMap) {
+    const baseId = createId();
+    let nextId = baseId;
+    for (let suffix = 2; maps.some((record) => record.id === nextId); suffix += 1) nextId = `${baseId}_${suffix}`;
     currentMap = {
-      id: createId(),
+      id: nextId,
       name: name?.trim() ? name.trim() : formatDefaultMapName(new Date(now)),
       encodedMap,
       updatedAt: now,
-      schemaVersion: 3,
+      schemaVersion,
     };
     currentMapId = currentMap.id;
   } else {
@@ -26,7 +34,7 @@ export function upsertMapRecordInList({
       ...currentMap,
       encodedMap,
       updatedAt: now,
-      schemaVersion: 3,
+      schemaVersion,
       name: name?.trim() ? name.trim() : currentMap.name,
     };
   }

@@ -1,5 +1,7 @@
 import { GRID_SIZE } from "../../config/constants.js";
 import { normalizeCrosswalkTileType } from "./crosswalk.js";
+import { RAMP_TILE_TYPES, isRampTileType } from "./bridgeTopology.js";
+import { MAP_RULESETS, normalizeMapCompatibility } from "./mapCompatibility.js";
 
 export const TERRAIN_TILE_TYPES = [
   "GRASS",
@@ -13,6 +15,7 @@ export const TERRAIN_TILE_TYPES = [
   "RIVER",
   "OVERPASS",
   "MOUNTAIN",
+  ...RAMP_TILE_TYPES,
 ];
 
 export const FEATURE_TILE_TYPES = [
@@ -81,6 +84,10 @@ export function createEmptyMapDefinition(overrides = {}) {
 
 export function cloneMapDefinition(mapDefinition) {
   return normalizeMapDefinition(JSON.parse(JSON.stringify(mapDefinition)));
+}
+
+export function createRampMapDefinition(overrides = {}) {
+  return createEmptyMapDefinition({ ...overrides, ruleset: MAP_RULESETS.RAMPS });
 }
 
 export function positionToIndex(position) {
@@ -211,6 +218,9 @@ export function getTilePlacementPlan(mapDefinition, r, c, tileType) {
   }
 
   const blockers = [];
+  if (isRampTileType(normalizedTileType) && mapDefinition.ruleset !== MAP_RULESETS.RAMPS) {
+    blockers.push({ r, c, reason: "RAMP_RULESET_REQUIRED" });
+  }
   if (normalizedTileType !== "GRASS" && isRequiredGrassForMountain(mapDefinition, r, c)) {
     blockers.push({ r, c, reason: "MOUNTAIN_BUFFER" });
   }
@@ -262,6 +272,7 @@ function normalizeSpawnList(spawnList) {
 export function normalizeMapDefinition(mapDefinition = {}) {
   return {
     version: 2,
+    ...normalizeMapCompatibility(mapDefinition),
     meta: {
       name: mapDefinition.meta?.name || "",
       rows: GRID_SIZE,

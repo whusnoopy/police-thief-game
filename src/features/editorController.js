@@ -297,7 +297,7 @@ export function clearMap() {
 
   finishStroke();
   const before = cloneMapDefinition(state.mapDefinition);
-  setMapDefinition(createEmptyMapDefinition());
+  setMapDefinition(createEmptyMapDefinition({ ruleset: before.ruleset, ...(before.upgrade ? { upgrade: before.upgrade } : {}) }));
   historyMap = state.mapDefinition;
   recordEdit(before);
   renderEditorBoard();

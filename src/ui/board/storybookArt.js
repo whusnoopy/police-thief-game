@@ -1,4 +1,5 @@
 import { TILE_TYPES } from '../../config/constants.js';
+import { getRampDirection } from '../../domain/map/bridgeTopology.js';
 
 export const TILE_ASSETS = {
   BANK: 'bank', POLICE_STATION: 'police-station', THIEF_BASE: 'thief-base',
@@ -24,6 +25,17 @@ export function appendSprite(container, name, className, label) {
 }
 
 export function appendTileArt(container, tileType) {
+  const ramp = getRampDirection(tileType);
+  if (ramp) {
+    const sign = document.createElement('span');
+    sign.className = 'bridge-ramp-sign';
+    sign.dataset.direction = ramp.direction;
+    sign.textContent = ramp.arrow;
+    sign.title = `向${ramp.name}上坡，反向下桥，两侧不通行`;
+    sign.setAttribute('aria-hidden', 'true');
+    container.appendChild(sign);
+    return;
+  }
   const asset = TILE_ASSETS[tileType];
   if (asset) {
     appendSprite(container, asset, 'tile-art', TILE_TYPES[tileType].name);
