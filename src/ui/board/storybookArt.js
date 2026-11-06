@@ -1,5 +1,5 @@
 import { TILE_TYPES } from '../../config/constants.js';
-import { getRampDirection } from '../../domain/map/bridgeTopology.js';
+import { BRIDGE_DIRECTIONS, getRampDirection } from '../../domain/map/bridgeTopology.js';
 
 export const TILE_ASSETS = {
   BANK: 'bank', POLICE_STATION: 'police-station', THIEF_BASE: 'thief-base',
@@ -34,6 +34,14 @@ export function appendTileArt(container, tileType) {
     sign.title = `向${ramp.name}上坡，反向下桥，两侧不通行`;
     sign.setAttribute('aria-hidden', 'true');
     container.appendChild(sign);
+    const opposite = BRIDGE_DIRECTIONS[(BRIDGE_DIRECTIONS.indexOf(ramp) + 2) % 4];
+    for (const [direction, text] of [[ramp.direction, '高'], [opposite.direction, '低']]) {
+      const label = document.createElement('span');
+      label.className = `ramp-end-label end-${direction}`;
+      label.textContent = text;
+      label.setAttribute('aria-hidden', 'true');
+      container.appendChild(label);
+    }
     return;
   }
   const asset = TILE_ASSETS[tileType];

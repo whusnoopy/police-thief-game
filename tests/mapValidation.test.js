@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { createEmptyMapDefinition, setLegacyTileAt } from "../src/domain/map/mapModel.js";
 import { validateMapDefinition } from "../src/domain/rules/mapValidation.js";
 
-function mapWith(tiles, terrain = "BUILDING") {
-  const map = createEmptyMapDefinition({ terrain: Array.from({ length: 10 }, () => Array(10).fill(terrain)) });
+function mapWith(tiles, terrain = "BUILDING", ruleset = "legacy") {
+  const map = createEmptyMapDefinition({ ruleset, terrain: Array.from({ length: 10 }, () => Array(10).fill(terrain)) });
   tiles.forEach(([r, c, type]) => setLegacyTileAt(map, r, c, type));
   return map;
 }
@@ -55,8 +55,8 @@ test("uses walking manholes to connect disconnected islands", () => {
 
 test("requires a car for water routes and allows parking before a grass route", () => {
   const map = mapWith([[0, 0, "THIEF_SPAWN"], [1, 0, "POLICE_SPAWN"], [0, 1, "ROAD"],
-    [0, 2, "RIVER"], [0, 3, "OVERPASS"], [0, 4, "BANK"], [0, 5, "PARKING"],
-    [0, 6, "GRASS"], [0, 7, "THIEF_BASE"]]);
+    [0, 2, "RIVER"], [0, 3, "ROAD"], [0, 4, "OVERPASS_RAMP_E"], [0, 5, "OVERPASS"],
+    [0, 6, "OVERPASS_RAMP_W"], [0, 7, "BANK"], [0, 8, "PARKING"], [0, 9, "GRASS"], [1, 9, "THIEF_BASE"]], "BUILDING", "ramps");
   assert.equal(validateMapDefinition(map).valid, false);
   setLegacyTileAt(map, 0, 1, "PARKING");
   assert.equal(validateMapDefinition(map).valid, true);

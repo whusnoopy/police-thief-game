@@ -10,6 +10,8 @@ const DEFAULT_ELEMENT_IDS = [
   "game-board",
   "palette",
   "mode-indicator",
+  "app-version",
+  "bridge-panel",
   "btn-clear-map",
   "btn-undo-map",
   "btn-redo-map",

@@ -77,3 +77,29 @@ export function getRampConnectionIssues(mapDefinition) {
   }
   return issues;
 }
+
+export function getBridgeWarnings(mapDefinition) {
+  const warnings = [];
+  const seen = new Set();
+  const invalidRamps = new Set(getRampConnectionIssues(mapDefinition).map(({ r, c }) => `${r},${c}`));
+  for (let r = 0; r < GRID_SIZE; r += 1) for (let c = 0; c < GRID_SIZE; c += 1) {
+    if (mapDefinition.terrain?.[r]?.[c] !== "OVERPASS" || seen.has(`${r},${c}`)) continue;
+    const queue = [{ r, c }];
+    let hasEntrance = false;
+    for (let index = 0; index < queue.length; index += 1) {
+      const current = queue[index];
+      const key = `${current.r},${current.c}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      for (const { dr, dc } of BRIDGE_DIRECTIONS) {
+        const next = { r: current.r + dr, c: current.c + dc };
+        if (!areCellsConnected(mapDefinition, current, next)) continue;
+        const type = mapDefinition.terrain[next.r][next.c];
+        if (type === "OVERPASS") queue.push(next);
+        if (isRampTileType(type) && !invalidRamps.has(`${next.r},${next.c}`)) hasEntrance = true;
+      }
+    }
+    if (!hasEntrance) warnings.push({ r, c, reason: "BRIDGE_WITHOUT_ENTRANCE" });
+  }
+  return warnings;
+}

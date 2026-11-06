@@ -109,11 +109,16 @@ test("v4 rejects facilities and spawns on bridge surfaces", () => {
   assert.throws(() => decodeMapDefinition(wrap({ ...data, t, f: [[5, 0]] })), /cannot occupy a bridge/);
 });
 
-test("ramp maps cannot start with legacy gameplay before activation, including reviewed upgrade drafts", () => {
-  for (const map of [createRampMapDefinition(), createMapUpgradeDraft({ encodedMap: encodeMapDefinition(createEmptyMapDefinition()) })]) {
-    assert.equal(validateMapDefinition(map).valid, false);
-    assert.match(validateMapDefinition(map).errors[0], /暂时只能查看和编辑/);
-    assert.throws(() => createGameSession(map), /暂时只能查看和编辑/);
-  }
+test("unreviewed upgrades and legacy bridge maps cannot start, while new and reviewed maps use ramp gameplay", () => {
+  const old = createEmptyMapDefinition();
+  setLegacyTileAt(old, 4, 4, "OVERPASS");
+  const draft = createMapUpgradeDraft({ encodedMap: encodeMapDefinition(old) });
+  assert.match(validateMapDefinition(draft).errors[0], /校验并完成升级/);
+  assert.throws(() => createGameSession(draft), /校验并完成升级/);
+  assert.throws(() => createGameSession(old), /创建升级副本/);
+  assert.doesNotThrow(() => createGameSession(createRampMapDefinition()));
+  const reviewed = createMapUpgradeDraft({ encodedMap: encodeMapDefinition(createEmptyMapDefinition()) });
+  assert.equal(reviewed.upgrade.status, "ready");
+  assert.doesNotThrow(() => createGameSession(reviewed));
   assert.doesNotThrow(() => createGameSession(createEmptyMapDefinition()));
 });

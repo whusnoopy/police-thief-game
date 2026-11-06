@@ -13,6 +13,7 @@
     <div class="app-container">
       <header>
         <h1>🚓 警察抓小偷 🏃</h1>
+        <span id="app-version" class="app-version"></span>
         <div id="mode-indicator" class="badge">地图编辑模式</div>
       </header>
 
@@ -60,6 +61,8 @@
               </div>
             </div>
           </div>
+
+          <section id="bridge-panel" class="bridge-panel" aria-label="高架与上下桥"></section>
 
           <div id="palette" class="palette">
             <!-- 生成的地块选项和当前地块说明会放在这里 -->
@@ -216,7 +219,7 @@
             <p><span class="emoji">👆</span> 掷骰后选择己方角色。触屏点击高亮落点可预览路线与结果，再按“确认移动”；鼠标悬停预览、点击直接移动。每次行动结束即换手，未用步数作废。</p>
             <p><span class="emoji">🏁</span> 抓住全部小偷（含押送中）即警察获胜；全部小偷带钱逃脱即小偷获胜。若部分逃脱、部分被抓且没有活动小偷，则以混合结局结束。</p>
             <p><span class="emoji">⬜🔵🔴</span> 道路消耗 1 步，出生点等同道路</p>
-            <p><span class="emoji">🌊🌉</span> 河流和高架桥只允许车辆通行；车辆过河每格消耗 2 步，过高架桥每格消耗 0.25 步</p>
+            <p><span class="emoji">🌊🌉</span> 河流、高架桥和上下桥格只允许车辆通行；车辆过河每格消耗 2 步，进入桥面或上下桥格每格消耗 0.25 步。高架仅通过上下桥格连接地面，箭头朝向高端，反向可下桥，两侧封闭。</p>
             <p><span class="emoji">↔️↕️</span> 斑马线分横向和纵向；行人只能按斑马线方向在绿灯时通过，车辆只能按垂直方向在红灯时通过</p>
             <p><span class="emoji">🌿</span> 草地消耗 2 步</p>
             <p><span class="emoji">🏢🏗️🚧⛰️</span> 建筑物、建筑工地、路障、山不可进入</p>

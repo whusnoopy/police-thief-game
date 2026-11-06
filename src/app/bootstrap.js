@@ -9,6 +9,7 @@ import {
   showMapList,
 } from "../features/mapListController.js";
 import { gameController } from "../features/gameController.js";
+import { APP_VERSION_LABEL } from "../config/version.js";
 import {
   loadInitialMapIntoState,
   initStorageNotice,
@@ -39,6 +40,7 @@ function backToEditor(options = {}) {
 }
 
 export function init() {
+  if (els.appVersion) els.appVersion.textContent = APP_VERSION_LABEL;
   initStorageNotice();
   initEditor();
   initMapList();

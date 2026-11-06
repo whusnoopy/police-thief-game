@@ -30,10 +30,10 @@ test("a shared upgrade draft displays all directions and stays separate from the
   assert.equal(state.mapDefinition.upgrade.status, "editing");
   assert.deepEqual(getMapList().find((record) => record.id === originalRecord.id), originalRecord);
   assert.deepEqual(env.elements["editor-board"].querySelectorAll(".bridge-ramp-sign").map((sign) => sign.dataset.direction), ["N", "E", "S", "W"]);
-  assert.equal(env.elements.palette.querySelectorAll(".palette-item").some((item) => RAMP_TILE_TYPES.includes(item.dataset.type)), false);
+  assert.equal(env.elements.palette.querySelectorAll(".palette-item").some((item) => RAMP_TILE_TYPES.includes(item.dataset.type)), true);
   env.elements["btn-start-game"].click();
   assert.equal(state.mode, "EDITOR");
-  assert.match(env.alerts.at(-1), /暂时只能查看和编辑/);
+  assert.match(env.alerts.at(-1), /校验并完成升级/);
   const savedUpgrade = structuredClone(state.mapDefinition.upgrade);
   clearMap();
   assert.deepEqual(state.mapDefinition.upgrade, savedUpgrade);

@@ -1,6 +1,6 @@
-import { cloneMapDefinition, createEmptyMapDefinition } from "../domain/map/mapModel.js";
+import { cloneMapDefinition, createRampMapDefinition } from "../domain/map/mapModel.js";
 
-const initialMapDefinition = createEmptyMapDefinition();
+const initialMapDefinition = createRampMapDefinition();
 
 export const state = {
   mapDefinition: initialMapDefinition,
@@ -25,6 +25,8 @@ export const els = {
   gameBoard: document.getElementById("game-board"),
   palette: document.getElementById("palette"),
   modeIndicator: document.getElementById("mode-indicator"),
+  appVersion: document.getElementById("app-version"),
+  bridgePanel: document.getElementById("bridge-panel"),
   btnClearMap: document.getElementById("btn-clear-map"),
   btnUndoMap: document.getElementById("btn-undo-map"),
   btnRedoMap: document.getElementById("btn-redo-map"),

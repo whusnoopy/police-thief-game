@@ -2,7 +2,7 @@ import { els, setMapDefinition, state } from "../app/state.js";
 import { getAppShellState } from "../app/appShellState.js";
 import { renderAppShell } from "../app/appShellRenderer.js";
 import { decodeMapDefinition } from "../domain/map/mapCodec.js";
-import { cloneMapDefinition, createEmptyMapDefinition } from "../domain/map/mapModel.js";
+import { cloneMapDefinition, createEmptyMapDefinition, createRampMapDefinition } from "../domain/map/mapModel.js";
 import { renderEditorBoard } from "./editorController.js";
 import { renderMapListGrid, setMapListEmptyState } from "../ui/map-list/mapListRenderer.js";
 import { MAX_BACKUP_BYTES } from "../storage/mapBackup.js";
@@ -142,7 +142,7 @@ export function createNewMap() {
   const name = prompt("请输入新地图名称:", defaultName);
   if (!name || name.trim() === "") return;
 
-  setMapDefinition(createEmptyMapDefinition());
+  setMapDefinition(createRampMapDefinition());
   persistCurrentMap({ forceNewMap: true, mapName: name.trim() });
   renderEditorBoard();
   hideMapList();

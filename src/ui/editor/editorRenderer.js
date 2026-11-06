@@ -1,5 +1,5 @@
 import { renderTileIcon } from '../board/storybookArt.js';
-import { BRIDGE_DIRECTIONS } from '../../domain/map/bridgeTopology.js';
+import { BRIDGE_DIRECTIONS, RAMP_TILE_TYPES } from '../../domain/map/bridgeTopology.js';
 
 const PALETTE_GROUPS = [
   {
@@ -23,6 +23,11 @@ const PALETTE_GROUPS = [
       "CROSSWALK_VERTICAL",
       "OVERPASS",
     ],
+  },
+  {
+    id: "bridge-ramps",
+    name: "上下桥方向",
+    tileIds: RAMP_TILE_TYPES,
   },
   {
     id: "spawns",
@@ -56,7 +61,7 @@ const REQUIRED_TILE_LABELS = {
 const TILE_HELP = {
   ...Object.fromEntries(BRIDGE_DIRECTIONS.map(({ direction, name }) => [`OVERPASS_RAMP_${direction}`, {
     summary: `向${name}上坡，反向可下桥；两侧封闭。`,
-    details: ["高端连接高架，低端连接可驾车的陆上地块。", "只允许车辆，进入每格消耗 0.25 步。", "上下桥地图当前只开放查看和编辑，暂未开放游玩。"],
+    details: ["高端连接普通高架，低端连接可驾车的陆上地块。", "只允许车辆，进入每格消耗 0.25 步。", "选择四个方向之一，或按 R 轮换方向；在已有坡道上绘制可改变方向。"],
   }])),
   GRASS: {
     summary: "普通可通行地形，行人移动较慢。",
@@ -188,7 +193,9 @@ function createPaletteItem(type, currentPaletteType, onPreview, onSelect) {
 
   const name = document.createElement("span");
   name.className = "palette-name";
-  name.textContent = type.name;
+  const ramp = BRIDGE_DIRECTIONS[RAMP_TILE_TYPES.indexOf(type.id)];
+  name.textContent = ramp ? `向${ramp.name}上坡` : type.name;
+  if (ramp) item.classList.add("ramp-direction-item");
 
   item.append(icon, name);
   if (REQUIRED_TILE_LABELS[type.id]) {
@@ -239,7 +246,7 @@ function createPaletteGroup(
   summary.append(title, count);
 
   const grid = document.createElement("div");
-  grid.className = "palette-grid";
+  grid.className = `palette-grid${group.id === "bridge-ramps" ? " ramp-direction-grid" : ""}`;
   groupTileTypes.forEach((type) => {
     grid.appendChild(createPaletteItem(type, currentPaletteType, onPreview, onSelect));
   });
@@ -248,7 +255,7 @@ function createPaletteGroup(
   return details;
 }
 
-export function renderPalette(container, { tileTypes, currentPaletteType, onSelect }) {
+export function renderPalette(container, { tileTypes, currentPaletteType, onSelect, rampRules = false }) {
   container.innerHTML = "";
 
   const typeById = new Map(tileTypes.map((type) => [type.id, type]));
@@ -259,7 +266,14 @@ export function renderPalette(container, { tileTypes, currentPaletteType, onSele
 
   function previewTileHelp(typeId) {
     const type = typeById.get(typeId);
-    if (type) renderTileHelpPanel(helpPanel, type);
+    if (type) {
+      renderTileHelpPanel(helpPanel, type);
+      if (rampRules && typeId === "OVERPASS") {
+        const extra = document.createElement("span");
+        extra.textContent = "桥面不能直接进出相邻地面，请使用有方向的上下桥格。";
+        helpPanel.appendChild(extra);
+      }
+    }
   }
 
   function restoreSelectedTileHelp() {
@@ -313,9 +327,26 @@ export function renderPalette(container, { tileTypes, currentPaletteType, onSele
     container.appendChild(groupElement);
   }
 
+  if (rampRules) {
+    const rotate = document.createElement("button");
+    rotate.type = "button";
+    rotate.id = "btn-rotate-ramp";
+    rotate.className = "btn secondary";
+    rotate.textContent = "↻ 轮换上下桥方向（R）";
+    rotate.addEventListener("click", () => {
+      const next = RAMP_TILE_TYPES[(RAMP_TILE_TYPES.indexOf(selectedTileType) + 1) % RAMP_TILE_TYPES.length];
+      const item = Array.from(container.querySelectorAll(".palette-item")).find((element) => element.dataset.type === next);
+      if (item) {
+        const group = item.closest(".palette-group");
+        if (group) group.open = true;
+        selectTile(next, item);
+      }
+    });
+    container.appendChild(rotate);
+  }
   container.appendChild(helpPanel);
 
-  container.addEventListener("mouseleave", restoreSelectedTileHelp);
+  container.onmouseleave = restoreSelectedTileHelp;
 }
 
 export function updatePaletteRequirementStatus(container, requiredStatus = {}) {

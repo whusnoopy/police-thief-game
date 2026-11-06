@@ -39,6 +39,12 @@
 .story-icon.type-CROSSWALK_VERTICAL { background: repeating-linear-gradient(0deg,#ddd6bd 0 5px,#fffdf1 5px 9px); }
 .story-cell .placement-ghost { width: auto; height: auto; }
 .bridge-ramp-sign { position: absolute; inset: 12%; display: flex; align-items: center; justify-content: center; color: #344e59; background: #fff9e8b8; border: 2px solid #687e86; border-radius: 4px; font-size: calc(var(--cell-size, 40px) * .58); font-weight: 800; line-height: 1; pointer-events: none; }
+.ramp-end-label { position: absolute; z-index: 2; color: #344e59; background: #fff9e8e6; font: 700 9px/1.1 sans-serif; pointer-events: none; }
+.ramp-end-label.end-N { top: 0; left: 50%; transform: translateX(-50%); }
+.ramp-end-label.end-S { bottom: 0; left: 50%; transform: translateX(-50%); }
+.ramp-end-label.end-E { right: 0; top: 50%; transform: translateY(-50%); }
+.ramp-end-label.end-W { left: 0; top: 50%; transform: translateY(-50%); }
+.mini-board .ramp-end-label, .story-icon .ramp-end-label { display: none; }
 .mini-board { gap: 0 !important; }
 .mini-board .tile-label { display: none; }
 .mini-board .spawn-sign { width: 10px; height: 10px; font-size: 7px; line-height: 8px; left: 1px; bottom: 1px; }

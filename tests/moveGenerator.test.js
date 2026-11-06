@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { SIGNAL_PHASES } from "../src/config/constants.js";
 import { createGameSession } from "../src/domain/game/sessionFactory.js";
-import { createEmptyMapDefinition, setLegacyTileAt } from "../src/domain/map/mapModel.js";
+import { createEmptyMapDefinition, createRampMapDefinition, setLegacyTileAt } from "../src/domain/map/mapModel.js";
 import { applyResolvedAction } from "../src/domain/rules/interactionResolver.js";
 import {
   calculateReachableActions,
@@ -58,7 +58,7 @@ test("unit can stop before spending all rolled movement points", () => {
 });
 
 test("walking units cannot enter river or overpass terrain", () => {
-  const mapDefinition = createEmptyMapDefinition();
+  const mapDefinition = createRampMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
   setLegacyTileAt(mapDefinition, 0, 1, "RIVER");
   setLegacyTileAt(mapDefinition, 1, 0, "OVERPASS");
@@ -103,11 +103,12 @@ test("units cannot enter mountain terrain when walking or driving", () => {
   assert.equal(getActionAt(drivingActions, 0, 2), null);
 });
 
-test("driving units use river and overpass movement costs", () => {
-  const mapDefinition = createEmptyMapDefinition();
+test("driving units use river, ramp and overpass movement costs", () => {
+  const mapDefinition = createRampMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
   setLegacyTileAt(mapDefinition, 0, 1, "RIVER");
-  setLegacyTileAt(mapDefinition, 1, 0, "OVERPASS");
+  setLegacyTileAt(mapDefinition, 1, 0, "OVERPASS_RAMP_S");
+  setLegacyTileAt(mapDefinition, 2, 0, "OVERPASS");
 
   const session = createGameSession(mapDefinition);
   const thief = session.thiefUnits[0];
@@ -125,6 +126,7 @@ test("driving units use river and overpass movement costs", () => {
   assert.ok(overpassAction);
   assert.equal(overpassAction.costSpent, 1);
   assert.equal(overpassAction.pointsLeft, 3);
+  assert.equal(getActionAt(shortActions, 2, 0).costSpent, 2);
 
   const riverAction = getActionAt(calculateReachableActions({
     session,
@@ -139,17 +141,15 @@ test("driving units use river and overpass movement costs", () => {
 });
 
 test("overpass movement search stays bounded on a full board", () => {
-  const mapDefinition = createEmptyMapDefinition();
+  const mapDefinition = createRampMapDefinition();
   for (let r = 0; r < 10; r += 1) {
     for (let c = 0; c < 10; c += 1) {
       setLegacyTileAt(mapDefinition, r, c, "OVERPASS");
     }
   }
-  setLegacyTileAt(mapDefinition, 5, 5, "THIEF_SPAWN");
-
   const session = createGameSession(mapDefinition);
-  const thief = session.thiefUnits[0];
-  thief.inCar = true;
+  const thief = { id: "T1", r: 5, c: 5, state: "ACTIVE", inCar: true, hasMoney: false };
+  session.thiefUnits = [thief];
 
   const actions = calculateReachableActions({
     session,
@@ -162,11 +162,13 @@ test("overpass movement search stays bounded on a full board", () => {
 });
 
 test("driving unit cannot disembark on its current cell or mid-route", () => {
-  const mapDefinition = createEmptyMapDefinition();
+  const mapDefinition = createRampMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
-  setLegacyTileAt(mapDefinition, 0, 1, "OVERPASS");
-  setLegacyTileAt(mapDefinition, 0, 2, "ROAD");
-  setLegacyTileAt(mapDefinition, 0, 3, "GRASS");
+  setLegacyTileAt(mapDefinition, 0, 1, "OVERPASS_RAMP_E");
+  setLegacyTileAt(mapDefinition, 0, 2, "OVERPASS");
+  setLegacyTileAt(mapDefinition, 0, 3, "OVERPASS_RAMP_W");
+  setLegacyTileAt(mapDefinition, 0, 4, "ROAD");
+  setLegacyTileAt(mapDefinition, 0, 5, "GRASS");
 
   const session = createGameSession(mapDefinition);
   const thief = session.thiefUnits[0];
@@ -180,7 +182,8 @@ test("driving unit cannot disembark on its current cell or mid-route", () => {
   });
 
   assert.equal(getActionAt(actions, 0, 0), null);
-  assert.equal(getActionAt(actions, 0, 3), null);
+  assert.ok(getActionAt(actions, 0, 4));
+  assert.equal(getActionAt(actions, 0, 5), null);
 });
 
 test("boarding a car immediately ends the action and consumes remaining movement", () => {
@@ -828,7 +831,7 @@ test("driving unit cannot enter vertical crosswalk during pedestrian green", () 
 });
 
 test("movement search keeps a longer bank route when the short route consumes a later chokepoint", () => {
-  const mapDefinition = createEmptyMapDefinition();
+  const mapDefinition = createRampMapDefinition();
   for (let r = 0; r < 10; r += 1) {
     for (let c = 0; c < 10; c += 1) {
       setLegacyTileAt(mapDefinition, r, c, "BUILDING");
@@ -837,6 +840,7 @@ test("movement search keeps a longer bank route when the short route consumes a 
   [[3, 2], [3, 3]].forEach(([r, c]) => setLegacyTileAt(mapDefinition, r, c, "ROAD"));
   [[2, 2], [1, 2], [1, 3], [1, 4], [2, 4]].forEach(([r, c]) =>
     setLegacyTileAt(mapDefinition, r, c, "OVERPASS"));
+  [[2, 2], [2, 4]].forEach(([r, c]) => setLegacyTileAt(mapDefinition, r, c, "OVERPASS_RAMP_N"));
   setLegacyTileAt(mapDefinition, 3, 4, "BANK");
   setLegacyTileAt(mapDefinition, 4, 3, "THIEF_BASE");
 
@@ -894,8 +898,9 @@ test("boarding the first car prevents reaching a second car in the same action",
 });
 
 test("an extra captured car on vehicle-only terrain returns to the nearest empty parking", () => {
-  const mapDefinition = createEmptyMapDefinition();
+  const mapDefinition = createRampMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "OVERPASS");
+  setLegacyTileAt(mapDefinition, 0, 1, "OVERPASS_RAMP_W");
   setLegacyTileAt(mapDefinition, 2, 0, "PARKING");
   setLegacyTileAt(mapDefinition, 2, 2, "PARKING");
   const session = createGameSession(mapDefinition);

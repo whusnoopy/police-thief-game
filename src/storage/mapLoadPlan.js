@@ -1,5 +1,5 @@
 import { decodeMapDefinition, normalizeEncodedMap } from "../domain/map/mapCodec.js";
-import { createEmptyMapDefinition } from "../domain/map/mapModel.js";
+import { createRampMapDefinition } from "../domain/map/mapModel.js";
 
 function tryDecodeMapDefinition(encodedMap) {
   if (!encodedMap) return null;
@@ -35,7 +35,7 @@ export function resolveInitialMapLoad({ savedEncodedMap = null, sharedEncodedMap
 
   return {
     source: "empty",
-    mapDefinition: createEmptyMapDefinition(),
+    mapDefinition: createRampMapDefinition(),
     forceNewMap: false,
   };
 }

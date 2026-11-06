@@ -28,11 +28,19 @@ export function normalizeMapCompatibility(mapDefinition) {
   };
 }
 
-// 5.0.1 supplies the data contract. Gameplay activation belongs to 5.0.2, after
-// both reachability and start-of-game validation use the shared edge checks.
-export function getMapGameplayBlocker(mapDefinition) {
-  if (mapDefinition.ruleset === MAP_RULESETS.RAMPS || mapDefinition.terrain?.some((row) => row.some(isRampTileType))) {
-    return "上下桥地图尚在测试，当前版本暂时只能查看和编辑，请保留地图等待后续版本开放游玩。";
+export function usesRampRules(mapDefinition) {
+  return mapDefinition.ruleset === MAP_RULESETS.RAMPS;
+}
+
+export function getMapGameplayBlocker(mapDefinition, { allowUpgradeDraft = false } = {}) {
+  if (!usesRampRules(mapDefinition)) {
+    if (mapDefinition.terrain?.some((row) => row.some(isRampTileType))) return "上下桥格需要新版规则，请先创建升级副本。";
+    if (mapDefinition.terrain?.some((row) => row.includes("OVERPASS"))) {
+      return "这张旧地图含高架桥，请先创建升级副本，调整上下桥入口并完成校验后再开始游戏。";
+    }
+  }
+  if (!allowUpgradeDraft && mapDefinition.upgrade && mapDefinition.upgrade.status !== "ready") {
+    return "这张地图还在升级，请调整上下桥入口，再点击“校验并完成升级”。";
   }
   return null;
 }

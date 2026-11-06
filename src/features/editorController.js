@@ -7,8 +7,13 @@ import {
   setLegacyTileAt,
 } from "../domain/map/mapModel.js";
 import { getFeaturePositionsByKind, getTileTypeAt } from "../domain/map/mapQueries.js";
+import { encodeMapDefinition } from "../domain/map/mapCodec.js";
 import { renderTileIcon } from '../ui/board/storybookArt.js';
-import { persistCurrentMap } from "../storage/mapRepository.js";
+import { persistCurrentMap, getCurrentMapId, getCurrentMapName, getMapList, updateModeIndicatorForEditor } from "../storage/mapRepository.js";
+import { createMapUpgradeDraft, beginMapUpgrade, completeMapUpgrade } from "../domain/map/mapUpgrade.js";
+import { usesRampRules } from "../domain/map/mapCompatibility.js";
+import { BRIDGE_DIRECTIONS, getBridgeConnectionMask, isBridgeTileType, isRampTileType } from "../domain/map/bridgeTopology.js";
+import { renderBridgePanel } from "../ui/editor/bridgePanelRenderer.js";
 import { validateMapDefinition } from "../domain/rules/mapValidation.js";
 import {
   getBoardCellElement,
@@ -30,6 +35,7 @@ let pointerStateBound = false;
 let placementPreviewStateBound = false;
 let historyMap = null;
 let stroke = null;
+let paletteRuleset = null;
 const undoStack = [];
 const redoStack = [];
 const HISTORY_LIMIT = 50;
@@ -39,13 +45,15 @@ function syncHistoryButtons() {
   els.btnRedoMap.disabled = redoStack.length === 0;
 }
 
-function recordEdit(before) {
+function recordEdit(before, { reviewed = false } = {}) {
   if (JSON.stringify(before) === JSON.stringify(state.mapDefinition)) return;
+  if (state.mapDefinition.upgrade && !reviewed) state.mapDefinition.upgrade.status = "editing";
   undoStack.push(before);
   if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
   redoStack.length = 0;
   persistCurrentMap();
   syncHistoryButtons();
+  refreshBridgePanel();
 }
 
 function finishStroke(event) {
@@ -100,11 +108,17 @@ function bindPointerState() {
     paintStrokeTo(Number(cell.dataset.r), Number(cell.dataset.c));
   });
   document.addEventListener("keydown", (event) => {
-    if (state.mode !== "EDITOR" || !(event.ctrlKey || event.metaKey) || event.altKey) return;
+    if (state.mode !== "EDITOR" || event.altKey) return;
     const target = event.target;
     if (["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName) || target?.isContentEditable) return;
     if ([els.rulesModal, els.shareLinkModal, els.victoryModal].some((modal) => !modal.classList.contains("hidden"))) return;
     const key = event.key.toLowerCase();
+    if (key === "r" && !event.ctrlKey && !event.metaKey && usesRampRules(state.mapDefinition)) {
+      event.preventDefault();
+      document.getElementById("btn-rotate-ramp")?.click();
+      return;
+    }
+    if (!(event.ctrlKey || event.metaKey)) return;
     if (key !== "z" && key !== "y") return;
     event.preventDefault();
     if (key === "y" || event.shiftKey) redoMap(); else undoMap();
@@ -127,6 +141,7 @@ function syncPaletteRequirementStatus() {
 }
 
 function clearPlacementPreview() {
+  document.querySelectorAll(".bridge-preview-edge").forEach((edge) => edge.remove());
   document.querySelectorAll(".placement-ghost").forEach((ghost) => {
     if (ghost.parentNode) {
       ghost.parentNode.removeChild(ghost);
@@ -187,6 +202,18 @@ function renderPlacementPreview(plan, centerPosition) {
       cell.classList.add("placement-center");
     }
   });
+  if (plan.canPlace && usesRampRules(state.mapDefinition) && isBridgeTileType(state.currentPaletteType)) {
+    const preview = cloneMapDefinition(state.mapDefinition);
+    setLegacyTileAt(preview, centerPosition.r, centerPosition.c, state.currentPaletteType);
+    const mask = getBridgeConnectionMask(preview, centerPosition.r, centerPosition.c);
+    const cell = getBoardCellElement(EDITOR_CELL_ID_PREFIX, centerPosition.r, centerPosition.c);
+    BRIDGE_DIRECTIONS.forEach(({ direction }, index) => {
+      const edge = document.createElement("span");
+      edge.className = `bridge-preview-edge edge-${direction} ${mask & (1 << index) ? "connected" : "closed"}`;
+      edge.setAttribute("aria-hidden", "true");
+      cell?.appendChild(edge);
+    });
+  }
 }
 
 function syncPlacementCells(plan, fallbackPosition) {
@@ -236,12 +263,15 @@ function paintPlacement(r, c) {
   return true;
 }
 
-export function initEditor() {
-  bindPointerState();
-  bindPlacementPreviewState();
+function syncEditorPalette(force = false) {
+  const rampRules = usesRampRules(state.mapDefinition);
+  if (!force && paletteRuleset === rampRules) return;
+  paletteRuleset = rampRules;
+  if (!rampRules && isRampTileType(state.currentPaletteType)) state.currentPaletteType = "ROAD";
   renderPalette(els.palette, {
-    tileTypes: Object.values(TILE_TYPES).filter((tileType) => !tileType.hiddenFromPalette),
+    tileTypes: Object.values(TILE_TYPES).filter((tileType) => !tileType.hiddenFromPalette && (rampRules || !isRampTileType(tileType.id))),
     currentPaletteType: state.currentPaletteType,
+    rampRules,
     onSelect(typeId, item) {
       clearPlacementPreview();
       document.querySelectorAll(".palette-item").forEach((paletteItem) => {
@@ -253,6 +283,61 @@ export function initEditor() {
       state.currentPaletteType = typeId;
     },
   });
+}
+
+function refreshBridgePanel() {
+  renderBridgePanel(els.bridgePanel, {
+    mapDefinition: state.mapDefinition,
+    onUpgrade: createUpgradeCopy,
+    onComplete: finishMapUpgrade,
+    onInspect(position) {
+      els.editorBoard.querySelectorAll(".bridge-inspection").forEach((cell) => cell.classList.remove("bridge-inspection"));
+      const cell = getBoardCellElement(EDITOR_CELL_ID_PREFIX, position.r, position.c);
+      cell?.classList.add("bridge-inspection");
+      cell?.scrollIntoView?.({ block: "nearest" });
+    },
+  });
+}
+
+export function createUpgradeCopy() {
+  finishStroke();
+  if (usesRampRules(state.mapDefinition)) return;
+  const encodedMap = encodeMapDefinition(state.mapDefinition);
+  const saved = getMapList().find((map) => map.id === getCurrentMapId());
+  if (!saved || saved.encodedMap !== encodedMap) persistCurrentMap();
+  const name = getCurrentMapName() || "地图";
+  let draft = createMapUpgradeDraft({ encodedMap, mapId: getCurrentMapId(), name });
+  if (draft.upgrade.status === "pending") draft = beginMapUpgrade(draft);
+  const names = new Set(getMapList().map((map) => map.name));
+  const base = `${name}（上下桥版）`;
+  let nextName = base;
+  for (let index = 2; names.has(nextName); index += 1) nextName = `${name}（上下桥版${index}）`;
+  setMapDefinition(draft);
+  persistCurrentMap({ forceNewMap: true, mapName: nextName });
+  renderEditorBoard();
+  updateModeIndicatorForEditor();
+}
+
+export function finishMapUpgrade() {
+  finishStroke();
+  if (!state.mapDefinition.upgrade) return false;
+  const result = completeMapUpgrade(state.mapDefinition);
+  if (!result.valid) {
+    alert(`升级尚未完成：\n${result.errors.join("\n")}`);
+    return false;
+  }
+  const before = cloneMapDefinition(state.mapDefinition);
+  setMapDefinition(result.mapDefinition);
+  historyMap = state.mapDefinition;
+  recordEdit(before, { reviewed: true });
+  renderEditorBoard();
+  return true;
+}
+
+export function initEditor() {
+  bindPointerState();
+  bindPlacementPreviewState();
+  syncEditorPalette(true);
   syncPaletteRequirementStatus();
 
   els.btnClearMap.addEventListener("click", clearMap);
@@ -261,6 +346,7 @@ export function initEditor() {
 }
 
 export function renderEditorBoard() {
+  syncEditorPalette();
   if (historyMap !== state.mapDefinition) {
     stroke = null;
     undoStack.length = 0;
@@ -290,6 +376,7 @@ export function renderEditorBoard() {
   });
   syncPaletteRequirementStatus();
   syncHistoryButtons();
+  refreshBridgePanel();
 }
 
 export function clearMap() {

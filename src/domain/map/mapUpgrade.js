@@ -3,6 +3,7 @@ import { decodeMapDefinition } from "./mapCodec.js";
 import { cloneMapDefinition } from "./mapModel.js";
 import { MAP_RULESETS } from "./mapCompatibility.js";
 import { BRIDGE_DIRECTIONS } from "./bridgeTopology.js";
+import { validateMapDefinition } from "../rules/mapValidation.js";
 
 // Lists old ground contacts for review; inserting ramps automatically could
 // overwrite facilities or remove one of a bridge tile's existing entrances.
@@ -37,4 +38,13 @@ export function beginMapUpgrade(mapDefinition) {
   if (!draft.upgrade || draft.ruleset !== MAP_RULESETS.RAMPS) throw new Error("Map is not an upgrade draft");
   draft.upgrade.status = "editing";
   return draft;
+}
+
+export function completeMapUpgrade(mapDefinition) {
+  if (!mapDefinition.upgrade || mapDefinition.ruleset !== MAP_RULESETS.RAMPS) throw new Error("Map is not an upgrade draft");
+  const result = validateMapDefinition(mapDefinition, { allowUpgradeDraft: true });
+  if (!result.valid) return { ...result, mapDefinition: null };
+  const reviewed = cloneMapDefinition(mapDefinition);
+  reviewed.upgrade.status = "ready";
+  return { ...result, mapDefinition: reviewed };
 }

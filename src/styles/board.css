@@ -26,6 +26,14 @@
 #editor-board { touch-action: none; }
 #game-board { touch-action: manipulation; }
 
+.bridge-preview-edge { position: absolute; z-index: 20; pointer-events: none; background: #c45343; }
+.bridge-preview-edge.connected { background: #237b4b; }
+.bridge-preview-edge.edge-N { top: 1px; left: 18%; right: 18%; height: 4px; }
+.bridge-preview-edge.edge-S { bottom: 1px; left: 18%; right: 18%; height: 4px; }
+.bridge-preview-edge.edge-E { right: 1px; top: 18%; bottom: 18%; width: 4px; }
+.bridge-preview-edge.edge-W { left: 1px; top: 18%; bottom: 18%; width: 4px; }
+.board .cell.bridge-inspection { outline: 3px solid #b66b26; outline-offset: -3px; }
+
 .cell.type-GRASS,
 .placement-ghost.type-GRASS {
   background-color: var(--grass-color);

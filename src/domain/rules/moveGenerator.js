@@ -12,6 +12,8 @@ import {
   hasParkedCar,
 } from "../game/sessionSelectors.js";
 import { getCellRuleAt } from "./cellRules.js";
+import { areCellsConnected } from "../map/bridgeTopology.js";
+import { usesRampRules } from "../map/mapCompatibility.js";
 
 export const STEP_POINTS = 4;
 export const HALF_STEP_POINTS = 2;
@@ -127,6 +129,8 @@ function createSearchBoard(session, role, unit) {
     return candidates.flatMap((move) => {
       const { nr, nc, isTeleport } = move;
       if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) return [];
+      if (!isTeleport && usesRampRules(session.mapDefinition) &&
+          !areCellsConnected(session.mapDefinition, from, { r: nr, c: nc })) return [];
       const to = cells[nr * GRID_SIZE + nc];
       if (to.animal || !canEnterCell(to.rule, role, isDriving)) return [];
       if (to.occupant && (role === "THIEF" || to.occupant.role === "POLICE" || unit.state === "CARRYING")) return [];

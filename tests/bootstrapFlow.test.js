@@ -28,8 +28,8 @@ test("bootstrap initialization and map-list flow stay wired through the controll
 
   const storedAfterInit = getMapList();
   assert.equal(storedAfterInit.length, 1);
-  assert.equal(storedAfterInit[0].encodedMap.startsWith("v3."), true);
-  assert.equal(env.window.location.search.startsWith("?m=v3."), true);
+  assert.equal(storedAfterInit[0].encodedMap.startsWith("v4."), true);
+  assert.equal(env.window.location.search.startsWith("?m=v4."), true);
 
   setLegacyTileAt(state.mapDefinition, 0, 0, "POLICE_SPAWN");
   persistCurrentMap();
