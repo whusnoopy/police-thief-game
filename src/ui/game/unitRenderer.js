@@ -1,7 +1,7 @@
 import { getBoardCellElement } from '../board/boardRenderer.js';
 import { appendSprite, appendStateBadge, TILE_ASSETS } from '../board/storybookArt.js';
 
-function appendUnitToken(cell, unit, side) {
+export function appendUnitToken(cell, unit, side) {
   const animal = side === 'animal';
   const role = animal ? (unit.emoji === '🐮' || unit.emoji === '🐄' ? 'cow' : 'pig') : side;
   const asset = unit.inCar ? (side === 'police' ? 'police-car' : 'car') : role;

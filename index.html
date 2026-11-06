@@ -11,11 +11,13 @@
   </head>
   <body>
     <div class="app-container">
-      <header>
-        <h1>🚓 警察抓小偷 🏃</h1>
-        <span id="app-version" class="app-version"></span>
-        <div id="mode-indicator" class="badge">地图编辑模式</div>
-      </header>
+      <div id="app-header-home">
+        <header id="app-header">
+          <h1>🚓 警察抓小偷 🏃</h1>
+          <span id="app-version" class="app-version"></span>
+          <div id="mode-indicator" class="badge">地图编辑模式</div>
+        </header>
+      </div>
 
       <div id="storage-notice" class="storage-notice hidden" role="status" aria-live="polite">
         <p id="storage-notice-message"></p>
@@ -77,7 +79,9 @@
       </main>
 
       <main id="game-view" class="view hidden">
-        <div class="game-sidebar">
+        <div id="game-sidebar" class="game-sidebar">
+          <div id="game-sidebar-header" class="hidden"></div>
+          <div id="game-sidebar-view" class="hidden"></div>
           <div class="status-panel">
             <h3 id="turn-indicator">🏃 小偷回合</h3>
             <p id="signal-indicator" class="signal-indicator pedestrian-go">
@@ -112,6 +116,7 @@
             </div>
           </div>
 
+          <div id="game-sidebar-feedback" class="hidden"></div>
           <div class="game-actions">
             <button id="btn-view-rules" class="btn info" type="button">
               📖 查看规则说明
@@ -123,19 +128,43 @@
         </div>
 
         <div class="game-board-area">
+          <div id="board-toolbar-home">
+            <div id="board-view-toolbar" class="board-view-toolbar" aria-label="游戏视角">
+              <div class="board-view-switch">
+                <button id="btn-view-topdown" type="button" aria-pressed="true">俯视</button>
+                <button id="btn-view-isometric" type="button" aria-pressed="false">斜视（测试）</button>
+              </div>
+              <div id="board-zoom-controls" class="board-zoom-controls hidden" aria-label="棋盘缩放">
+                <button id="btn-board-zoom-out" type="button" aria-label="缩小棋盘">−</button>
+                <span id="board-zoom-value" aria-live="polite">100%</span>
+                <button id="btn-board-zoom-in" type="button" aria-label="放大棋盘">＋</button>
+                <button id="btn-board-fit" type="button">全图</button>
+              </div>
+            </div>
+            <p id="isometric-help" class="isometric-help hidden">在地图周围的空白处或不可点击的地块上按住拖动，100% 全图时也可平移；点“全图”可复位。斜视目前使用原有素材，遮挡轮廓和设施门口显示将在后续版本加入。</p>
+          </div>
           <div class="board-container">
+            <div id="game-map-controls" class="game-map-controls hidden">
+              <button id="btn-toggle-game-sidebar" type="button" aria-controls="game-sidebar" aria-expanded="true">收起侧栏</button>
+              <div id="game-map-zoom-slot"></div>
+            </div>
             <div id="game-board" class="board grid-10x10">
               <!-- 游戏棋盘通过 JS 渲染 -->
             </div>
           </div>
-          <div id="move-preview" class="move-preview hidden" aria-live="polite">
-            <p id="move-preview-text"></p>
-            <div id="move-confirm-actions" class="move-confirm-actions hidden">
-              <button id="btn-confirm-move" class="btn success" type="button">确认移动</button>
-              <button id="btn-cancel-move" class="btn secondary" type="button">取消预览</button>
-            </div>
+          <div id="board-feedback-home">
+            <section id="game-action-details" class="game-action-details" aria-label="本次行动说明">
+              <h3 class="action-details-title">本次行动说明</h3>
+              <div id="move-preview" class="move-preview hidden" aria-live="polite">
+                <p id="move-preview-text"></p>
+                <div id="move-confirm-actions" class="move-confirm-actions hidden">
+                  <button id="btn-confirm-move" class="btn success" type="button">确认移动</button>
+                  <button id="btn-cancel-move" class="btn secondary" type="button">取消预览</button>
+                </div>
+              </div>
+              <p id="last-action" class="last-action" role="status" aria-live="polite">行动结果会显示在这里。</p>
+            </section>
           </div>
-          <p id="last-action" class="last-action" role="status" aria-live="polite">行动结果会显示在这里。</p>
         </div>
       </main>
 

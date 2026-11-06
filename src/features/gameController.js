@@ -1,7 +1,5 @@
 import { els, state } from "../app/state.js";
-import { SIGNAL_PHASES, normalizeSignalPhase } from "../config/constants.js";
 import { createGameSession } from "../domain/game/sessionFactory.js";
-import { getCrosswalkSignalPositions, isCrosswalkTileType } from "../domain/map/crosswalk.js";
 import {
   getActiveUnitsForTurn as getTurnUnits,
   getUnitAt as getSessionUnitAt,
@@ -22,16 +20,8 @@ import {
   projectReachablePositions,
   projectSelectableUnitPositions,
 } from "./gameBoardProjection.js";
-import { renderBoard } from "../ui/board/boardRenderer.js";
-import {
-  clearBoardHighlights,
-  clearPathPreview,
-  highlightReachableCells,
-  highlightSelectableCells,
-  highlightSelectedCell,
-  renderPathPreview,
-} from "../ui/game/highlightRenderer.js";
-import { appendParkedCar, renderUnits } from "../ui/game/unitRenderer.js";
+import { createGameBoardView } from "../ui/game/gameBoardView.js";
+import { renderGameLayout } from "../ui/game/gameLayout.js";
 import {
   getRandomDiceFace,
   renderAwaitDestinationSelection,
@@ -48,8 +38,6 @@ import {
   hideMovePreview,
 } from "../ui/game/statusRenderer.js";
 
-const GAME_CELL_ID_PREFIX = "game-cell";
-
 export const GAME_PHASES = {
   AWAIT_ROLL: "AWAIT_ROLL",
   ROLLING: "ROLLING",
@@ -59,19 +47,6 @@ export const GAME_PHASES = {
   NO_MOVES: "NO_MOVES",
   FINISHED: "FINISHED",
 };
-
-function appendCrosswalkSignals(cell, { tileType, signalPhase }) {
-  if (!isCrosswalkTileType(tileType)) return;
-
-  const lightStateClass = normalizeSignalPhase(signalPhase) === SIGNAL_PHASES.PEDESTRIAN_GREEN
-    ? "green"
-    : "red";
-  getCrosswalkSignalPositions(tileType).forEach((position) => {
-    const light = document.createElement("span");
-    light.className = `signal-light ${position} ${lightStateClass}`;
-    cell.appendChild(light);
-  });
-}
 
 export const gameController = {
   session: null,
@@ -87,6 +62,11 @@ export const gameController = {
   pendingDestination: null,
   searchJob: null,
   createSearchJob: startReachabilityJob,
+  boardView: null,
+  boardMode: "topdown",
+  boardViewState: { zoom: 1, left: 0, top: 0 },
+  pathDestination: null,
+  sidebarCollapsed: false,
 
   get turn() {
     return this.session?.turn || this.fallbackTurn;
@@ -136,6 +116,7 @@ export const gameController = {
     this.reachable = new Map();
     this.invalidateReachability();
     this.pendingDestination = null;
+    this.pathDestination = null;
     els.lastAction.textContent = "行动结果会显示在这里。";
     this.phase = GAME_PHASES.AWAIT_ROLL;
 
@@ -161,6 +142,9 @@ export const gameController = {
     this.reachable = new Map();
     this.invalidateReachability();
     this.cancelMovePreview();
+    this.boardView?.dispose();
+    this.boardView = null;
+    renderGameLayout(false);
   },
 
   getCoordKey(r, c) {
@@ -187,40 +171,60 @@ export const gameController = {
     els.btnSkipTurn.addEventListener("click", () => this.skipTurn());
     els.btnConfirmMove.addEventListener("click", () => this.confirmMove());
     els.btnCancelMove.addEventListener("click", () => this.cancelMovePreview());
+    // Assignment keeps one handler when a new game is started.
+    if (els.btnViewTopdown) els.btnViewTopdown.onclick = () => this.setBoardMode("topdown");
+    if (els.btnViewIsometric) els.btnViewIsometric.onclick = () => this.setBoardMode("isometric");
+    if (els.btnBoardZoomIn) els.btnBoardZoomIn.onclick = () => this.setBoardZoom(this.boardViewState.zoom + 0.25);
+    if (els.btnBoardZoomOut) els.btnBoardZoomOut.onclick = () => this.setBoardZoom(this.boardViewState.zoom - 0.25);
+    if (els.btnBoardFit) els.btnBoardFit.onclick = () => this.setBoardZoom(1);
+    if (els.btnToggleGameSidebar) els.btnToggleGameSidebar.onclick = () => {
+      this.sidebarCollapsed = !this.sidebarCollapsed;
+      renderGameLayout(this.boardMode === "isometric", this.sidebarCollapsed);
+    };
   },
 
   renderGameBoard() {
-    renderBoard(els.gameBoard, {
-      mapDefinition: this.session?.mapDefinition || state.mapDefinition,
-      cellIdPrefix: GAME_CELL_ID_PREFIX,
-      decorateCell: (cell, { r, c, display }) => {
-        appendCrosswalkSignals(cell, {
-          tileType: display.tileType,
-          signalPhase: this.session?.signalPhase || SIGNAL_PHASES.PEDESTRIAN_GREEN,
-        });
-        if (!this.hasParkedCar(r, c)) return;
-        appendParkedCar(cell);
-      },
-      bindCell: (cell, { r, c }) => {
-        let pointerType = "mouse";
-        cell.addEventListener("pointerdown", (event) => { pointerType = event.pointerType; });
-        cell.addEventListener("mouseenter", () => this.handleCellHover(r, c));
-        cell.addEventListener("mouseleave", () => this.clearPathHover());
-        cell.addEventListener("click", (event) => {
-          const inputType = event.pointerType || pointerType;
-          pointerType = "mouse";
-          this.handleCellClick(r, c, { previewOnly: inputType === "touch" || inputType === "pen" });
-        });
-      },
+    this.boardView?.dispose();
+    renderGameLayout(this.boardMode === "isometric", this.sidebarCollapsed);
+    this.boardView = createGameBoardView(els.gameBoard, {
+      mode: this.boardMode,
+      viewState: this.boardViewState,
+      onCellClick: (r, c, options) => this.handleCellClick(r, c, options),
+      onCellHover: (r, c) => this.handleCellHover(r, c),
+      onLeave: () => this.clearPathHover(),
     });
-
-    renderUnits({
-      cellIdPrefix: GAME_CELL_ID_PREFIX,
-      policeUnits: this.policeUnits,
-      thiefUnits: this.thiefUnits,
-      animalUnits: this.session?.animalUnits || this.animalUnits,
-    });
+    this.boardView.render(this.session);
+    this.updateBoardControls();
     renderUnitCounts(this.session);
+  },
+
+  setBoardMode(mode) {
+    if (!["topdown", "isometric"].includes(mode) || mode === this.boardMode || !this.session) return;
+    this.boardMode = mode;
+    this.renderGameBoard();
+    if (this.phase === GAME_PHASES.SELECT_UNIT) this.highlightSelectableUnits(this.getActiveUnitsForTurn());
+    if (this.selectedUnit) {
+      this.boardView.setSelected(this.selectedUnit);
+      this.highlightReachable();
+      if (this.pathDestination) this.previewAction(this.pathDestination.r, this.pathDestination.c, !!this.pendingDestination);
+    }
+  },
+
+  setBoardZoom(zoom) {
+    if (this.boardMode !== "isometric") return;
+    this.boardView?.setZoom(zoom);
+    this.updateBoardControls();
+  },
+
+  updateBoardControls() {
+    const iso = this.boardMode === "isometric";
+    els.btnViewTopdown?.setAttribute("aria-pressed", String(!iso));
+    els.btnViewIsometric?.setAttribute("aria-pressed", String(iso));
+    els.boardZoomControls?.classList.toggle("hidden", !iso);
+    els.isometricHelp?.classList.toggle("hidden", !iso);
+    if (els.boardZoomValue) els.boardZoomValue.textContent = `${Math.round(this.boardViewState.zoom * 100)}%`;
+    if (els.btnBoardZoomIn) els.btnBoardZoomIn.disabled = this.boardViewState.zoom >= 2.5;
+    if (els.btnBoardZoomOut) els.btnBoardZoomOut.disabled = this.boardViewState.zoom <= 1;
   },
 
   updateTurnUI() {
@@ -231,6 +235,7 @@ export const gameController = {
     this.reachable = new Map();
     this.invalidateReachability();
     this.pendingDestination = null;
+    this.pathDestination = null;
     hideMovePreview();
     this.clearHighlights();
   },
@@ -324,8 +329,7 @@ export const gameController = {
   },
 
   highlightSelectableUnits(units) {
-    highlightSelectableCells(
-      GAME_CELL_ID_PREFIX,
+    this.boardView?.setSelectable(
       projectSelectableUnitPositions(units, (unit) => this.calculateReachableForUnit(unit)),
     );
   },
@@ -381,7 +385,7 @@ export const gameController = {
       this.phase = GAME_PHASES.SELECT_DESTINATION;
 
       this.clearHighlights();
-      highlightSelectedCell(GAME_CELL_ID_PREFIX, { r, c });
+      this.boardView?.setSelected({ r, c });
       this.highlightReachable();
       renderAwaitDestinationSelection();
       return;
@@ -412,7 +416,7 @@ export const gameController = {
       this.cancelMovePreview();
       this.phase = GAME_PHASES.SELECT_DESTINATION;
       this.clearHighlights();
-      highlightSelectedCell(GAME_CELL_ID_PREFIX, { r, c });
+      this.boardView?.setSelected({ r, c });
       this.highlightReachable();
       renderAwaitDestinationSelection();
     }
@@ -430,6 +434,7 @@ export const gameController = {
     this.reachable = new Map();
     this.invalidateReachability();
     this.pendingDestination = null;
+    this.pathDestination = null;
     hideMovePreview();
 
     applyResolvedAction({
@@ -491,11 +496,11 @@ export const gameController = {
   },
 
   clearHighlights() {
-    clearBoardHighlights(els.gameBoard);
+    this.boardView?.clearHighlights();
   },
 
   highlightReachable() {
-    highlightReachableCells(GAME_CELL_ID_PREFIX, projectReachablePositions(this.reachable));
+    this.boardView?.setReachable(projectReachablePositions(this.reachable));
   },
 
   handleCellHover(r, c) {
@@ -504,15 +509,23 @@ export const gameController = {
   },
 
   previewAction(r, c, needsConfirmation = false) {
-    clearPathPreview(els.gameBoard);
+    this.boardView?.clearPath();
+    this.pathDestination = null;
     const action = this.reachable.get(this.getCoordKey(r, c));
-    if (!action) return;
+    if (!action) { hideMovePreview(); return; }
 
-    renderPathPreview(
-      GAME_CELL_ID_PREFIX,
+    this.pathDestination = { r, c };
+    this.boardView?.setPath(
       projectPathPreview(action, (points) => this.formatMovementPoints(points)),
     );
     renderMovePreview(describeAction({ session: this.session, turn: this.turn, unit: this.selectedUnit, action, diceValue: this.diceValue }), needsConfirmation);
+    if (needsConfirmation && this.boardMode === "isometric") {
+      if (this.sidebarCollapsed) {
+        this.sidebarCollapsed = false;
+        renderGameLayout(true);
+      }
+      els.moveConfirmActions.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    }
   },
 
   confirmMove() {
@@ -523,13 +536,15 @@ export const gameController = {
 
   cancelMovePreview() {
     this.pendingDestination = null;
-    clearPathPreview(els.gameBoard);
+    this.pathDestination = null;
+    this.boardView?.clearPath();
     hideMovePreview();
   },
 
   clearPathHover() {
     if (this.pendingDestination) return;
-    clearPathPreview(els.gameBoard);
+    this.pathDestination = null;
+    this.boardView?.clearPath();
     hideMovePreview();
   },
 };

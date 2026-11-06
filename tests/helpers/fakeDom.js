@@ -1,4 +1,16 @@
 const DEFAULT_ELEMENT_IDS = [
+  "app-header",
+  "app-header-home",
+  "game-sidebar-header",
+  "game-sidebar-view",
+  "game-sidebar-feedback",
+  "board-view-toolbar",
+  "board-toolbar-home",
+  "board-feedback-home",
+  "game-action-details",
+  "game-map-controls",
+  "game-map-zoom-slot",
+  "btn-toggle-game-sidebar",
   "storage-notice",
   "storage-notice-message",
   "btn-export-map-backup",
@@ -8,6 +20,14 @@ const DEFAULT_ELEMENT_IDS = [
   "map-list-view",
   "editor-board",
   "game-board",
+  "btn-view-topdown",
+  "btn-view-isometric",
+  "board-zoom-controls",
+  "board-zoom-value",
+  "btn-board-zoom-in",
+  "btn-board-zoom-out",
+  "btn-board-fit",
+  "isometric-help",
   "palette",
   "mode-indicator",
   "app-version",
@@ -347,6 +367,12 @@ class FakeDocument {
 
   createElement(tagName) {
     return new FakeElement(tagName, this);
+  }
+
+  createElementNS(namespace, tagName) {
+    const element = this.createElement(tagName);
+    element.namespaceURI = namespace;
+    return element;
   }
 
   createTextNode(text) {

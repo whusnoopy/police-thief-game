@@ -1,0 +1,77 @@
+.board-view-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.board-view-switch, .board-zoom-controls { display: flex; align-items: center; gap: 4px; }
+.board-view-toolbar button, .game-map-controls button { min-height: 44px; min-width: 44px; padding: 8px 12px; border: 1px solid #c6d0cb; border-radius: 7px; background: #fffdf5; color: #43584e; font-family: inherit; font-size: 14px; font-weight: 700; line-height: 1.2; cursor: pointer; touch-action: manipulation; }
+.board-view-toolbar button[aria-pressed="true"] { background: #3d6d69; color: #fff; border-color: #3d6d69; }
+.board-view-toolbar button:disabled, .game-map-controls button:disabled { opacity: .4; cursor: default; }
+.board-view-toolbar button:focus-visible, .game-map-controls button:focus-visible, .iso-viewport:focus-visible { outline: 3px solid #438dbe; outline-offset: 2px; }
+.board-zoom-controls span { min-width: 42px; text-align: center; font-size: 12px; color: #526271; }
+.isometric-help { margin: 0; color: #657369; font-size: 12px; line-height: 1.5; }
+#game-board.iso-board { display: block; width: 100%; min-width: 0; border: 0; background: #edf1e4; border-radius: 8px; touch-action: pan-x pan-y; }
+.iso-viewport { width: 100%; height: 100%; overflow: auto; border-radius: inherit; overscroll-behavior: contain; touch-action: pan-x pan-y; scrollbar-width: thin; cursor: grab; user-select: none; -webkit-user-select: none; }
+.iso-viewport.over-action { cursor: pointer; }
+.iso-viewport.is-panning { cursor: grabbing; }
+.iso-stage { position: relative; }
+.iso-canvas { position: absolute; display: block; max-width: none; user-select: none; -webkit-user-select: none; cursor: inherit; }
+.iso-billboard { position: relative; width: 100%; height: 100%; }
+.iso-billboard > .story-sprite { width: 100%; height: 100%; }
+.iso-billboard .character, .iso-billboard .parked-car { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 0; background: none; box-shadow: none; pointer-events: none; }
+.iso-billboard .unit-id-badge { top: 1px; right: 2px; border: 0; background: #3d6d91; color: white; font-size: 12px; }
+.iso-billboard .thief-token .unit-id-badge { background: #b96e56; }
+.iso-billboard .unit-state-badge { width: 21px; height: 21px; }
+.iso-billboard .story-fallback { font-size: 13px; }
+.iso-ground-mark { font: 700 17px sans-serif; fill: #647d84; }
+.iso-ground-mark.mark-THIEF_SPAWN { fill: #af7159; }
+.iso-feature-label { font: 11px sans-serif; fill: #5f6856; paint-order: stroke; stroke: #fff8e4; stroke-width: 3px; stroke-linejoin: round; }
+.iso-compass { font: 700 13px sans-serif; fill: #7b8678; pointer-events: none; }
+.iso-highlight { fill: #45b87520; stroke: #23854f; stroke-width: 2.5px; stroke-linejoin: round; }
+.iso-highlight.selectable-unit { fill: #448acb25; stroke: #367eae; }
+.iso-highlight.unit-selected { fill: #efb94b30; stroke: #cc871a; stroke-width: 4px; }
+.iso-highlight.path-hover { fill: #efb94b40; stroke: #bd7b16; }
+.iso-path-line { stroke: #b4720f; stroke-width: 2.5px; stroke-dasharray: 4 3; }
+.iso-step-badge rect { fill: #ffdc85; stroke: #a97827; stroke-width: 1px; }
+.iso-step-badge text { fill: #60471d; font: 700 12px sans-serif; }
+
+.game-action-details { display: flex; flex-direction: column; gap: 10px; }
+.action-details-title { display: none; }
+.game-map-controls { position: absolute; z-index: 10; inset: 12px 12px auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; pointer-events: none; }
+.game-map-controls > * { pointer-events: auto; }
+.game-map-controls .board-zoom-controls { background: #fffdf5ed; padding: 4px; border: 1px solid #c6d0cb; border-radius: 9px; box-shadow: 0 2px 10px #43584e15; }
+
+body.isometric-playing { height: 100dvh; min-height: 0; overflow: hidden; }
+.isometric-playing .app-container { width: 100%; max-width: none; height: 100dvh; padding: 10px; gap: 10px; }
+.isometric-playing #game-view { flex: 1; min-height: 0; position: relative; display: grid; grid-template-columns: clamp(230px, 20vw, 288px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 10px; align-items: stretch; animation: none; }
+.isometric-playing .game-sidebar { min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 12px; padding: 14px; overscroll-behavior: contain; scrollbar-width: thin; }
+.isometric-playing .game-sidebar > * { flex-shrink: 0; }
+.isometric-playing .game-sidebar header { text-align: left; }
+.isometric-playing .game-sidebar h1 { font-size: 1.25rem; line-height: 1.4; }
+.isometric-playing .game-sidebar .badge { font-size: 12px; margin-top: 4px; padding: 3px 8px; }
+.isometric-playing #game-sidebar-view { display: flex; flex-direction: column; gap: 8px; }
+.isometric-playing .isometric-help { font-size: 11px; }
+.isometric-playing .status-panel { padding: 10px; }
+.isometric-playing .unit-counts { font-size: 13px; line-height: 1.5; }
+.isometric-playing .dice-panel { min-height: 0; padding: 12px; display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 8px; align-items: center; }
+.isometric-playing .dice-panel h3 { display: none; }
+.isometric-playing .dice { font-size: 2.6rem; line-height: 1.2; margin: 0; }
+.isometric-playing .dice-result { font-size: 1rem; margin: 0; }
+.isometric-playing .game-message { grid-column: 1 / -1; min-height: 0; margin: 0; font-size: 14px; line-height: 1.5; }
+.isometric-playing .dice-actions { grid-column: 1 / -1; min-height: 44px; }
+.isometric-playing .game-sidebar .btn { min-height: 44px; font-size: 14px; padding: 10px 8px; margin: 0; }
+.isometric-playing .action-details-title { display: block; font-size: 14px; }
+.isometric-playing .move-preview, .isometric-playing .last-action { padding: 10px; font-size: 13px; }
+.isometric-playing .move-confirm-actions { flex-wrap: wrap; }
+.isometric-playing .move-confirm-actions .btn { flex: 1 0 80px; }
+.isometric-playing .game-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+.isometric-playing .game-board-area { min-height: 0; gap: 0; }
+.isometric-playing .game-board-area > .board-container { position: relative; flex: 1; min-height: 0; height: 100%; padding: 0; overflow: hidden; }
+.isometric-playing #game-board.iso-board { height: 100%; }
+.isometric-sidebar-collapsed #game-view { grid-template-columns: minmax(0, 1fr); }
+.isometric-sidebar-collapsed .game-sidebar { display: none; }
+.isometric-playing .storage-notice { flex-shrink: 0; max-height: 25dvh; overflow: auto; padding: 8px 12px; font-size: 13px; }
+
+@media (max-width: 999px) {
+  .isometric-playing .app-container { padding: 6px; gap: 6px; }
+  .isometric-playing #game-view { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .isometric-playing .game-sidebar { position: absolute; z-index: 20; top: 0; bottom: 0; left: 0; width: 256px; max-width: calc(100% - 72px); box-shadow: 4px 0 18px #43584e30; }
+  .isometric-playing:not(.isometric-sidebar-collapsed) #btn-toggle-game-sidebar { margin-left: 256px; }
+  .game-map-controls { inset: 8px 8px auto; }
+}
