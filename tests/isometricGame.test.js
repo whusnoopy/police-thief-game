@@ -40,7 +40,9 @@ test("switching views preserves the rolled turn, selected unit, reachable action
   game.confirmMove();
   assert.equal(game.turn, "POLICE");
   const bankOccupant = board.querySelectorAll(".iso-unit").find(element => element.attributes["data-r"] == positions.end.r && element.attributes["data-c"] == positions.end.c);
-  assert.ok(bankOccupant.querySelectorAll(".money").length === 1);
+  assert.equal(bankOccupant.attributes["data-placement"], "driveway");
+  const bankLabel = board.querySelectorAll(".iso-actor-label").find(e => e.attributes["data-id"] === "T1");
+  assert.equal(bankLabel.querySelectorAll(".money").length, 1);
 });
 
 test("isometric unit hit targets preserve touch preview, cancellation and all four ramp routes", () => {
@@ -189,4 +191,28 @@ test("touch and pen use the original tap point when the browser retargets a wate
     game.dispose();
     game.boardMode = "topdown";
   }
+});
+
+test("foreground identifiers select by keyboard, remain stable during hover and preserve doorway money on arrival and exit", async () => {
+  const { createRampMapDefinition, setLegacyTileAt } = await import("../src/domain/map/mapModel.js");
+  const map = createRampMapDefinition();
+  for (const [r,c,type] of [[0,0,"THIEF_SPAWN"],[9,9,"POLICE_SPAWN"],[0,1,"BANK"],[0,2,"THIEF_BASE"]]) setLegacyTileAt(map,r,c,type);
+  game.boardMode="isometric";game.init(map);game.diceValue=3;game.onDiceRolled();
+  let label=board.querySelectorAll(".iso-actor-label").find(e=>e.attributes["data-id"]==="T1");
+  assert.equal(label.attributes.role,"button");
+  label.dispatchEvent({type:"keydown",key:"Enter"});
+  assert.equal(game.selectedUnit.id,"T1");
+  label=board.querySelectorAll(".iso-actor-label").find(e=>e.attributes["data-id"]==="T1");
+  game.handleCellHover(0,1);game.clearPathHover();
+  assert.equal(board.querySelectorAll(".iso-actor-label").find(e=>e.attributes["data-id"]==="T1"),label,"hover does not replace the target below a stationary pointer");
+  game.handleCellClick(0,1,{previewOnly:true});game.confirmMove();
+  let person=board.querySelectorAll(".iso-unit").find(e=>e.querySelectorAll(".thief-token").length);
+  assert.equal(person.attributes["data-placement"],"doorway");assert.equal(+person.attributes["data-scale"],.43);
+  label=board.querySelectorAll(".iso-actor-label").find(e=>e.attributes["data-id"]==="T1");
+  assert.equal(label.querySelectorAll(".money").length,1);
+  game.advanceTurn();game.diceValue=1;game.onDiceRolled();game.handleCellClick(0,1);game.handleCellClick(0,0);
+  person=board.querySelectorAll(".iso-unit").find(e=>e.querySelectorAll(".thief-token").length);
+  assert.equal(person.attributes["data-placement"],"surface");assert.equal(+person.attributes["data-scale"],.86);
+  assert.equal(game.thiefUnits[0].hasMoney,true);
+  game.dispose();game.boardMode="topdown";
 });

@@ -34,6 +34,12 @@
 .iso-path-line { stroke: #b4720f; stroke-width: 2.5px; stroke-dasharray: 4 3; }
 .iso-step-badge rect { fill: #ffdc85; stroke: #a97827; stroke-width: 1px; }
 .iso-step-badge text { fill: #60471d; font: 700 12px sans-serif; }
+.iso-actor-label { cursor: inherit; }
+.iso-actor-label[role="button"] { cursor: pointer; }
+.iso-actor-label text { fill: #fffdf1; font: 700 11px sans-serif; pointer-events: none; }
+.iso-actor-label:focus-visible { outline: 2px solid #efad28; outline-offset: 3px; }
+.iso-label-connector { stroke: #647868; stroke-width: 1; paint-order: stroke; }
+.iso-occluded-outline { pointer-events: none; }
 
 .game-action-details { display: flex; flex-direction: column; gap: 10px; }
 .action-details-title { display: none; }

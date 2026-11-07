@@ -5,12 +5,17 @@ import { appendSprite } from "../board/storybookArt.js";
 import { createIsometricScene } from "./sceneModel.js";
 import { createIsometricProjection, pickSurface, projectPoint, projectSurfacePoint } from "./projection.js";
 
-import { ACTOR_ASSETS, SCENERY_ASSETS } from "./assetMetadata.js";
+import { SCENERY_ASSETS } from "./assetMetadata.js";
 import { svgElement, polygon, line } from "./artPrimitives.js";
 import { renderScenery, renderSceneryShadow } from "./sceneryArt.js";
 import { renderGround, renderBridgeDeck, renderBridgeRails, renderBridgeShadow } from "./terrainArt.js";
 import { appendVehicleArtwork } from "./vehicleArt.js";
 import { renderCrosswalkSignal } from "./signalArt.js";
+import { getActorLayout } from "./actorLayout.js";
+import { createActorRecord, rebuildOcclusion, renderActorLabels, updateOutlineSelection } from "./occlusionLayer.js";
+import { pickOccludedActor, readOpaqueGeometry } from "./occlusionGeometry.js";
+
+let nextSceneId = 0;
 
 function billboard(parent, { x, y }, width, height, className) {
   const foreignObject = svgElement("foreignObject", { x: x - width / 2, y: y - height, width, height, class: className });
@@ -23,7 +28,8 @@ function billboard(parent, { x, y }, width, height, className) {
 
 export function createIsometricGameView(container, { viewState, onCellClick, onCellHover, onLeave, unitDirections, vehicleDirections }) {
   const projection = createIsometricProjection();
-  let scene, svg, viewport, stage, overlay, resizeObserver, geometry;
+  let scene, svg, viewport, stage, overlay, resizeObserver, geometry, defs, outlines, labels;
+  let records = [], actors = [], disposed = false, refreshPending = false;
   let selectable = [], reachable = [], selected = null, path = [], lastHover = null;
   let pointerType = "mouse", drag = null, suppressClick = false;
   let touchPress = null;
@@ -72,21 +78,56 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
   function preferredKeys() {
     return new Set([...selectable, ...reachable, ...(selected ? [selected] : [])].map(({ r, c }) => `${r},${c}`));
   }
-  function targetAt(event) {
+  function scenePoint(event) {
+    if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return null;
     const rect = svg.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
-    return pickSurface({ x: (event.clientX - rect.left) * projection.width / rect.width, y: (event.clientY - rect.top) * projection.height / rect.height }, scene.cells, preferredKeys());
+    return { x: (event.clientX - rect.left) * projection.width / rect.width, y: (event.clientY - rect.top) * projection.height / rect.height };
   }
   function eventCell(event) {
-    // Touch browsers can retarget a tap to a nearby clickable actor even when
-    // the finger is outside its bounds. Resolve the original point precisely.
-    const target = event.pointerType !== "mouse" && Number.isFinite(event.clientX) && typeof document.elementFromPoint === "function"
+    const point = scenePoint(event);
+    // Resolve the precise finger position before the browser's click adjustment.
+    const target = event.pointerType !== "mouse" && point && typeof document.elementFromPoint === "function"
       ? document.elementFromPoint(event.clientX, event.clientY) : event.target;
     for (let element = target; element && element !== viewport; element = element.parentNode) {
-      const cell = unitHitTargets.get(element);
-      if (cell) return cell;
+      const hit = unitHitTargets.get(element);
+      if (!hit) continue;
+      const exactBody = hit.actor && (hit.actor.layout.vehicle || hit.actor.alpha?.status === "ready");
+      if (point && exactBody && !hit.actor.contains(point)) continue;
+      return hit.cell;
     }
-    return targetAt(event);
+    if (!point) return null;
+    return pickOccludedActor(point, actors, preferredKeys()) || pickSurface(point, scene.cells, preferredKeys());
+  }
+  function bindActorTarget(element, cell, actor = null) {
+    unitHitTargets.set(element, { cell, actor });
+    element.addEventListener("click", (event) => { event.stopPropagation(); clickCell(actor ? eventCell(event) : cell, event); });
+    element.addEventListener("mouseenter", event => {
+      const hovered = actor ? eventCell(event) : cell;
+      if (hovered) onCellHover(hovered.r, hovered.c);
+    });
+    element.addEventListener("mouseleave", onLeave);
+    if (!actor) element.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault(); clickCell(cell, { pointerType: "mouse" });
+    });
+  }
+  function refreshActorPresentation() {
+    if (!labels) return;
+    updateOutlineSelection(actors, selected);
+    renderActorLabels(labels, actors, projection, selected, preferredKeys(), bindActorTarget);
+  }
+  function refreshOcclusion() {
+    if (disposed || !outlines) return;
+    rebuildOcclusion(defs, outlines, actors, records, selected);
+    refreshActorPresentation();
+  }
+  function scheduleOcclusion() {
+    if (disposed || refreshPending) return;
+    refreshPending = true;
+    const refresh = () => { refreshPending = false; refreshOcclusion(); };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(refresh);
+    else refresh();
   }
   function isActionTarget(cell) {
     return !!cell && preferredKeys().has(`${cell.r},${cell.c}`);
@@ -143,6 +184,9 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
 
   return {
     render(session) {
+      for (const actor of actors) actor.unsubscribe();
+      records = []; actors = []; disposed = false;
+      const prefix = `iso-scene-${++nextSceneId}`;
       container.className = "board iso-board";
       container.style.backgroundImage = "none";
       container.innerHTML = "";
@@ -162,51 +206,60 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
       const shadows = svgElement("g", { class: "iso-shadows", "pointer-events": "none" });
       const objects = svgElement("g", { class: "iso-objects", "pointer-events": "none" });
       overlay = svgElement("g", { class: "iso-overlays", "pointer-events": "none" });
-      svg.append(ground, shadows, objects, overlay);
+      defs = svgElement("defs");
+      outlines = svgElement("g", { class: "iso-occlusions", "pointer-events": "none" });
+      labels = svgElement("g", { class: "iso-actor-labels", "pointer-events": "none" });
+      svg.append(defs, ground, shadows, objects, overlay, outlines, labels);
       for (const cell of scene.cells) if (!isBridgeTileType(cell.tileType)) renderGround(ground, cell, projection, session);
       for (const cell of scene.objects) {
         if (cell.kind === "scenery") renderSceneryShadow(shadows, cell, projection);
         if (cell.kind === "bridge") renderBridgeShadow(shadows, cell, projection);
       }
-      for (const cell of scene.objects) {
+      for (const [index, cell] of scene.objects.entries()) {
+        const id = `${prefix}-object-${index}`;
         const group = svgElement("g", { class: `iso-object iso-${cell.kind}`, "data-r": cell.r, "data-c": cell.c });
         objects.appendChild(group);
-        if (cell.kind === "bridge") { renderBridgeDeck(group, cell, projection, session.mapDefinition); continue; }
-        if (cell.kind === "bridge-front") { renderBridgeRails(group, cell, projection, session.mapDefinition, true); continue; }
-        if (cell.kind === "signal") { renderCrosswalkSignal(group, cell, projection, session.signalPhase); continue; }
-        const feature = !!SCENERY_ASSETS[cell.tileType];
-        if (cell.kind === "scenery") {
-          renderScenery(group, cell, projection, session.mapDefinition);
-          group.appendChild(svgElement("text", { x: cell.anchor.x, y: cell.anchor.y + 17, class: "iso-feature-label", "text-anchor": "middle" }, TILE_TYPES[cell.tileType].name));
-        } else {
-          const vehicle = cell.kind === "car" || cell.unit.inCar;
-          const actor = cell.side === "animal" ? (/🐮|🐄/.test(cell.unit.emoji) ? "cow" : "pig") : cell.side;
-          const asset = ACTOR_ASSETS[vehicle ? "vehicle" : actor];
-          const anchor = { x: cell.anchor.x, y: cell.anchor.y + (vehicle ? 26 : asset.height * (1 - asset.foot)) };
-          // Doorway scaling and separate driveway anchors remain in the next stage.
-          if (feature) { anchor.x += 19; anchor.y += 9; }
-          const { content, foreignObject } = billboard(group, anchor, asset.width, asset.height, "iso-unit-art");
-          unitHitTargets.set(foreignObject, cell);
-          const artwork = { appendArtwork: vehicle
-            ? container => appendVehicleArtwork(container, cell, projection, cell.direction, cell.side === "police")
-            : (container, name, className, label) => appendSprite(container, name, className, label, { url: new URL(`../../assets/isometric/${name}.webp`, import.meta.url).href }) };
-          if (cell.kind === "car") appendParkedCar(content, artwork);
-          else appendUnitToken(content, cell.unit, cell.side, artwork);
-          foreignObject.setAttribute("pointer-events", "all");
-          foreignObject.addEventListener("click", (event) => { event.stopPropagation(); clickCell(cell, event); });
-          foreignObject.addEventListener("mouseenter", () => onCellHover(cell.r, cell.c));
-          foreignObject.addEventListener("mouseleave", onLeave);
+        if (cell.kind !== "unit" && cell.kind !== "car") {
+          const art = svgElement("g", { id });
+          group.appendChild(art);
+          if (cell.kind === "bridge") renderBridgeDeck(art, cell, projection, session.mapDefinition);
+          if (cell.kind === "bridge-front") renderBridgeRails(art, cell, projection, session.mapDefinition, true);
+          if (cell.kind === "signal") renderCrosswalkSignal(art, cell, projection, session.signalPhase);
+          if (cell.kind === "scenery") {
+            renderScenery(art, cell, projection, session.mapDefinition);
+            group.appendChild(svgElement("text", { x: cell.anchor.x, y: cell.anchor.y + 17, class: "iso-feature-label", "text-anchor": "middle" }, TILE_TYPES[cell.tileType].name));
+          }
+          records.push({ cell, index, maskId: id, ...readOpaqueGeometry(art) });
+          continue;
         }
+        const layout = getActorLayout(cell, projection);
+        group.setAttribute("data-placement", layout.placement);
+        group.setAttribute("data-scale", layout.scale);
+        const actor = createActorRecord(defs, cell, layout, projection, id, index, scheduleOcclusion);
+        actors.push(actor); records.push(actor);
+        const { content, foreignObject } = billboard(group, { x: layout.foot.x, y: layout.top + layout.height }, layout.width, layout.height, "iso-unit-art");
+        const artwork = { showBadges: false, appendArtwork: layout.vehicle
+          ? container => appendVehicleArtwork(container, cell, projection, cell.direction, cell.side === "police")
+          : (container, name, className, label) => {
+            const image = appendSprite(container, name, className, label, { url: actor.url });
+            image.addEventListener("error", () => { actor.failed = true; scheduleOcclusion(); });
+            return image;
+          } };
+        if (cell.kind === "car") appendParkedCar(content, artwork);
+        else appendUnitToken(content, cell.unit, cell.side, artwork);
+        foreignObject.setAttribute("pointer-events", "all");
+        bindActorTarget(foreignObject, cell, actor);
       }
+      refreshOcclusion();
       // Direction cues refer to map north/east, not the screen's up/right.
       for (const { direction, dr, dc, name } of BRIDGE_DIRECTIONS) {
         const pos = projectPoint({ r: 4.5 + dr * 5.4, c: 4.5 + dc * 5.4 }, projection);
         svg.appendChild(svgElement("text", { x: pos.x, y: pos.y, class: "iso-compass", "text-anchor": "middle", "data-direction": direction }, name));
       }
-      svg.addEventListener("click", (event) => clickCell(targetAt(event), event));
+      svg.addEventListener("click", (event) => clickCell(eventCell(event), event));
       svg.addEventListener("mousemove", (event) => {
         if (drag?.moved) return;
-        const cell = targetAt(event);
+        const cell = eventCell(event);
         const key = cell ? `${cell.r},${cell.c}` : null;
         if (key === lastHover) return;
         lastHover = key;
@@ -264,10 +317,10 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
       }
       drawHighlights();
     },
-    clearHighlights() { selectable = []; reachable = []; selected = null; path = []; drawHighlights(); },
-    setSelectable(positions) { selectable = positions; drawHighlights(); },
-    setReachable(positions) { reachable = positions; drawHighlights(); },
-    setSelected(position) { selected = position; drawHighlights(); },
+    clearHighlights() { selectable = []; reachable = []; selected = null; path = []; drawHighlights(); refreshActorPresentation(); },
+    setSelectable(positions) { selectable = positions; drawHighlights(); refreshActorPresentation(); },
+    setReachable(positions) { reachable = positions; drawHighlights(); refreshActorPresentation(); },
+    setSelected(position) { selected = position; drawHighlights(); refreshActorPresentation(); },
     setPath(segments) { path = segments; drawHighlights(); },
     clearPath() { path = []; drawHighlights(); },
     setZoom(zoom) {
@@ -276,6 +329,8 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
       fitScene(viewState.zoom === 1 ? { x: projection.width / 2, y: projection.height / 2 } : centre);
     },
     dispose() {
+      disposed = true;
+      for (const actor of actors) actor.unsubscribe();
       if (viewport) {
         const centre = visibleCentre();
         viewState.centerX = centre.x;

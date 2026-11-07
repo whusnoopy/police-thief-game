@@ -27,9 +27,112 @@ import {
 } from "../../src/ui/isometric/sceneryArt.js";
 import { appendVehicleArtwork } from "../../src/ui/isometric/vehicleArt.js";
 import { renderCrosswalkSignal } from "../../src/ui/isometric/signalArt.js";
+import { createIsometricGameView } from "../../src/ui/isometric/isometricRenderer.js";
 
 const projection = createIsometricProjection();
 const center = { r: 4, c: 4 };
+
+for (const kind of ["people", "animals", "bridge", "facilities"]) {
+  const names = {
+    people: "人物与山体遮挡",
+    animals: "动物与山体遮挡",
+    bridge: "桥栏、载具与空车",
+    facilities: "门口缩小与车辆停靠",
+  };
+  const preview = card("occlusion-gallery", names[kind], `occlusion-${kind}`);
+  preview.classList.add("occlusion-preview");
+  const host = document.createElement("div");
+  preview.appendChild(host);
+  const map = createRampMapDefinition();
+  if (kind === "people" || kind === "animals") {
+    for (const [r, c] of [
+      [4, 4],
+      [4, 5],
+      [5, 4],
+    ])
+      setLegacyTileAt(map, r, c, "MOUNTAIN");
+  } else if (kind === "bridge") {
+    for (const c of [4, 5]) setLegacyTileAt(map, 4, c, "OVERPASS");
+  } else {
+    setLegacyTileAt(map, 4, 4, "BANK");
+    setLegacyTileAt(map, 4, 5, "POLICE_STATION");
+  }
+  const session = createGameSession(map);
+  if (kind === "animals")
+    session.animalUnits.push(
+      { id: "A1", r: 3, c: 4, emoji: "🐷" },
+      { id: "A2", r: 3, c: 5, emoji: "🐮" },
+    );
+  if (kind === "people") {
+    session.thiefUnits.push({
+      id: "T1",
+      r: 3,
+      c: 4,
+      state: "ACTIVE",
+      hasMoney: true,
+      inCar: false,
+    });
+    session.policeUnits.push({
+      id: "P1",
+      r: 3,
+      c: 5,
+      state: "CARRYING",
+      inCar: false,
+    });
+  }
+  if (kind === "bridge") {
+    session.thiefUnits.push({
+      id: "T1",
+      r: 4,
+      c: 4,
+      state: "ACTIVE",
+      inCar: true,
+    });
+    session.parkedCars.add("4,5");
+  }
+  if (kind === "facilities") {
+    session.thiefUnits.push({
+      id: "T1",
+      r: 4,
+      c: 4,
+      state: "ACTIVE",
+      hasMoney: true,
+      inCar: false,
+    });
+    session.policeUnits.push({
+      id: "P1",
+      r: 4,
+      c: 5,
+      state: "IDLE",
+      inCar: true,
+    });
+  }
+  let selected = null;
+  const view = createIsometricGameView(host, {
+    viewState: { zoom: 2.5 },
+    onCellHover() {},
+    onLeave() {},
+    onCellClick(r, c) {
+      if (
+        ![
+          ...session.thiefUnits,
+          ...session.policeUnits,
+          ...session.animalUnits,
+        ].some((u) => u.r === r && u.c === c) &&
+        !session.parkedCars.has(`${r},${c}`)
+      )
+        return;
+      selected = selected?.r === r && selected?.c === c ? null : { r, c };
+      view.setSelected(selected);
+    },
+  });
+  view.render(session);
+  view.setSelectable([
+    ...session.thiefUnits,
+    ...session.policeUnits,
+    ...session.animalUnits,
+  ]);
+}
 
 function card(section, label, id) {
   const figure = document.createElement("figure");
@@ -89,14 +192,14 @@ function context(
           vehicle.police,
         );
         for (const [name, value] of Object.entries({
-          x: current.anchor.x - 38,
-          y: current.anchor.y - 50,
-          width: 76,
-          height: 76,
+          x: current.anchor.x - 38 * ACTOR_ASSETS.vehicle.displayScale,
+          y: current.anchor.y - 50 * ACTOR_ASSETS.vehicle.displayScale,
+          width: 76 * ACTOR_ASSETS.vehicle.displayScale,
+          height: 76 * ACTOR_ASSETS.vehicle.displayScale,
         }))
           image.setAttribute(name, value);
-        image.style.width = "76px";
-        image.style.height = "76px";
+        image.style.width = `${76 * ACTOR_ASSETS.vehicle.displayScale}px`;
+        image.style.height = `${76 * ACTOR_ASSETS.vehicle.displayScale}px`;
       }
     }
     if (current.kind === "bridge-front")
@@ -171,10 +274,10 @@ for (const [name, label] of [
     signalPhase: "PEDESTRIAN_GREEN",
   });
   const image = svgElement("foreignObject", {
-    x: cell.anchor.x - asset.width / 2,
-    y: cell.anchor.y - asset.height * asset.foot,
-    width: asset.width,
-    height: asset.height,
+    x: cell.anchor.x - asset.width * asset.displayScale / 2,
+    y: cell.anchor.y - asset.height * asset.foot * asset.displayScale,
+    width: asset.width * asset.displayScale,
+    height: asset.height * asset.displayScale,
   });
   const content = document.createElement("div");
   content.className = "iso-billboard";

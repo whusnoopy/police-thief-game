@@ -30,6 +30,15 @@
       #terrain-gallery {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
+      #occlusion-gallery {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .art-preview.occlusion-preview {
+        height: 320px;
+      }
+      .occlusion-preview > .iso-board {
+        height: 100%;
+      }
       #bridge-gallery,
       #vehicle-gallery {
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -77,6 +86,11 @@
           >返回游戏</a
         >
       </p>
+      <h2>遮挡、编号与设施显示</h2>
+      <p>
+        点击编号或轮廓查看选中效果，拖动可观察细节；此处仅展示，不执行游戏行动。
+      </p>
+      <div id="occlusion-gallery" class="art-grid"></div>
       <h2>草坪、水体与过街信号灯</h2>
       <p>
         草坪略高，水面略低；相邻同类地形连续拼接。两端灯头相向，面向过街行人，背向镜头时显示灯壳。

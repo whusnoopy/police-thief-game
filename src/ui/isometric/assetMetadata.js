@@ -1,7 +1,9 @@
-// Geometry is shared by drawing, bounds and the later occlusion/doorway stage.
+// Drawing, occlusion and doorway anchors share these world-space transforms.
+const LOW_BUILDING = Object.freeze({ scaleR: 0.9, scaleC: 0.9, offsetR: 0, offsetC: 0, scaleHeight: 0.42 });
 // These are display anchors only; every object still occupies one map cell.
 export const SCENERY_ASSETS = Object.freeze({
   BANK: {
+    display: LOW_BUILDING,
     height: 64,
     halfR: 0.34,
     halfC: 0.38,
@@ -12,6 +14,7 @@ export const SCENERY_ASSETS = Object.freeze({
     roof: "#879d8a",
   },
   POLICE_STATION: {
+    display: LOW_BUILDING,
     height: 68,
     halfR: 0.35,
     halfC: 0.36,
@@ -22,6 +25,7 @@ export const SCENERY_ASSETS = Object.freeze({
     roof: "#658fa5",
   },
   THIEF_BASE: {
+    display: LOW_BUILDING,
     height: 49,
     halfR: 0.29,
     halfC: 0.32,
@@ -32,6 +36,7 @@ export const SCENERY_ASSETS = Object.freeze({
     roof: "#c37b5e",
   },
   FARM: {
+    display: LOW_BUILDING,
     height: 49,
     halfR: 0.31,
     halfC: 0.37,
@@ -42,6 +47,7 @@ export const SCENERY_ASSETS = Object.freeze({
     roof: "#8ba393",
   },
   BUILDING: {
+    display: LOW_BUILDING,
     height: 66,
     halfR: 0.34,
     halfC: 0.35,
@@ -51,6 +57,7 @@ export const SCENERY_ASSETS = Object.freeze({
     roof: "#91a8a6",
   },
   CONSTRUCTION_SITE: {
+    display: LOW_BUILDING,
     height: 55,
     halfR: 0.34,
     halfC: 0.35,
@@ -60,6 +67,7 @@ export const SCENERY_ASSETS = Object.freeze({
     roof: "#c6c5ae",
   },
   BARRIER: {
+    display: { scaleR: 0.9, scaleC: 0.9, offsetR: 0, offsetC: 0, scaleHeight: 0.48 },
     height: 22,
     halfR: 0.1,
     halfC: 0.4,
@@ -79,11 +87,11 @@ export const SCENERY_ASSETS = Object.freeze({
 });
 
 export const ACTOR_ASSETS = Object.freeze({
-  police: { width: 54, height: 54, foot: 0.975 },
-  thief: { width: 54, height: 54, foot: 0.975 },
-  pig: { width: 48, height: 48, foot: 0.88 },
-  cow: { width: 51, height: 51, foot: 0.89 },
-  vehicle: { width: 76, height: 76, foot: 1 },
+  police: { width: 54, height: 54, foot: 0.975, displayScale: 0.86 },
+  thief: { width: 54, height: 54, foot: 0.975, displayScale: 0.86 },
+  pig: { width: 48, height: 48, foot: 0.88, displayScale: 0.86 },
+  cow: { width: 51, height: 51, foot: 0.89, displayScale: 0.86 },
+  vehicle: { width: 76, height: 76, foot: 1, displayScale: 0.86 },
 });
 
 export function getTrailFacing(action, origin, fallback = "S") {

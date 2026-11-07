@@ -333,14 +333,15 @@ function mountain(p, cell, map) {
 export function renderSceneryShadow(parent, cell, projection) {
   const asset = SCENERY_ASSETS[cell.tileType];
   if (!asset) return;
-  const p = createPainter(parent, cell, projection);
+  const p = createPainter(parent, cell, projection, asset.display);
   const vertices = [
     [-asset.halfR, -asset.halfC],
     [asset.halfR, -asset.halfC],
     [asset.halfR, asset.halfC],
     [-asset.halfR, asset.halfC],
   ].map(([r, c]) => p.at(r, c));
-  const shift = { x: asset.height * 0.2, y: asset.height * 0.11 };
+  const height = asset.height * (asset.display?.scaleHeight ?? 1);
+  const shift = { x: height * 0.2, y: height * 0.11 };
   polygon(
     parent,
     [
@@ -366,7 +367,7 @@ export function renderScenery(parent, cell, projection, map) {
   if (!a) return;
   parent.setAttribute("data-asset", cell.tileType);
   parent.setAttribute("data-front", a.front || "terrain");
-  const p = createPainter(parent, cell, projection);
+  const p = createPainter(parent, cell, projection, a.display);
   if (cell.tileType === "MOUNTAIN") {
     mountain(p, cell, map);
     return;

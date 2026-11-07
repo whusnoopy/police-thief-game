@@ -31,10 +31,15 @@ export function line(parent, a, b, attributes = {}) {
 
 // All buildings and vehicles use the same world axes and fixed lighting.
 // h is the object's height above its road/bridge/ramp surface, in display units.
-export function createPainter(parent, cell, projection) {
+export function createPainter(parent, cell, projection, transform = {}) {
   const at = (r, c, h = 0) => {
-    const point = projectSurfacePoint(cell, r, c, projection);
-    return { x: point.x, y: point.y - h };
+    const point = projectSurfacePoint(
+      cell,
+      r * (transform.scaleR ?? 1) + (transform.offsetR ?? 0),
+      c * (transform.scaleC ?? 1) + (transform.offsetC ?? 0),
+      projection,
+    );
+    return { x: point.x, y: point.y - h * (transform.scaleHeight ?? 1) };
   };
   const face = (vertices, fill, attributes = {}) =>
     polygon(

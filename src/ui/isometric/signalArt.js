@@ -31,7 +31,14 @@ export function renderCrosswalkSignal(parent, cell, projection, signalPhase) {
     svgElement("title", {}, `过街信号灯：${green ? "行人绿灯" : "行人红灯"}`),
   );
   parent.appendChild(group);
-  const p = createPainter(group, cell, projection);
+  const size = 0.86;
+  const p = createPainter(group, cell, projection, {
+    scaleR: size,
+    scaleC: size,
+    offsetR: localR * (1 - size),
+    offsetC: localC * (1 - size),
+    scaleHeight: size,
+  });
   const local = (f, s, h) => [
     localR + dr * f - dc * s,
     localC + dc * f + dr * s,
@@ -55,7 +62,7 @@ export function renderCrosswalkSignal(parent, cell, projection, signalPhase) {
   );
   p.edge([localR, localC, 1.7], [localR, localC, 25], {
     stroke: "#607c78",
-    "stroke-width": 2,
+    "stroke-width": 1.7,
     class: "iso-signal-pole",
   });
   p.edge(
