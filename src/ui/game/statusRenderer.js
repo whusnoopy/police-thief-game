@@ -24,10 +24,11 @@ function setSignalIndicator(signalPhase) {
   els.signalIndicator.classList.toggle("pedestrian-go", !isPedestrianRed);
 }
 
-function setActionButtons({ rollHidden = false, rollDisabled = false, skipHidden = true } = {}) {
+function setActionButtons({ rollHidden = false, rollDisabled = false, skipHidden = true, selectionHidden = true } = {}) {
   els.btnRollDice.disabled = rollDisabled;
   els.btnRollDice.classList.toggle("hidden", rollHidden);
   els.btnSkipTurn.classList.toggle("hidden", skipHidden);
+  els.btnCancelSelection.classList.toggle("hidden", selectionHidden);
 }
 
 export function getRandomDiceFace() {
@@ -76,7 +77,8 @@ export function renderAwaitUnitSelection(diceValue) {
 }
 
 export function renderAwaitDestinationSelection() {
-  els.gameMessage.textContent = "选择高亮落点；触屏先预览，再确认移动。";
+  els.gameMessage.textContent = "选择高亮落点，或点击其他己方角色换人；再次点击已选角色可取消。触屏落点需确认。";
+  setActionButtons({ rollHidden: true, rollDisabled: true, selectionHidden: false });
 }
 
 export function renderUnitCounts(session) {
@@ -98,6 +100,7 @@ export function hideMovePreview() {
 }
 
 export function renderVictory({ type, escaped = 0, caught = 0 }) {
+  els.btnCancelSelection.classList.add("hidden");
   els.victoryModal.classList.remove("hidden");
 
   if (type === "DRAW") {

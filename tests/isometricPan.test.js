@@ -78,3 +78,42 @@ test("clickable presses, right clicks, tiny motion and cancelled drags cannot be
   assert.ok(!viewport.classList.contains("is-panning"));
   view.dispose();
 });
+
+test("resizing keeps the map centre when native scrolling is clamped before the observer callback", () => {
+  const previous = globalThis.ResizeObserver;
+  let resize;
+  globalThis.ResizeObserver = class {
+    constructor(callback) { resize = callback; }
+    observe() {}
+    disconnect() {}
+  };
+  try {
+    const { view, viewState, viewport, svg } = setup();
+    viewport.clientWidth = 822;
+    viewport.clientHeight = 1100;
+    resize();
+    const expected = { x: viewState.centerX, y: viewState.centerY };
+    viewport.clientWidth = 1602;
+    viewport.clientHeight = 580;
+    viewport.scrollLeft = 42; // old scrollable width minus the new viewport
+    resize();
+    assert.ok(Math.abs(viewState.centerX - expected.x) < 1e-7);
+    assert.ok(Math.abs(viewState.centerY - expected.y) < 1e-7);
+    const bounds = svg.getBoundingClientRect();
+    assert.ok(bounds.left >= 0 && bounds.top >= 0);
+    assert.ok(bounds.left + bounds.width <= 1602 && bounds.top + bounds.height <= 580);
+    view.setZoom(1.75);
+    viewport.scrollLeft += 60;
+    viewport.dispatchEvent({ type: "scroll" });
+    const panned = { x: viewState.centerX, y: viewState.centerY };
+    viewport.clientWidth = 732;
+    viewport.clientHeight = 1121;
+    resize();
+    assert.ok(Math.abs(viewState.centerX - panned.x) < 1e-7);
+    assert.ok(Math.abs(viewState.centerY - panned.y) < 1e-7);
+    view.dispose();
+  } finally {
+    if (previous === undefined) delete globalThis.ResizeObserver;
+    else globalThis.ResizeObserver = previous;
+  }
+});

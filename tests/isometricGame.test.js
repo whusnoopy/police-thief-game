@@ -83,10 +83,110 @@ test("isometric rendering has readable asset fallbacks and excludes escaped or j
   game.thiefUnits.push({ id: "T3", r: 2, c: 1, state: "ESCAPED" });
   game.setBoardMode("isometric");
   assert.equal(board.querySelectorAll(".character").length, 2);
-  const image = board.querySelectorAll(".story-sprite")[0];
+  const image = board.querySelectorAll(".story-sprite").find(element => element.tagName === "IMG");
   image.dispatchEvent({ type: "error" });
   assert.equal(board.querySelectorAll(".story-fallback").length, 1);
   game.dispose();
   assert.equal(board.children.length, 0);
   assert.equal(game.boardView, null);
+});
+
+test("driving direction follows the final step and survives view changes, while a new game resets it", () => {
+  for (const direction of ["N","E","S","W"]) {
+    const {positions,map}=begin(direction);
+    game.setBoardMode("isometric");
+    game.handleCellClick(positions.start.r,positions.start.c);
+    game.handleCellClick(positions.end.r,positions.end.c);
+    assert.equal(game.unitDirections.get("T1"),direction);
+    const occupant=board.querySelectorAll(".iso-unit").find(e=>e.attributes["data-r"]==positions.end.r&&e.attributes["data-c"]==positions.end.c);
+    assert.equal(occupant.querySelectorAll(".iso-vehicle-art")[0].attributes["data-direction"],direction);
+    assert.equal("direction" in game.thiefUnits[0],false);
+    game.setBoardMode("topdown");game.setBoardMode("isometric");
+    assert.equal(game.unitDirections.get("T1"),direction);
+    game.init(map);
+    assert.equal(game.unitDirections.size,0);
+  }
+});
+
+test("raised grass and lowered water retain surface-aligned previews and resolved unit positions across views", async () => {
+  const { createRampMapDefinition, setLegacyTileAt } = await import("../src/domain/map/mapModel.js");
+  const { createIsometricProjection, projectSurfacePoint } = await import("../src/ui/isometric/projection.js");
+  const projection = createIsometricProjection();
+  for (const type of ["GRASS", "RIVER"]) {
+    const map = createRampMapDefinition();
+    for (const [r, c, tile] of [[4, 3, "THIEF_SPAWN"], [4, 4, type], [9, 9, "POLICE_SPAWN"], [0, 1, "BANK"], [0, 2, "THIEF_BASE"]]) setLegacyTileAt(map, r, c, tile);
+    game.boardMode = "isometric";
+    game.init(map);
+    game.thiefUnits[0].inCar = type === "RIVER";
+    game.renderGameBoard();
+    game.diceValue = 2;
+    game.onDiceRolled();
+    game.handleCellClick(4, 3);
+    game.handleCellClick(4, 4, { previewOnly: true });
+    const first = projectSurfacePoint({ r: 4, c: 3, tileType: "ROAD" }, 0, 0.5, projection);
+    const next = projectSurfacePoint({ r: 4, c: 4, tileType: type }, 0, -0.5, projection);
+    const centre = projectSurfacePoint({ r: 4, c: 4, tileType: type }, 0, 0, projection);
+    for (const mode of ["isometric", "topdown", "isometric"]) {
+      game.setBoardMode(mode);
+      assert.deepEqual(game.pendingDestination, { r: 4, c: 4 });
+      if (mode !== "isometric") continue;
+      const lines = board.querySelectorAll(".iso-path-line");
+      assert.equal(lines.length, 3);
+      assert.equal(+lines[1].attributes.y1, first.y);
+      assert.equal(+lines[1].attributes.y2, next.y);
+      assert.equal(+lines[2].attributes.y1, next.y);
+      assert.equal(+lines[2].attributes.y2, centre.y);
+    }
+    game.confirmMove();
+    assert.deepEqual({ r: game.thiefUnits[0].r, c: game.thiefUnits[0].c }, { r: 4, c: 4 });
+    assert.equal(game.thiefUnits[0].inCar, type === "RIVER");
+    assert.equal(game.turn, "POLICE");
+    game.dispose();
+  }
+  game.boardMode = "topdown";
+});
+
+test("touch and pen use the original tap point when the browser retargets a water destination to a nearby car", async () => {
+  const { createRampMapDefinition, setLegacyTileAt } = await import("../src/domain/map/mapModel.js");
+  const { createIsometricProjection, projectSurfacePoint } = await import("../src/ui/isometric/projection.js");
+  const projection = createIsometricProjection();
+  const map = createRampMapDefinition();
+  for (const [r, c, type] of [[4, 3, "THIEF_SPAWN"], [4, 4, "RIVER"], [9, 9, "POLICE_SPAWN"], [0, 1, "BANK"], [0, 2, "THIEF_BASE"]]) setLegacyTileAt(map, r, c, type);
+  game.boardMode = "isometric";
+  game.init(map);
+  game.thiefUnits[0].inCar = true;
+  game.renderGameBoard();
+  game.diceValue = 2;
+  game.onDiceRolled();
+  const viewport = board.querySelectorAll(".iso-viewport")[0];
+  const svg = board.querySelectorAll(".iso-canvas")[0];
+  svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: projection.width, height: projection.height });
+  const token = board.querySelectorAll(".character").find(e => e.dataset.id === "T1");
+  const actor = token.parentNode.parentNode;
+  const point = projectSurfacePoint({ r: 4, c: 4, tileType: "RIVER" }, 0, 0, projection);
+  try {
+    for (const pointerType of ["touch", "pen"]) {
+      game.handleCellClick(4, 3);
+      // The event's target was enlarged by the browser, while precise hit testing
+      // sees the SVG surface at the original finger/stylus position.
+      env.document.elementFromPoint = () => svg;
+      viewport.dispatchEvent({ type: "pointerdown", pointerType, pointerId: 1, clientX: point.x, clientY: point.y, target: actor });
+      actor.dispatchEvent({ type: "click", pointerType, clientX: point.x - 6, clientY: point.y - 4 });
+      assert.equal(game.selectedUnit.id, "T1");
+      assert.deepEqual(game.pendingDestination, { r: 4, c: 4 });
+      assert.equal(game.diceValue, 2);
+      assert.equal(game.turn, "THIEF");
+      game.cancelMovePreview();
+      // A real tap on the actor still supports cancelling the selection.
+      env.document.elementFromPoint = () => actor;
+      viewport.dispatchEvent({ type: "pointerdown", pointerType, pointerId: 2, clientX: point.x - 40, clientY: point.y - 24, target: actor });
+      actor.dispatchEvent({ type: "click", pointerType });
+      assert.equal(game.selectedUnit, null);
+      assert.equal(game.phase, GAME_PHASES.SELECT_UNIT);
+    }
+  } finally {
+    delete env.document.elementFromPoint;
+    game.dispose();
+    game.boardMode = "topdown";
+  }
 });

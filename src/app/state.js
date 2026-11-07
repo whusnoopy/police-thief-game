@@ -69,6 +69,7 @@ export const els = {
   moveConfirmActions: document.getElementById("move-confirm-actions"),
   btnConfirmMove: document.getElementById("btn-confirm-move"),
   btnCancelMove: document.getElementById("btn-cancel-move"),
+  btnCancelSelection: document.getElementById("btn-cancel-selection"),
   btnRollDice: document.getElementById("btn-roll-dice"),
   btnSkipTurn: document.getElementById("btn-skip-turn"),
   btnViewRules: document.getElementById("btn-view-rules"),

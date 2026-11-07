@@ -1,7 +1,7 @@
 import { getBoardCellElement } from '../board/boardRenderer.js';
 import { appendSprite, appendStateBadge, TILE_ASSETS } from '../board/storybookArt.js';
 
-export function appendUnitToken(cell, unit, side) {
+export function appendUnitToken(cell, unit, side, { appendArtwork = appendSprite } = {}) {
   const animal = side === 'animal';
   const role = animal ? (unit.emoji === '🐮' || unit.emoji === '🐄' ? 'cow' : 'pig') : side;
   const asset = unit.inCar ? (side === 'police' ? 'police-car' : 'car') : role;
@@ -13,7 +13,7 @@ export function appendUnitToken(cell, unit, side) {
   token.title = `${name}${status}`;
   token.setAttribute('role', 'img');
   token.setAttribute('aria-label', token.title);
-  appendSprite(token, asset, 'unit-art', name);
+  appendArtwork(token, asset, 'unit-art', name);
   if (!animal) {
     const badge = document.createElement('span');
     badge.className = 'unit-id-badge';
@@ -25,15 +25,17 @@ export function appendUnitToken(cell, unit, side) {
   if (unit.state === 'CARRYING') appendStateBadge(token, 'escort');
   if (Object.keys(TILE_ASSETS).some(type => cell.classList.contains(`type-${type}`))) cell.classList.add('occupied-feature');
   cell.appendChild(token);
+  return token;
 }
 
-export function appendParkedCar(cell) {
+export function appendParkedCar(cell, { appendArtwork = appendSprite } = {}) {
   const parkedCar = document.createElement('span');
   parkedCar.className = 'parked-car';
   parkedCar.setAttribute('role', 'img');
   parkedCar.setAttribute('aria-label', '空车');
-  appendSprite(parkedCar, 'car', 'parked-art', '空车');
+  appendArtwork(parkedCar, 'car', 'parked-art', '空车');
   cell.appendChild(parkedCar);
+  return parkedCar;
 }
 
 export function renderUnits({ cellIdPrefix, policeUnits, thiefUnits, animalUnits = [] }) {

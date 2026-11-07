@@ -22,6 +22,7 @@ import {
 } from "./gameBoardProjection.js";
 import { createGameBoardView } from "../ui/game/gameBoardView.js";
 import { renderGameLayout } from "../ui/game/gameLayout.js";
+import { getTrailFacing } from "../ui/isometric/assetMetadata.js";
 import {
   getRandomDiceFace,
   renderAwaitDestinationSelection,
@@ -67,6 +68,8 @@ export const gameController = {
   boardViewState: { zoom: 1, left: 0, top: 0 },
   pathDestination: null,
   sidebarCollapsed: false,
+  unitDirections: new Map(),
+  vehicleDirections: new Map(),
 
   get turn() {
     return this.session?.turn || this.fallbackTurn;
@@ -110,6 +113,8 @@ export const gameController = {
     this.cancelPendingRoll();
     this.cancelPendingSearch();
     this.session = createGameSession(mapDefinition);
+    this.unitDirections = new Map();
+    this.vehicleDirections = new Map();
     this.turn = this.session.turn;
     this.diceValue = this.session.diceValue;
     this.selectedUnit = null;
@@ -142,6 +147,7 @@ export const gameController = {
     this.reachable = new Map();
     this.invalidateReachability();
     this.cancelMovePreview();
+    els.btnCancelSelection.classList.add("hidden");
     this.boardView?.dispose();
     this.boardView = null;
     renderGameLayout(false);
@@ -160,7 +166,7 @@ export const gameController = {
   },
 
   setupUI() {
-    ["btnRollDice", "btnSkipTurn", "btnConfirmMove", "btnCancelMove"].forEach((key) => {
+    ["btnRollDice", "btnSkipTurn", "btnConfirmMove", "btnCancelMove", "btnCancelSelection"].forEach((key) => {
       const oldElement = els[key];
       const newElement = oldElement.cloneNode(true);
       oldElement.parentNode.replaceChild(newElement, oldElement);
@@ -171,6 +177,7 @@ export const gameController = {
     els.btnSkipTurn.addEventListener("click", () => this.skipTurn());
     els.btnConfirmMove.addEventListener("click", () => this.confirmMove());
     els.btnCancelMove.addEventListener("click", () => this.cancelMovePreview());
+    els.btnCancelSelection.addEventListener("click", () => this.cancelUnitSelection());
     // Assignment keeps one handler when a new game is started.
     if (els.btnViewTopdown) els.btnViewTopdown.onclick = () => this.setBoardMode("topdown");
     if (els.btnViewIsometric) els.btnViewIsometric.onclick = () => this.setBoardMode("isometric");
@@ -189,6 +196,8 @@ export const gameController = {
     this.boardView = createGameBoardView(els.gameBoard, {
       mode: this.boardMode,
       viewState: this.boardViewState,
+      unitDirections: this.unitDirections,
+      vehicleDirections: this.vehicleDirections,
       onCellClick: (r, c, options) => this.handleCellClick(r, c, options),
       onCellHover: (r, c) => this.handleCellHover(r, c),
       onLeave: () => this.clearPathHover(),
@@ -202,7 +211,9 @@ export const gameController = {
     if (!["topdown", "isometric"].includes(mode) || mode === this.boardMode || !this.session) return;
     this.boardMode = mode;
     this.renderGameBoard();
-    if (this.phase === GAME_PHASES.SELECT_UNIT) this.highlightSelectableUnits(this.getActiveUnitsForTurn());
+    if ([GAME_PHASES.SELECT_UNIT, GAME_PHASES.SELECT_DESTINATION].includes(this.phase)) {
+      this.highlightSelectableUnits(this.getActiveUnitsForTurn());
+    }
     if (this.selectedUnit) {
       this.boardView.setSelected(this.selectedUnit);
       this.highlightReachable();
@@ -373,24 +384,30 @@ export const gameController = {
       return;
     }
 
-    if (!this.selectedUnit) {
-      const clickedUnit = this.getUnitAt(r, c);
-      if (!clickedUnit || clickedUnit.role !== this.turn) return;
-
+    // A friendly actor remains a selection target while choosing a destination.
+    const clickedUnit = this.getUnitAt(r, c);
+    if (clickedUnit?.role === this.turn) {
+      if (clickedUnit.unit === this.selectedUnit) {
+        this.cancelUnitSelection();
+        return;
+      }
       const moves = this.calculateReachableForUnit(clickedUnit.unit);
       if (moves.size === 0) return;
 
+      this.cancelMovePreview();
       this.selectedUnit = clickedUnit.unit;
       this.reachable = moves;
       this.phase = GAME_PHASES.SELECT_DESTINATION;
 
       this.clearHighlights();
+      this.highlightSelectableUnits(this.getActiveUnitsForTurn());
       this.boardView?.setSelected({ r, c });
       this.highlightReachable();
       renderAwaitDestinationSelection();
       return;
     }
 
+    if (!this.selectedUnit) return;
     const key = this.getCoordKey(r, c);
     if (this.reachable.has(key)) {
       if (previewOnly) {
@@ -401,25 +418,17 @@ export const gameController = {
       }
       return;
     }
+  },
 
-    const clickedUnit = this.getUnitAt(r, c);
-    if (
-      clickedUnit &&
-      clickedUnit.role === this.turn &&
-      clickedUnit.unit !== this.selectedUnit
-    ) {
-      const moves = this.calculateReachableForUnit(clickedUnit.unit);
-      if (moves.size === 0) return;
-
-      this.selectedUnit = clickedUnit.unit;
-      this.reachable = moves;
-      this.cancelMovePreview();
-      this.phase = GAME_PHASES.SELECT_DESTINATION;
-      this.clearHighlights();
-      this.boardView?.setSelected({ r, c });
-      this.highlightReachable();
-      renderAwaitDestinationSelection();
-    }
+  cancelUnitSelection() {
+    if (this.phase !== GAME_PHASES.SELECT_DESTINATION || !this.selectedUnit) return;
+    this.cancelMovePreview();
+    this.selectedUnit = null;
+    this.reachable = new Map();
+    this.phase = GAME_PHASES.SELECT_UNIT;
+    this.clearHighlights();
+    this.highlightSelectableUnits(this.getActiveUnitsForTurn());
+    renderAwaitUnitSelection(this.diceValue);
   },
 
   moveSelectedUnit(r, c) {
@@ -428,6 +437,8 @@ export const gameController = {
     if (!unit || !action || !this.session) return;
 
     const summary = describeAction({ session: this.session, turn: this.turn, unit, action, diceValue: this.diceValue });
+    const direction = getTrailFacing(action, unit, this.unitDirections.get(unit.id));
+    const previousCars = new Set(this.session.parkedCars);
 
     this.clearHighlights();
     this.selectedUnit = null;
@@ -443,6 +454,9 @@ export const gameController = {
       unit,
       action,
     });
+    this.unitDirections.set(unit.id, direction);
+    for (const key of previousCars) if (!this.session.parkedCars.has(key)) this.vehicleDirections.delete(key);
+    for (const key of this.session.parkedCars) if (!previousCars.has(key)) this.vehicleDirections.set(key, direction);
 
     els.lastAction.textContent = `刚才：${summary}`;
 

@@ -8,6 +8,7 @@ env.installGlobals();
 const { createEmptyMapDefinition, setLegacyTileAt } = await import(
   "../src/domain/map/mapModel.js"
 );
+const { els } = await import("../src/app/state.js");
 const { GAME_PHASES, gameController } = await import("../src/features/gameController.js");
 
 test("crosswalk signal lights rerender on signal phase change", () => {
@@ -232,4 +233,60 @@ test("skipping a permanently blocked game finishes as a draw", () => {
   gameController.skipTurn();
   assert.equal(gameController.phase, GAME_PHASES.FINISHED);
   assert.match(env.elements["victory-title"].textContent, /平局/);
+});
+
+test("same actor and cancel button deselect without spending dice or retaining a pending move in either view", () => {
+  for (const mode of ["topdown", "isometric"]) {
+    const map = makePlayableMap();
+    setLegacyTileAt(map, 5, 5, "THIEF_SPAWN");
+    gameController.boardMode = mode;
+    gameController.init(map);
+    gameController.diceValue = 3;
+    gameController.onDiceRolled();
+    const unit = gameController.thiefUnits[0];
+    const moves = gameController.calculateReachableForUnit(unit);
+    const snapshot = JSON.stringify(gameController.session);
+    for (const cancel of [() => gameController.handleCellClick(0, 0), () => els.btnCancelSelection.click()]) {
+      gameController.handleCellClick(0, 0);
+      gameController.handleCellClick(0, 1, { previewOnly: true });
+      assert.ok(gameController.pendingDestination);
+      cancel();
+      assert.equal(gameController.selectedUnit, null);
+      assert.equal(gameController.phase, GAME_PHASES.SELECT_UNIT);
+      assert.equal(gameController.pendingDestination, null);
+      assert.equal(gameController.pathDestination, null);
+      assert.equal(gameController.reachable.size, 0);
+      assert.equal(gameController.calculateReachableForUnit(unit), moves);
+      assert.equal(JSON.stringify(gameController.session), snapshot);
+      assert.equal(env.elements["game-board"].querySelectorAll(".selectable-unit").length, 2);
+      assert.ok(els.btnCancelSelection.classList.contains("hidden"));
+      gameController.confirmMove();
+      assert.equal(gameController.turn, "THIEF");
+    }
+    gameController.handleCellClick(5, 5);
+    gameController.handleCellClick(5, 6);
+    assert.equal(gameController.thiefUnits[1].c, 6);
+    assert.equal(gameController.turn, "POLICE");
+    gameController.dispose();
+  }
+  gameController.boardMode = "topdown";
+});
+
+test("other actionable actors stay clickable during destination selection and across view switches", () => {
+  const map = makePlayableMap();
+  setLegacyTileAt(map, 5, 5, "THIEF_SPAWN");
+  gameController.init(map);
+  gameController.diceValue = 2;
+  gameController.onDiceRolled();
+  gameController.handleCellClick(0, 0);
+  for (const mode of ["isometric", "topdown", "isometric"]) {
+    gameController.setBoardMode(mode);
+    assert.equal(env.elements["game-board"].querySelectorAll(".selectable-unit").length, 2);
+    gameController.handleCellClick(5, 5);
+    assert.equal(gameController.selectedUnit.id, "T2");
+    gameController.handleCellClick(0, 0);
+    assert.equal(gameController.selectedUnit.id, "T1");
+  }
+  gameController.dispose();
+  gameController.boardMode = "topdown";
 });

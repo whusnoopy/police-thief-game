@@ -27,6 +27,9 @@ export function unprojectPoint({ x, y }, projection, z = 0) {
 
 export function surfaceHeightAt(tileType, localR = 0, localC = 0) {
   const ramp = getRampDirection(tileType);
+  // Display relief only; these offsets never enter the movement/rules model.
+  if (tileType === "RIVER") return -0.25;
+  if (tileType === "GRASS") return 0.125;
   return ramp ? 0.5 + localR * ramp.dr + localC * ramp.dc : getSurfaceHeight(tileType);
 }
 
@@ -58,7 +61,9 @@ export function pointInPolygon(point, polygon) {
 }
 
 export function compareSceneDepth(a, b) {
-  return (a.r + a.c) - (b.r + b.c) || a.c - b.c || a.order - b.order;
+  const ar = a.depthR ?? a.r, ac = a.depthC ?? a.c;
+  const br = b.depthR ?? b.r, bc = b.depthC ?? b.c;
+  return (ar + ac) - (br + bc) || ac - bc || a.order - b.order;
 }
 
 // Elevated and sloped surfaces must be tested in screen space. A flat inverse

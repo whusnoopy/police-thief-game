@@ -7,10 +7,10 @@ export const TILE_ASSETS = {
   BARRIER: 'barrier', MOUNTAIN: 'mountain',
 };
 
-export function appendSprite(container, name, className, label) {
+export function appendSprite(container, name, className, label, { url } = {}) {
   const image = document.createElement('img');
   image.className = `story-sprite ${className}`;
-  image.src = new URL(`../../assets/storybook/${name}.webp`, import.meta.url).href;
+  image.src = url || new URL(`../../assets/storybook/${name}.webp`, import.meta.url).href;
   image.alt = '';
   image.draggable = false;
   image.addEventListener('error', () => {

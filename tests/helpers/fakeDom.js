@@ -42,6 +42,7 @@ const DEFAULT_ELEMENT_IDS = [
   "move-confirm-actions",
   "btn-confirm-move",
   "btn-cancel-move",
+  "btn-cancel-selection",
   "btn-start-game",
   "editor-help-wrapper",
   "btn-editor-help",

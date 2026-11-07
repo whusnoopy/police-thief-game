@@ -18,6 +18,10 @@
 .iso-billboard .unit-id-badge { top: 1px; right: 2px; border: 0; background: #3d6d91; color: white; font-size: 12px; }
 .iso-billboard .thief-token .unit-id-badge { background: #b96e56; }
 .iso-billboard .unit-state-badge { width: 21px; height: 21px; }
+.iso-billboard .driving-token::before { display: none; }
+.iso-billboard .driving-token .unit-id-badge { top: 8px; right: 6px; }
+.iso-billboard .driving-token .unit-state-badge { bottom: 16px; }
+.iso-vehicle-art { overflow: visible; }
 .iso-billboard .story-fallback { font-size: 13px; }
 .iso-ground-mark { font: 700 17px sans-serif; fill: #647d84; }
 .iso-ground-mark.mark-THIEF_SPAWN { fill: #af7159; }

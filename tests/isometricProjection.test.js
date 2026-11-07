@@ -79,3 +79,24 @@ test("scene sorting interleaves scenery, bridges and units by map depth and reta
   assert.equal(scene.objects.filter(object => object.kind === "unit").length, 3);
   assert.equal(JSON.stringify(session), before);
 });
+
+test("river and grass relief shares the same coordinates for drawing, occupants and picking, with seamless matching neighbours", () => {
+  for (const position of [{ r: 0, c: 0 }, { r: 4, c: 5 }, { r: 9, c: 9 }]) {
+    for (const [tileType, offset] of [["ROAD", 0], ["GRASS", -2], ["RIVER", 4]]) {
+      const cell = { ...position, tileType };
+      const point = projectSurfacePoint(cell, 0, 0, projection);
+      const datum = projectPoint(position, projection);
+      near(point.x, datum.x);
+      near(point.y - datum.y, offset);
+      cell.polygon = getSurfacePolygon(cell, projection);
+      assert.equal(pickSurface(point, [cell]), cell);
+      for (const { dr, dc } of BRIDGE_DIRECTIONS) {
+        const a = projectSurfacePoint(cell, dr / 2, dc / 2, projection);
+        const b = projectSurfacePoint({ r: cell.r + dr, c: cell.c + dc, tileType }, -dr / 2, -dc / 2, projection);
+        near(a.x, b.x); near(a.y, b.y);
+      }
+      const actual = unprojectPoint(point, projection, surfaceHeightAt(tileType));
+      near(actual.r, cell.r); near(actual.c, cell.c);
+    }
+  }
+});
