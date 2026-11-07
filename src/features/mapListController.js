@@ -2,10 +2,11 @@ import { els, setMapDefinition, state } from "../app/state.js";
 import { getAppShellState } from "../app/appShellState.js";
 import { renderAppShell } from "../app/appShellRenderer.js";
 import { decodeMapDefinition } from "../domain/map/mapCodec.js";
-import { cloneMapDefinition, createEmptyMapDefinition, createRampMapDefinition } from "../domain/map/mapModel.js";
+import { cloneMapDefinition, createEmptyMapDefinition, createNewMapDefinition } from "../domain/map/mapModel.js";
 import { renderEditorBoard } from "./editorController.js";
 import { renderMapListGrid, setMapListEmptyState } from "../ui/map-list/mapListRenderer.js";
 import { MAX_BACKUP_BYTES } from "../storage/mapBackup.js";
+import { createExampleMap, EXAMPLE_MAP_NAME } from "../domain/map/exampleMap.js";
 import {
   formatDefaultMapName,
   exportMapRecord,
@@ -24,9 +25,17 @@ import {
 
 export function initMapList() {
   initShareLinkModal();
+  els.btnLoadExample.addEventListener("click", loadExampleMap);
   els.btnExportLibrary.addEventListener("click", exportMapBackup);
   els.btnImportLibrary.addEventListener("click", () => els.mapBackupInput.click());
   els.mapBackupInput.addEventListener("change", () => importMapFile(els.mapBackupInput.files?.[0]));
+}
+
+export function loadExampleMap() {
+  setMapDefinition(createExampleMap());
+  persistCurrentMap({ forceNewMap: true, mapName: EXAMPLE_MAP_NAME });
+  renderEditorBoard();
+  hideMapList();
 }
 
 export async function importMapFile(file) {
@@ -142,7 +151,7 @@ export function createNewMap() {
   const name = prompt("请输入新地图名称:", defaultName);
   if (!name || name.trim() === "") return;
 
-  setMapDefinition(createRampMapDefinition());
+  setMapDefinition(createNewMapDefinition());
   persistCurrentMap({ forceNewMap: true, mapName: name.trim() });
   renderEditorBoard();
   hideMapList();

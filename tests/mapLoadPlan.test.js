@@ -4,6 +4,7 @@ import { encodeMapDefinition } from "../src/domain/map/mapCodec.js";
 import { createEmptyMapDefinition, setLegacyTileAt } from "../src/domain/map/mapModel.js";
 import { resolveInitialMapLoad } from "../src/storage/mapLoadPlan.js";
 import { encodeLegacyMapDefinition } from "./helpers/legacyPayload.js";
+import { EXAMPLE_MAP_NAME, createExampleMap } from "../src/domain/map/exampleMap.js";
 
 function createEncodedMap(mutator) {
   const mapDefinition = createEmptyMapDefinition();
@@ -78,4 +79,18 @@ test("falls back to an empty map when neither storage nor url is usable", () => 
   assert.equal(result.forceNewMap, false);
   assert.deepStrictEqual(result.mapDefinition.spawns.police, []);
   assert.deepStrictEqual(result.mapDefinition.spawns.thief, []);
+});
+
+test("a named example loads as a separate map, while a matching saved example can be reopened",()=>{
+  const savedEncodedMap=createEncodedMap(map=>setLegacyTileAt(map,0,0,"BANK"));
+  const result=resolveInitialMapLoad({savedEncodedMap,exampleId:"river-city"});
+  assert.equal(result.source,"example");assert.equal(result.forceNewMap,true);
+  assert.equal(result.mapDefinition.meta.name,EXAMPLE_MAP_NAME);assert.equal(result.mapDefinition.spawns.thief.length,2);
+  assert.equal(resolveInitialMapLoad({savedEncodedMap:encodeMapDefinition(createExampleMap()),exampleId:"river-city"}).forceNewMap,false);
+});
+
+test("explicit shared maps take precedence over examples and unknown example names preserve the saved map",()=>{
+  const sharedEncodedMap=createEncodedMap(map=>setLegacyTileAt(map,4,4,"BANK"));
+  assert.equal(resolveInitialMapLoad({sharedEncodedMap,exampleId:"river-city"}).source,"url");
+  assert.equal(resolveInitialMapLoad({savedEncodedMap:sharedEncodedMap,exampleId:"unknown"}).source,"storage");
 });

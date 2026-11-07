@@ -1,3 +1,4 @@
+import { getMapDimensions } from "../../domain/map/mapDimensions.js";
 import { getBridgeWarnings, getRampConnectionIssues } from "../../domain/map/bridgeTopology.js";
 import { usesRampRules } from "../../domain/map/mapCompatibility.js";
 import { decodeMapDefinition } from "../../domain/map/mapCodec.js";
@@ -63,7 +64,7 @@ export function renderBridgePanel(container, { mapDefinition, onUpgrade, onCompl
     const source = decodeMapDefinition(mapDefinition.upgrade.source.encodedMap);
     const names = { N: "北", E: "东", S: "南", W: "西" };
     locationList("原图入口参考", getLegacyBridgeContacts(source).map(({ bridge, direction }) => ({
-      position: bridge, label: `原来连接${names[direction]}侧地面；新版仅通过坡道联通`,
+      position: getMapDimensions(source).rows === 10 && getMapDimensions(mapDefinition).rows === 20 ? { r: bridge.r + 5, c: bridge.c + 5 } : bridge, label: `原来连接${names[direction]}侧地面；新版仅通过坡道联通`,
     })));
   }
 }

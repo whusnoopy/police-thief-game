@@ -1,6 +1,6 @@
 .app-container {
   width: 100%;
-  max-width: 1080px;
+  max-width: none;
   margin: 0 auto;
   padding: 20px;
   display: flex;
@@ -34,7 +34,6 @@ header {
 }
 
 @media (min-width: 744px) {
-  #editor-view > .board-container { position: sticky; top: 12px; }
   #editor-view,
   #game-view {
     display: grid;
@@ -175,4 +174,49 @@ header {
   .game-sidebar .dice { font-size: 3rem; margin: 4px 0; }
   .game-sidebar .status-panel { padding: 10px; }
   .game-sidebar .game-message { min-height: 2.8em; }
+}
+
+.editor-map-area { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.editor-map-tools { display: flex; flex-direction: column; gap: 8px; color: #4c6158; font-size: 13px; }
+.editor-map-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.editor-map-buttons button { min-height: 40px; padding: 6px 10px; border: 1px solid #bdcdbd; border-radius: 6px; background: #fffdf4; color: inherit; cursor: pointer; }
+.editor-map-buttons button[aria-pressed="true"] { background: #3f7473; color: white; }
+.editor-map-viewport { width: 100%; height: min(70svh, 760px); min-height: 300px; overflow: auto; overscroll-behavior: contain; }
+#editor-map-viewport #editor-board { --cell-size: var(--editor-cell-size, 48px); margin: 0; }
+.editor-map-viewport.map-pan-mode { cursor: grab; touch-action: pan-x pan-y; }
+.editor-map-viewport.map-pan-mode #editor-board { touch-action: pan-x pan-y; }
+.editor-map-viewport.map-pan-mode .cell { cursor: grab; }
+#map-expansion-controls p { margin: 4px 0; font-size: 12px; line-height: 1.5; }
+#map-expansion-controls button { min-height: 40px; margin: 0; }
+.board-container.large-topdown { overflow: auto; justify-content: flex-start; align-items: flex-start; max-height: 75svh; touch-action: pan-x pan-y; }
+.board-container.large-topdown #game-board { --cell-size: 48px; flex-shrink: 0; touch-action: pan-x pan-y; }
+
+@media (min-width: 744px) {
+  #editor-view { grid-template-columns: clamp(220px, 20vw, 280px) minmax(0, 1fr); }
+}
+#editor-map-viewport #editor-board { margin: 0 auto; }
+
+/* Editor tools and branding share one independently scrolling sidebar. */
+body.editor-playing { height: 100dvh; min-height: 0; overflow: hidden; }
+.editor-playing .app-container { height: 100dvh; padding: 10px; gap: 10px; }
+.editor-playing #editor-view { display: grid; grid-template-columns: clamp(220px, 20vw, 280px) minmax(0, 1fr); flex: 1; min-height: 0; gap: 12px; align-items: stretch; animation: none; }
+.editor-playing .palette-panel { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 14px; gap: 12px; }
+#editor-header-slot header { text-align: left; }
+#editor-header-slot h1 { font-size: 1.3rem; line-height: 1.4; }
+#editor-header-slot .badge { max-width: 100%; margin-top: 5px; font-size: 11px; padding: 4px 8px; }
+#editor-header-slot .app-version { margin: 4px 0; }
+.editor-playing .editor-map-area { min-height: 0; padding: 10px; }
+.editor-playing .editor-map-tools { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; flex-shrink: 0; }
+#editor-map-size { white-space: nowrap; }
+#editor-map-position { font-size: 12px; }
+#map-expansion-controls:not(:empty) { flex-basis: 100%; }
+#map-expansion-controls:empty { display: none; }
+.editor-playing .editor-map-viewport { flex: 1; height: auto; min-height: 0; }
+@media (max-width: 743px) {
+  .editor-playing .app-container { padding: 6px; gap: 6px; }
+  .editor-playing #editor-view { grid-template-columns: 180px minmax(0, 1fr); gap: 6px; }
+  .editor-playing .palette-panel { padding: 8px; }
+  .editor-playing .editor-map-area { padding: 6px; }
+  .editor-playing .editor-map-buttons { gap: 3px; }
+  .editor-playing .editor-map-buttons button { padding: 6px; }
 }

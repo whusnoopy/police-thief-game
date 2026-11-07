@@ -1,4 +1,6 @@
+// Historical encodings and legacy constructors always stay 10×10.
 export const GRID_SIZE = 10;
+export const NEW_GRID_SIZE = 20;
 
 export const SIGNAL_PHASES = {
   PEDESTRIAN_GREEN: "PEDESTRIAN_GREEN",

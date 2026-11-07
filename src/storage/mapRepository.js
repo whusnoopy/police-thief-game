@@ -316,9 +316,11 @@ export function loadInitialMapIntoState() {
   const loadPlan = resolveInitialMapLoad({
     savedEncodedMap,
     sharedEncodedMap,
+    exampleId: urlParams.get("example"),
   });
 
   setMapDefinition(loadPlan.mapDefinition);
-  persistCurrentMap({ forceNewMap: loadPlan.forceNewMap || Boolean(currentMap?.isCorrupt) });
+  persistCurrentMap({ forceNewMap: loadPlan.forceNewMap || Boolean(currentMap?.isCorrupt),
+    mapName: loadPlan.source === "example" ? loadPlan.mapDefinition.meta.name : null });
   renderStorageNotice();
 }

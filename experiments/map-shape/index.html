@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>20×20 地图削角方案</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:24px;background:#f2f4ec;color:#39574e;font:16px/1.7 system-ui,sans-serif}main{max-width:1440px;margin:auto}h1{font-size:26px;margin:0}p{max-width:960px}a{color:#287e8a}.controls{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:14px 18px;background:#fffef7;border:1px solid #d4ddcf;border-radius:12px}input{width:240px;accent-color:#4d857d}section{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:20px 0}figure{margin:0;padding:18px;background:#fffef7;border:1px solid #d4ddcf;border-radius:12px}h2{font-size:18px;margin:0}svg{display:block;width:100%;height:auto}figcaption{font-size:14px}.notice{padding:14px 18px;border-left:4px solid #ccab64;background:#fff7e3;border-radius:8px}@media(max-width:850px){section{grid-template-columns:1fr}body{padding:14px}}
+</style>
+</head>
+<body><main>
+<h1>20×20 地图削角方案</h1>
+<p>当前游戏采用每角三层削角。这里可比较不同幅度，不会改变或保存你的地图。<a href="../../">返回游戏</a></p>
+<div class="controls"><label for="cut">每个角削去 <strong id="depth">3</strong> 层</label><input id="cut" type="range" min="0" max="5" value="3"><span id="count" aria-live="polite"></span></div>
+<section>
+<figure><h2>完整方形地图</h2><svg id="original" viewBox="-820 -20 1640 840" role="img" aria-label="完整地图的斜视投影"></svg><figcaption>400 个可用格，斜视边界为菱形。</figcaption></figure>
+<figure><h2>四角削去后的地图</h2><svg id="trimmed" viewBox="-820 -20 1640 840" role="img" aria-label="削角地图的斜视投影"></svg><figcaption id="description"></figcaption></figure>
+</section>
+<p class="notice">浅红色区域代表方案中移除的格子。游戏中的三层削角已同时禁止编辑、停留、寻路和生成角色；旧 10×10 地图保留完整方形。</p>
+<p>四角对称削去会让边界更平、接近八边形，但同时缩短投影宽度和高度，整体长宽比仍约为 2:1。四角面板布局可直接利用屏幕边角；新建 20×20 和旧图的扩展副本均采用三层削角，共保留 376 格。</p>
+</main><script type="module">
+const ns='http://www.w3.org/2000/svg';
+function draw(id,cut){const root=document.getElementById(id);root.replaceChildren();let removed=0;
+for(let r=0;r<20;r++)for(let c=0;c<20;c++){
+ const hidden=r+c<cut||r+19-c<cut||19-r+c<cut||38-r-c<cut;removed+=Number(hidden);
+ const p=document.createElementNS(ns,'polygon');
+ p.setAttribute('points',[[r,c],[r,c+1],[r+1,c+1],[r+1,c]].map(([rr,cc])=>`${(cc-rr)*40},${(rr+cc)*20}`).join(' '));
+ p.setAttribute('fill',hidden?'#f4e4dc':'#ddd8c1');p.setAttribute('stroke',hidden?'#d4afa2':'#bcc4ac');p.setAttribute('stroke-width','1');if(hidden)p.setAttribute('stroke-dasharray','3 3');root.appendChild(p);
+}return removed;}
+function update(){const cut=Number(document.getElementById('cut').value),removed=draw('trimmed',cut);document.getElementById('depth').textContent=cut;document.getElementById('count').textContent=`保留 ${400-removed} 格，移除 ${removed} 格`;document.getElementById('description').textContent=`保留 ${400-removed} 个可用格；边界包围框约 ${1600-cut*80}×${800-cut*40}，比例仍为 2:1。`;}
+draw('original',0);document.getElementById('cut').addEventListener('input',update);update();
+</script></body></html>

@@ -1,3 +1,4 @@
+import { getMapDimensions, isWithinMap } from "../../domain/map/mapDimensions.js";
 import { isCrosswalkTileType } from "../../domain/map/crosswalk.js";
 import { getBridgeConnectionMask, isBridgeTileType, isRampTileType } from "../../domain/map/bridgeTopology.js";
 import { MAP_RULESETS } from "../../domain/map/mapCompatibility.js";
@@ -23,10 +24,15 @@ function tilePath(mask) {
 }
 
 export function terrainArt(map) {
-  const at=(r,c)=>terrainFamily(map.terrain[r]?.[c]);
+  const { rows, cols } = getMapDimensions(map);
+  const at=(r,c)=>isWithinMap(map,r,c)?terrainFamily(map.terrain[r]?.[c]):"VOID";
   const fills={ROAD:"#ddd6bd",RIVER:"#8ebdc4",OVERPASS:"#a9b5b5",BUILDING:"#cec9ba",CONSTRUCTION_SITE:"#dbccb0",BARRIER:"#cec9ba",MOUNTAIN:"#b4bda7"};
-  let content='<rect width="1000" height="1000" fill="#b9cea0"/>';
-  for(let r=0;r<10;r++) for(let c=0;c<10;c++) {
+  let content="";
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) {
+    if(isWithinMap(map,r,c)) content+=`<rect x="${c*100}" y="${r*100}" width="100" height="100" fill="#b9cea0"/>`;
+  }
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) {
+    if(!isWithinMap(map,r,c)) continue;
     const type=at(r,c), raw=map.terrain[r][c], x=c*100, y=r*100;
     const mask=neighborMask(map,r,c);
     if(type==="GRASS") {
@@ -66,7 +72,7 @@ export function terrainArt(map) {
     if(br) edge+="M99 83 Q99 99 83 99 ";if(bl) edge+="M17 99 Q1 99 1 83 ";
     content+=`<path transform="translate(${x} ${y})" d="${edge}" fill="none" stroke="${stroke}" stroke-width="${type==="OVERPASS"?4:2}" opacity=".6"/>`;
   }
-  for(let r=1;r<10;r++) for(let c=1;c<10;c++) for(const type of ["ROAD","RIVER","OVERPASS"]) {
+  for(let r=1;r<rows;r++) for(let c=1;c<cols;c++) for(const type of ["ROAD","RIVER","OVERPASS"]) {
     if(type==="OVERPASS" && map.ruleset===MAP_RULESETS.RAMPS) continue;
     const cells=[[r-1,c-1],[r-1,c],[r,c],[r,c-1]];
     const occupied=cells.map(([rr,cc])=>at(rr,cc)===type);
@@ -75,5 +81,5 @@ export function terrainArt(map) {
     if(at(rr,cc)!=="GRASS") continue;
     content+=`<path data-inner-corner="${r},${c}" transform="translate(${c*100} ${r*100}) rotate(${[180,270,0,90][missing]})" d="M0 0 H17 Q0 0 0 17 Z" fill="${fills[type]}"/>`;
   }
-  return `<svg class="terrain-art" viewBox="0 0 1000 1000" aria-hidden="true">${content}</svg>`;
+  return `<svg class="terrain-art" viewBox="0 0 ${cols*100} ${rows*100}" aria-hidden="true">${content}</svg>`;
 }

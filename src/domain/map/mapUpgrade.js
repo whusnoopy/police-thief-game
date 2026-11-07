@@ -1,4 +1,4 @@
-import { GRID_SIZE } from "../../config/constants.js";
+import { getMapDimensions } from "./mapDimensions.js";
 import { decodeMapDefinition } from "./mapCodec.js";
 import { cloneMapDefinition } from "./mapModel.js";
 import { MAP_RULESETS } from "./mapCompatibility.js";
@@ -9,7 +9,8 @@ import { validateMapDefinition } from "../rules/mapValidation.js";
 // overwrite facilities or remove one of a bridge tile's existing entrances.
 export function getLegacyBridgeContacts(mapDefinition) {
   const contacts = [];
-  for (let r = 0; r < GRID_SIZE; r += 1) for (let c = 0; c < GRID_SIZE; c += 1) {
+  const { rows, cols } = getMapDimensions(mapDefinition);
+  for (let r = 0; r < rows; r += 1) for (let c = 0; c < cols; c += 1) {
     if (mapDefinition.terrain[r][c] !== "OVERPASS") continue;
     for (const { dr, dc, direction } of BRIDGE_DIRECTIONS) {
       const terrain = mapDefinition.terrain[r + dr]?.[c + dc];
@@ -42,7 +43,7 @@ export function beginMapUpgrade(mapDefinition) {
 
 export function completeMapUpgrade(mapDefinition) {
   if (!mapDefinition.upgrade || mapDefinition.ruleset !== MAP_RULESETS.RAMPS) throw new Error("Map is not an upgrade draft");
-  const result = validateMapDefinition(mapDefinition, { allowUpgradeDraft: true });
+  const result = validateMapDefinition(mapDefinition, { allowUpgradeDraft: true, allowExpansionDraft: true });
   if (!result.valid) return { ...result, mapDefinition: null };
   const reviewed = cloneMapDefinition(mapDefinition);
   reviewed.upgrade.status = "ready";

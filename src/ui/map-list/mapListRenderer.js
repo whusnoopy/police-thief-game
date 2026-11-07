@@ -1,3 +1,4 @@
+import { getMapDimensions } from "../../domain/map/mapDimensions.js";
 import { renderBoard } from "../board/boardRenderer.js";
 import { escapeHTML } from "../../utils/helpers.js";
 
@@ -73,7 +74,10 @@ function createMapCard({ mapObj, currentMapId, resolveMapDefinition, onLoad, onR
   if (mapObj.isCorrupt) {
     thumb.textContent = "地图无法读取，原始数据已保留";
   } else {
-    renderBoard(boardElement, { mapDefinition: resolveMapDefinition(mapObj) });
+    const mapDefinition = resolveMapDefinition(mapObj);
+    const { rows, cols } = getMapDimensions(mapDefinition);
+    header.appendChild(Object.assign(document.createElement("span"), { className: "map-card-size", textContent: `${rows}×${cols}` }));
+    renderBoard(boardElement, { mapDefinition });
     thumb.appendChild(boardElement);
   }
 

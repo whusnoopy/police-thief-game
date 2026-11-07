@@ -1,4 +1,4 @@
-import { GRID_SIZE } from "../../config/constants.js";
+import { getMapDimensions, isWithinMap } from "../../domain/map/mapDimensions.js";
 import { getCellDisplayAt } from "../../domain/map/cellDisplay.js";
 import { getRampDirection, isBridgeTileType } from "../../domain/map/bridgeTopology.js";
 import { getActorLayout } from "./actorLayout.js";
@@ -8,12 +8,15 @@ import { getCrosswalkSignalSpecs } from "./signalArt.js";
 import { compareSceneDepth, getSurfacePolygon, projectSurfacePoint } from "./projection.js";
 
 export function createIsometricScene(session, projection, { unitDirections = new Map(), vehicleDirections = new Map() } = {}) {
-  const cells = [], objects = [];
-  for (let r = 0; r < GRID_SIZE; r += 1) for (let c = 0; c < GRID_SIZE; c += 1) {
+  const { rows, cols } = getMapDimensions(session.mapDefinition);
+  const cells = [], objects = [], cellsByPosition = new Map();
+  for (let r = 0; r < rows; r += 1) for (let c = 0; c < cols; c += 1) {
+    if (!isWithinMap(session.mapDefinition, r, c)) continue;
     const cell = { r, c, ...getCellDisplayAt(session.mapDefinition, r, c), order: 0 };
     cell.polygon = getSurfacePolygon(cell, projection);
     cell.anchor = projectSurfacePoint(cell, 0, 0, projection);
     cells.push(cell);
+    cellsByPosition.set(`${r},${c}`, cell);
     for (const signal of getCrosswalkSignalSpecs(cell.tileType)) {
       objects.push({ ...cell, kind: "signal", signal, depthR: r + signal.localR, depthC: c + signal.localC, order: 2 });
     }
@@ -28,7 +31,7 @@ export function createIsometricScene(session, projection, { unitDirections = new
     const key = `${r},${c}`;
     if (session.parkingCars.has(key) || session.parkedCars.has(key)) objects.push({ ...cell, kind: "car", direction: vehicleDirections.get(key) || getRampDirection(cell.tileType)?.direction || "S", order: 3 });
   }
-  const cellAt = (unit) => cells[unit.r * GRID_SIZE + unit.c];
+  const cellAt = (unit) => cellsByPosition.get(`${unit.r},${unit.c}`);
   for (const [side, units] of [["animal", session.animalUnits], ["police", session.policeUnits], ["thief", session.thiefUnits]]) {
     for (const unit of units || []) {
       if (side === "thief" && unit.state !== "ACTIVE") continue;

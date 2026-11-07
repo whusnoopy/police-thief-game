@@ -34,3 +34,16 @@ test("production worker matches synchronous ramp search for all orientations, ro
     }
   }
 });
+
+test("20×20 Worker and unavailable or failed Worker fallback match far-edge searches and release cancelled jobs", async () => {
+  const { createNewMapDefinition, setLegacyTileAt } = await import("../src/domain/map/mapModel.js");
+  const map=createNewMapDefinition();setLegacyTileAt(map,19,16,"THIEF_SPAWN");
+  const session=createGameSession(map),units=session.thiefUnits;
+  const payload={session,units,turn:"THIEF",diceValue:2};
+  const expected=calculateReachableActions({...payload,unit:units[0]});
+  for (const factory of [browserWorkerAdapter,()=>null,()=>{throw new Error("no worker");},()=>({postMessage(){throw new Error("failed clone");},terminate(){}})]) {
+    const results=await startReachabilityJob(payload,factory).promise;
+    assert.deepEqual(results.get("T1"),expected);
+  }
+  const job=startReachabilityJob({...payload,diceValue:6},()=>null);job.cancel();assert.equal(await job.promise,null);
+});

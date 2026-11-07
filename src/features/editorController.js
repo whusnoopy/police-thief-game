@@ -1,3 +1,6 @@
+import { getMapDimensions } from "../domain/map/mapDimensions.js";
+import { createMapExpansionDraft, completeMapExpansion } from "../domain/map/mapExpansion.js";
+import { initEditorViewport, syncEditorViewport, editorIsPanning, showEditorPosition } from "../ui/editor/mapViewport.js";
 import { TILE_TYPES } from "../config/constants.js";
 import { els, setMapDefinition, state } from "../app/state.js";
 import {
@@ -48,12 +51,14 @@ function syncHistoryButtons() {
 function recordEdit(before, { reviewed = false } = {}) {
   if (JSON.stringify(before) === JSON.stringify(state.mapDefinition)) return;
   if (state.mapDefinition.upgrade && !reviewed) state.mapDefinition.upgrade.status = "editing";
+  if (state.mapDefinition.expansion && !reviewed) state.mapDefinition.expansion.status = "editing";
   undoStack.push(before);
   if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
   redoStack.length = 0;
   persistCurrentMap();
   syncHistoryButtons();
   refreshBridgePanel();
+  renderExpansionControls();
 }
 
 function finishStroke(event) {
@@ -243,10 +248,13 @@ function getCurrentPlacementPlan(r, c) {
 }
 
 function previewPlacement(r, c) {
+  showEditorPosition(r, c);
+  if (editorIsPanning()) return;
   renderPlacementPreview(getCurrentPlacementPlan(r, c), { r, c });
 }
 
 function paintPlacement(r, c) {
+  showEditorPosition(r, c);
   const plan = getCurrentPlacementPlan(r, c);
   renderPlacementPreview(plan, { r, c });
   if (!plan.canPlace) return false;
@@ -335,6 +343,7 @@ export function finishMapUpgrade() {
 }
 
 export function initEditor() {
+  initEditorViewport(() => { finishStroke(); clearPlacementPreview(); });
   bindPointerState();
   bindPlacementPreviewState();
   syncEditorPalette(true);
@@ -360,7 +369,7 @@ export function renderEditorBoard() {
       cell.dataset.r = r;
       cell.dataset.c = c;
       cell.addEventListener("pointerdown", (event) => {
-        if (state.mode !== "EDITOR" || event.button !== 0 || event.isPrimary === false || stroke) return;
+        if (editorIsPanning() || state.mode !== "EDITOR" || event.button !== 0 || event.isPrimary === false || stroke) return;
         event.preventDefault();
         stroke = { pointerId: event.pointerId, before: cloneMapDefinition(state.mapDefinition), map: state.mapDefinition, last: null };
         els.editorBoard.setPointerCapture?.(event.pointerId);
@@ -377,6 +386,8 @@ export function renderEditorBoard() {
   syncPaletteRequirementStatus();
   syncHistoryButtons();
   refreshBridgePanel();
+  syncEditorViewport(state.mapDefinition);
+  renderExpansionControls();
 }
 
 export function clearMap() {
@@ -384,10 +395,52 @@ export function clearMap() {
 
   finishStroke();
   const before = cloneMapDefinition(state.mapDefinition);
-  setMapDefinition(createEmptyMapDefinition({ ruleset: before.ruleset, ...(before.upgrade ? { upgrade: before.upgrade } : {}) }));
+  setMapDefinition(createEmptyMapDefinition({ meta: before.meta, ruleset: before.ruleset, ...(before.actionRules ? { actionRules: before.actionRules } : {}), ...(before.expansion ? { expansion: before.expansion } : {}), ...(before.upgrade ? { upgrade: before.upgrade } : {}) }));
   historyMap = state.mapDefinition;
   recordEdit(before);
   renderEditorBoard();
+}
+
+function renderExpansionControls() {
+  const container = els.mapExpansionControls;
+  if (!container) return;
+  container.innerHTML = "";
+  const addButton = (id, text, action) => {
+    const button = document.createElement("button"); button.id = id; button.type = "button";
+    button.className = "btn secondary"; button.textContent = text; button.onclick = action; container.appendChild(button);
+  };
+  if (getMapDimensions(state.mapDefinition).rows === 10) addButton("btn-expand-map", "扩展为 20×20 副本", createExpansionCopy);
+  if (state.mapDefinition.expansion) {
+    const p = document.createElement("p");
+    p.textContent = `原图位于第 6–15 行、6–15 列；新增区域为道路，山边保留草地。原图已保留。${state.mapDefinition.expansion.status === "ready" ? "扩展路线已校验。" : "请检查新增路线并完成校验。"}`;
+    container.appendChild(p);
+    if (state.mapDefinition.expansion.status !== "ready") addButton("btn-finish-expansion", "校验并完成扩展", finishMapExpansion);
+  }
+}
+
+export function createExpansionCopy() {
+  finishStroke();
+  if (getMapDimensions(state.mapDefinition).rows !== 10) return;
+  const encodedMap = encodeMapDefinition(state.mapDefinition);
+  const saved = getMapList().find(m => m.id === getCurrentMapId());
+  if (!saved || saved.encodedMap !== encodedMap) persistCurrentMap();
+  const name = getCurrentMapName() || "地图";
+  const draft = createMapExpansionDraft({ encodedMap, mapId: getCurrentMapId(), name });
+  const names = new Set(getMapList().map(m => m.name));
+  let nextName = `${name}（20×20）`;
+  for (let n = 2; names.has(nextName); n++) nextName = `${name}（20×20 副本${n}）`;
+  setMapDefinition(draft);
+  persistCurrentMap({ forceNewMap: true, mapName: nextName });
+  renderEditorBoard(); updateModeIndicatorForEditor();
+}
+
+export function finishMapExpansion() {
+  finishStroke();
+  const result = completeMapExpansion(state.mapDefinition);
+  if (!result.valid) { alert(`扩展尚未完成：\n${result.errors.join("\n")}`); return false; }
+  const before = cloneMapDefinition(state.mapDefinition);
+  setMapDefinition(result.mapDefinition); historyMap = state.mapDefinition;
+  recordEdit(before, { reviewed: true }); renderEditorBoard(); return true;
 }
 
 export function validateMap() {

@@ -22,16 +22,16 @@ test("bootstrap initialization and map-list flow stay wired through the controll
   assert.equal(env.elements["game-view"].classList.contains("hidden"), true);
   assert.equal(env.elements["map-list-view"].classList.contains("hidden"), true);
   assert.equal(env.elements["rules-modal"].classList.contains("hidden"), true);
-  assert.equal(env.elements["editor-board"].children.length, 100);
+  assert.equal(env.elements["editor-board"].children.length, 376);
   assert.equal(env.elements.palette.children.length > 0, true);
   assert.match(env.elements["mode-indicator"].textContent, /^编辑中：地图 /);
 
   const storedAfterInit = getMapList();
   assert.equal(storedAfterInit.length, 1);
-  assert.equal(storedAfterInit[0].encodedMap.startsWith("v4."), true);
-  assert.equal(env.window.location.search.startsWith("?m=v4."), true);
+  assert.equal(storedAfterInit[0].encodedMap.startsWith("v5."), true);
+  assert.equal(env.window.location.search.startsWith("?m=v5."), true);
 
-  setLegacyTileAt(state.mapDefinition, 0, 0, "POLICE_SPAWN");
+  setLegacyTileAt(state.mapDefinition, 0, 3, "POLICE_SPAWN");
   persistCurrentMap();
   const originalMapId = getCurrentMapId();
 
@@ -67,7 +67,7 @@ test("bootstrap initialization and map-list flow stay wired through the controll
 
   assert.equal(state.mode, "EDITOR");
   assert.equal(getCurrentMapId(), originalMapId);
-  assert.deepStrictEqual(state.mapDefinition.spawns.police, [{ r: 0, c: 0 }]);
+  assert.deepStrictEqual(state.mapDefinition.spawns.police, [{ r: 0, c: 3 }]);
   assert.equal(env.elements["editor-view"].classList.contains("hidden"), false);
   assert.equal(env.elements["map-list-view"].classList.contains("hidden"), true);
 
@@ -108,4 +108,14 @@ test("file import reports an invalid file without changing the editor or library
   assert.equal(state.mapDefinition, current);
   assert.equal(env.elements["btn-import-library"].disabled, false);
   assert.equal(state.mode, "MAP_LIST");
+});
+
+test("the library example button creates a playable copy and keeps the edited original intact",()=>{
+  const original=structuredClone(getMapList()),currentId=getCurrentMapId();
+  showMapList();env.elements["btn-load-example"].click();
+  assert.equal(state.mode,"EDITOR");assert.notEqual(getCurrentMapId(),currentId);
+  assert.equal(state.mapDefinition.spawns.police.length,2);assert.equal(state.mapDefinition.spawns.thief.length,2);
+  assert.equal(env.elements["editor-board"].children.length,376);
+  for(const record of original)assert.deepEqual(getMapList().find(map=>map.id===record.id),record);
+  env.elements["btn-start-game"].click();assert.equal(state.mode,"GAME");
 });

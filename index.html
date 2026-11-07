@@ -29,6 +29,7 @@
 
       <main id="editor-view" class="view active">
         <div class="palette-panel">
+          <div id="editor-header-slot"></div>
           <div class="editor-actions">
             <button
               id="btn-start-game"
@@ -58,7 +59,7 @@
                 <div id="editor-help-tooltip" class="editor-help-tooltip hidden" role="tooltip">
                   <p>选择地块类型后，用鼠标左键、手指或触控笔在棋盘上拖绘。一次拖绘可整体撤销，放山与周边变化、清空地图也可撤销。</p>
                   <p>开始游戏前必须放置警察出生点、小偷出生点、小偷基地和银行，并连接取钱、逃脱路线。小偷多于警察时，还需要可到达的警察局。</p>
-                  <p>地图会自动保存，清空按钮可将地图所有地块重置为普通道路，地图库按钮可进入管理多张地图。</p>
+                  <p>新地图为 20×20，每个角削去三层，保留 376 格；可切换“拖动”平移并缩放，或查看全图。旧 10×10 保留原尺寸，可创建扩展副本。地图会自动保存，清空按钮可将可编辑地块重置为普通道路，地图库按钮可进入管理多张地图。</p>
                 </div>
               </div>
             </div>
@@ -71,9 +72,24 @@
           </div>
         </div>
 
-        <div class="board-container">
+        <div class="board-container editor-map-area">
+          <div class="editor-map-tools" aria-label="地图查看与编辑">
+            <span id="editor-map-size"></span>
+            <div class="editor-map-buttons">
+              <button id="btn-editor-paint" type="button" aria-pressed="true">绘制</button>
+              <button id="btn-editor-pan" type="button" aria-pressed="false">拖动</button>
+              <button id="btn-editor-zoom-out" type="button" aria-label="缩小编辑地图">−</button>
+              <button id="btn-editor-zoom-in" type="button" aria-label="放大编辑地图">＋</button>
+              <button id="btn-editor-fit" type="button">全图</button>
+              <button id="btn-editor-detail" type="button">原大小</button>
+            </div>
+            <span id="editor-map-position" aria-live="polite">选择地块后绘制；切换“拖动”查看其他区域。</span>
+            <div id="map-expansion-controls"></div>
+          </div>
+          <div id="editor-map-viewport" class="editor-map-viewport">
           <div id="editor-board" class="board grid-10x10">
             <!-- 通过 JS 渲染 -->
+          </div>
           </div>
         </div>
       </main>
@@ -82,7 +98,7 @@
         <div id="game-sidebar" class="game-sidebar">
           <div id="game-sidebar-header" class="hidden"></div>
           <div id="game-sidebar-view" class="hidden"></div>
-          <div class="status-panel">
+          <div id="game-status-panel" class="status-panel">
             <h3 id="turn-indicator">🏃 小偷回合</h3>
             <p id="signal-indicator" class="signal-indicator pedestrian-go">
               🚥 当前：行人通行
@@ -100,7 +116,7 @@
           </div>
 
           <p id="unit-counts" class="unit-counts" aria-live="polite"></p>
-          <div class="dice-panel">
+          <div id="game-dice-panel" class="dice-panel">
             <h3>获取步数</h3>
             <div id="dice" class="dice">🎲</div>
             <div class="dice-result">
@@ -118,7 +134,7 @@
           </div>
 
           <div id="game-sidebar-feedback" class="hidden"></div>
-          <div class="game-actions">
+          <div id="game-actions" class="game-actions">
             <button id="btn-view-rules" class="btn info" type="button">
               📖 查看规则说明
             </button>
@@ -140,13 +156,14 @@
                 <span id="board-zoom-value" aria-live="polite">100%</span>
                 <button id="btn-board-zoom-in" type="button" aria-label="放大棋盘">＋</button>
                 <button id="btn-board-fit" type="button">全图</button>
+                <button id="btn-board-focus" type="button">定位角色</button>
               </div>
             </div>
-            <p id="isometric-help" class="isometric-help hidden">在地图空白或不可点击处按住拖动；点“全图”复位。被遮挡的主体会显示彩色轮廓，也可点击编号选人。设施中的人物缩小在门口，车辆在旁侧停靠。</p>
+            <p id="isometric-help" class="isometric-help hidden">在地图空白或不可点击处按住拖动；“全图”查看总览，“定位角色”返回选中或本回合角色。大地图默认显示局部区域。被遮挡的主体会显示彩色轮廓，也可点击编号选人。设施中的人物缩小在门口，车辆在旁侧停靠。</p>
           </div>
           <div class="board-container">
             <div id="game-map-controls" class="game-map-controls hidden">
-              <button id="btn-toggle-game-sidebar" type="button" aria-controls="game-sidebar" aria-expanded="true">收起侧栏</button>
+              <button id="btn-toggle-game-sidebar" type="button" aria-controls="iso-panel-info iso-panel-status iso-panel-progress iso-panel-dice" aria-expanded="true">收起面板</button>
               <div id="game-map-zoom-slot"></div>
             </div>
             <div id="game-board" class="board grid-10x10">
@@ -167,6 +184,23 @@
             </section>
           </div>
         </div>
+        <details id="iso-panel-info" class="iso-corner-panel iso-info hidden" open>
+          <summary>游戏与规则</summary>
+          <div id="iso-info-content" class="iso-panel-content"></div>
+        </details>
+        <details id="iso-panel-status" class="iso-corner-panel iso-status hidden" open>
+          <summary>当前状态</summary>
+          <div id="iso-status-content" class="iso-panel-content"></div>
+          <div id="iso-status-zoom" class="iso-panel-zoom"></div>
+        </details>
+        <details id="iso-panel-progress" class="iso-corner-panel iso-progress hidden" open>
+          <summary>行动与进度</summary>
+          <div id="iso-progress-content" class="iso-panel-content"></div>
+        </details>
+        <details id="iso-panel-dice" class="iso-corner-panel iso-dice hidden" open>
+          <summary>掷骰与行动</summary>
+          <div id="iso-dice-content" class="iso-panel-content"></div>
+        </details>
       </main>
 
       <main id="map-list-view" class="view hidden map-list-view">
@@ -183,9 +217,11 @@
           <div class="map-backup-actions">
             <button id="btn-export-library" class="btn info" type="button">导出全部地图</button>
             <button id="btn-import-library" class="btn secondary" type="button">导入地图备份</button>
+            <button id="btn-load-example" class="btn success" type="button">载入示例地图</button>
             <input id="map-backup-input" type="file" accept=".json,application/json" hidden />
           </div>
           <p class="map-backup-help">备份可在平板和电脑之间迁移。导入会新增地图，跳过重复内容，保留已有地图。</p>
+          <p class="map-backup-help">示例「双岸追缉」：两警两贼、六辆车，包含高架、井盖、堤道与水路。载入时创建新副本，保留当前地图。</p>
           <p id="map-import-status" class="map-import-status" role="status" aria-live="polite"></p>
           <div id="map-list-grid" class="map-list-grid">
             <!-- 地图卡片由 JS 渲染 -->

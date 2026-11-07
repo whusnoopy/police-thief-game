@@ -1,4 +1,5 @@
-import { ANIMAL_EMOJIS, GRID_SIZE, NPC_CONFIG } from "../../config/constants.js";
+import { isWithinMap } from "../map/mapDimensions.js";
+import { ANIMAL_EMOJIS, NPC_CONFIG } from "../../config/constants.js";
 import { getUnitAt, hasParkedCar } from "../game/sessionSelectors.js";
 import { getFeaturePositionsByKind } from "../map/mapQueries.js";
 import { getCellRuleAt } from "./cellRules.js";
@@ -14,9 +15,6 @@ function getCoordKey(r, c) {
   return `${r},${c}`;
 }
 
-function isWithinBounds(r, c) {
-  return r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE;
-}
 
 function getRandomIndex(length, rng) {
   if (length <= 0) return -1;
@@ -54,7 +52,7 @@ function getNextAnimalId(session) {
 }
 
 export function isAnimalTraversableCell(mapDefinition, r, c) {
-  if (!isWithinBounds(r, c)) return false;
+  if (!isWithinMap(mapDefinition, r, c)) return false;
 
   const cellRule = getCellRuleAt(mapDefinition, r, c);
   return (

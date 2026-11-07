@@ -1,3 +1,4 @@
+import { isWithinMap } from "../map/mapDimensions.js";
 import { getUnitAt, hasAnimalAt, hasParkedCar } from "../game/sessionSelectors.js";
 import { getFeaturePositionsByKind } from "../map/mapQueries.js";
 import { getCellRuleAt } from "./cellRules.js";
@@ -15,7 +16,7 @@ function isUnoccupied(session, position) {
 }
 
 function canUsePreferredCell(session, position) {
-  if (!position || !isUnoccupied(session, position)) return false;
+  if (!position || !isWithinMap(session.mapDefinition, position.r, position.c) || !isUnoccupied(session, position)) return false;
   const cellRule = getCellRuleAt(session.mapDefinition, position.r, position.c);
   return cellRule.driveCost !== null && cellRule.walkableRoles.length > 0;
 }

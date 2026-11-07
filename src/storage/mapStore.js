@@ -50,7 +50,7 @@ export function normalizeMapRecord(record = {}, options = {}) {
     name: record.name || formatDefaultMapName(new Date(timestamp)),
     encodedMap: encodedMap || source,
     updatedAt: timestamp,
-    schemaVersion: encodedMap?.startsWith("v4.") ? 4 : 3,
+    schemaVersion: encodedMap?.startsWith("v5.") ? 5 : encodedMap?.startsWith("v4.") ? 4 : 3,
     ...(encodedMap && (record.originalEncodedMap || encodedMap !== source) ? {
       originalEncodedMap: record.originalEncodedMap || source,
     } : {}),

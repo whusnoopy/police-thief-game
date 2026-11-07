@@ -1,7 +1,9 @@
-import { GRID_SIZE } from "../../config/constants.js";
+import { GRID_SIZE, NEW_GRID_SIZE } from "../../config/constants.js";
 import { normalizeCrosswalkTileType } from "./crosswalk.js";
 import { RAMP_TILE_TYPES, isRampTileType } from "./bridgeTopology.js";
 import { MAP_RULESETS, normalizeMapCompatibility } from "./mapCompatibility.js";
+
+import { getMapDimensions, isWithinMap } from "./mapDimensions.js";
 
 export const TERRAIN_TILE_TYPES = [
   "GRASS",
@@ -53,14 +55,16 @@ const ORTHOGONAL_DIRECTIONS = [
   [0, -1],
 ];
 
-export function isWithinBounds(r, c) {
-  return r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE;
+export function isWithinBounds(r, c, mapDefinition) {
+  return isWithinMap(mapDefinition, r, c);
 }
 
-export function createEmptyTerrainMatrix() {
-  return Array(GRID_SIZE)
+export function createEmptyTerrainMatrix(dimensions = {}) {
+  const { rows, cols } = getMapDimensions({ meta: dimensions });
+  return Array(rows)
     .fill()
-    .map(() => Array(GRID_SIZE).fill(DEFAULT_TERRAIN_TILE_TYPE));
+    .map((_, r) => Array.from({ length: cols }, (_, c) =>
+      isWithinMap({ meta: dimensions }, r, c) ? DEFAULT_TERRAIN_TILE_TYPE : "VOID"));
 }
 
 export function createEmptyMapDefinition(overrides = {}) {
@@ -72,7 +76,7 @@ export function createEmptyMapDefinition(overrides = {}) {
       cols: GRID_SIZE,
       ...(overrides.meta || {}),
     },
-    terrain: createEmptyTerrainMatrix(),
+    terrain: createEmptyTerrainMatrix(overrides.meta),
     features: [],
     spawns: {
       police: [],
@@ -86,34 +90,40 @@ export function cloneMapDefinition(mapDefinition) {
   return normalizeMapDefinition(JSON.parse(JSON.stringify(mapDefinition)));
 }
 
+// Historical-size constructor. New UI maps use createNewMapDefinition instead.
 export function createRampMapDefinition(overrides = {}) {
   return createEmptyMapDefinition({ ...overrides, ruleset: MAP_RULESETS.RAMPS });
 }
 
-export function positionToIndex(position) {
-  return position.r * GRID_SIZE + position.c;
+export function createNewMapDefinition() {
+  return createRampMapDefinition({ meta: { rows: NEW_GRID_SIZE, cols: NEW_GRID_SIZE }, actionRules: "single" });
 }
 
-export function indexToPosition(index) {
+export function positionToIndex(position, mapDefinition) {
+  return position.r * getMapDimensions(mapDefinition).cols + position.c;
+}
+
+export function indexToPosition(index, mapDefinition) {
+  const { cols } = getMapDimensions(mapDefinition);
   return {
-    r: Math.floor(index / GRID_SIZE),
-    c: index % GRID_SIZE,
+    r: Math.floor(index / cols),
+    c: index % cols,
   };
 }
 
-function normalizePosition(position = {}) {
+function normalizePosition(position = {}, mapDefinition) {
   const r = Number(position.r);
   const c = Number(position.c);
-  if (!Number.isInteger(r) || !Number.isInteger(c) || !isWithinBounds(r, c)) {
+  if (!Number.isInteger(r) || !Number.isInteger(c) || !isWithinBounds(r, c, mapDefinition)) {
     return null;
   }
   return { r, c };
 }
 
-function getOrthogonalPositions(r, c) {
+function getOrthogonalPositions(r, c, mapDefinition) {
   return ORTHOGONAL_DIRECTIONS
     .map(([dr, dc]) => ({ r: r + dr, c: c + dc }))
-    .filter((position) => isWithinBounds(position.r, position.c));
+    .filter((position) => isWithinBounds(position.r, position.c, mapDefinition));
 }
 
 function hasFeatureAt(mapDefinition, r, c) {
@@ -152,7 +162,7 @@ function isMountainTerrainAt(mapDefinition, r, c) {
 }
 
 function isRequiredGrassForMountain(mapDefinition, r, c) {
-  return getOrthogonalPositions(r, c).some((position) =>
+  return getOrthogonalPositions(r, c, mapDefinition).some((position) =>
     isMountainTerrainAt(mapDefinition, position.r, position.c),
   );
 }
@@ -172,7 +182,7 @@ function createPlacementPlan({
 }
 
 function getMountainPlacementPlan(mapDefinition, r, c) {
-  const neighborPositions = getOrthogonalPositions(r, c);
+  const neighborPositions = getOrthogonalPositions(r, c, mapDefinition);
   const affectedPositions = uniquePositions([{ r, c }, ...neighborPositions]);
   const blockers = [];
 
@@ -204,7 +214,7 @@ function getMountainPlacementPlan(mapDefinition, r, c) {
 export function getTilePlacementPlan(mapDefinition, r, c, tileType) {
   const normalizedTileType = normalizeCrosswalkTileType(tileType);
 
-  if (!isWithinBounds(r, c)) {
+  if (!isWithinBounds(r, c, mapDefinition)) {
     return createPlacementPlan({
       canPlace: false,
       placements: [],
@@ -232,10 +242,12 @@ export function getTilePlacementPlan(mapDefinition, r, c, tileType) {
   });
 }
 
-function normalizeTerrainMatrix(terrain) {
-  const normalized = createEmptyTerrainMatrix();
-  for (let r = 0; r < GRID_SIZE; r += 1) {
-    for (let c = 0; c < GRID_SIZE; c += 1) {
+function normalizeTerrainMatrix(terrain, dimensions) {
+  const { rows, cols } = dimensions;
+  const normalized = createEmptyTerrainMatrix(dimensions);
+  for (let r = 0; r < rows; r += 1) {
+    for (let c = 0; c < cols; c += 1) {
+      if (!isWithinMap({ meta: dimensions }, r, c)) continue;
       const tileType = normalizeCrosswalkTileType(terrain?.[r]?.[c]);
       normalized[r][c] = TERRAIN_TILE_TYPES.includes(tileType)
         ? tileType
@@ -245,13 +257,13 @@ function normalizeTerrainMatrix(terrain) {
   return normalized;
 }
 
-function normalizeFeatures(features) {
+function normalizeFeatures(features, mapDefinition) {
   if (!Array.isArray(features)) return [];
 
   return features
     .map((feature, index) => {
       const kind = feature?.kind;
-      const position = normalizePosition(feature?.position || feature?.at);
+      const position = normalizePosition(feature?.position || feature?.at, mapDefinition);
       if (!FEATURE_TILE_TYPES.includes(kind) || !position) return null;
 
       return {
@@ -264,25 +276,26 @@ function normalizeFeatures(features) {
     .filter(Boolean);
 }
 
-function normalizeSpawnList(spawnList) {
+function normalizeSpawnList(spawnList, mapDefinition) {
   if (!Array.isArray(spawnList)) return [];
-  return spawnList.map(normalizePosition).filter(Boolean);
+  return spawnList.map(position => normalizePosition(position, mapDefinition)).filter(Boolean);
 }
 
 export function normalizeMapDefinition(mapDefinition = {}) {
+  const dimensions = getMapDimensions(mapDefinition);
+  if (mapDefinition.terrain?.length > dimensions.rows || mapDefinition.terrain?.some(row => row?.length > dimensions.cols)) throw new Error("Map terrain exceeds declared dimensions");
   return {
     version: 2,
     ...normalizeMapCompatibility(mapDefinition),
     meta: {
       name: mapDefinition.meta?.name || "",
-      rows: GRID_SIZE,
-      cols: GRID_SIZE,
+      ...dimensions,
     },
-    terrain: normalizeTerrainMatrix(mapDefinition.terrain),
-    features: normalizeFeatures(mapDefinition.features),
+    terrain: normalizeTerrainMatrix(mapDefinition.terrain, dimensions),
+    features: normalizeFeatures(mapDefinition.features, mapDefinition),
     spawns: {
-      police: normalizeSpawnList(mapDefinition.spawns?.police),
-      thief: normalizeSpawnList(mapDefinition.spawns?.thief),
+      police: normalizeSpawnList(mapDefinition.spawns?.police, mapDefinition),
+      thief: normalizeSpawnList(mapDefinition.spawns?.thief, mapDefinition),
     },
   };
 }
@@ -300,7 +313,7 @@ function clearCellDecorators(mapDefinition, r, c) {
 }
 
 export function setLegacyTileAt(mapDefinition, r, c, tileType) {
-  if (!isWithinBounds(r, c)) return mapDefinition;
+  if (!isWithinBounds(r, c, mapDefinition)) return mapDefinition;
 
   if (!mapDefinition.terrain) {
     Object.assign(mapDefinition, createEmptyMapDefinition());
@@ -309,7 +322,7 @@ export function setLegacyTileAt(mapDefinition, r, c, tileType) {
   mapDefinition.spawns ||= { police: [], thief: [] };
   mapDefinition.spawns.police ||= [];
   mapDefinition.spawns.thief ||= [];
-  mapDefinition.terrain[r] ||= Array(GRID_SIZE).fill(DEFAULT_TERRAIN_TILE_TYPE);
+  mapDefinition.terrain[r] ||= Array(getMapDimensions(mapDefinition).cols).fill(DEFAULT_TERRAIN_TILE_TYPE);
 
   const placementPlan = getTilePlacementPlan(mapDefinition, r, c, tileType);
   if (!placementPlan.canPlace) return mapDefinition;

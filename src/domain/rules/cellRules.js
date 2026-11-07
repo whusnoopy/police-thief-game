@@ -7,6 +7,10 @@ const ONE_STEP_COST = 4;
 const TWO_STEP_COST = 8;
 
 const TERRAIN_RULES = {
+  VOID: {
+    tileType: "VOID", category: "TERRAIN", walkCost: null,
+    walkableRoles: [], drivableRoles: [], driveCost: null,
+  },
   GRASS: {
     tileType: "GRASS",
     category: "TERRAIN",

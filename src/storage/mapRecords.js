@@ -14,8 +14,9 @@ export function upsertMapRecordInList({
 
   // New bridge semantics must be saved as a copy of an old-format record.
   // Subsequent saves of that v4 copy can update it normally.
-  if (encodedMap.startsWith("v4.") && currentMap && !currentMap.encodedMap.startsWith("v4.")) currentMap = null;
-  const schemaVersion = encodedMap.startsWith("v4.") ? 4 : 3;
+  if (currentMap && ((encodedMap.startsWith("v5.") && !currentMap.encodedMap.startsWith("v5.")) ||
+    (encodedMap.startsWith("v4.") && !/^v[45]\./.test(currentMap.encodedMap)))) currentMap = null;
+  const schemaVersion = encodedMap.startsWith("v5.") ? 5 : encodedMap.startsWith("v4.") ? 4 : 3;
 
   if (!currentMap) {
     const baseId = createId();

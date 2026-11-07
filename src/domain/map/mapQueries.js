@@ -1,10 +1,13 @@
 import { DEFAULT_TERRAIN_TILE_TYPE } from "./mapModel.js";
+import { isWithinMap } from "./mapDimensions.js";
 
 export function getTerrainAt(mapDefinition, r, c) {
+  if (!isWithinMap(mapDefinition, r, c)) return "VOID";
   return mapDefinition?.terrain?.[r]?.[c] || DEFAULT_TERRAIN_TILE_TYPE;
 }
 
 export function getFeatureAt(mapDefinition, r, c) {
+  if (!isWithinMap(mapDefinition, r, c)) return null;
   return (
     mapDefinition?.features?.find(
       (feature) => feature.position.r === r && feature.position.c === c,
@@ -13,6 +16,7 @@ export function getFeatureAt(mapDefinition, r, c) {
 }
 
 export function getSpawnSideAt(mapDefinition, r, c) {
+  if (!isWithinMap(mapDefinition, r, c)) return null;
   if (
     mapDefinition?.spawns?.police?.some((position) => position.r === r && position.c === c)
   ) {
@@ -39,6 +43,6 @@ export function getTileTypeAt(mapDefinition, r, c) {
 
 export function getFeaturePositionsByKind(mapDefinition, kind) {
   return (mapDefinition?.features || [])
-    .filter((feature) => feature.kind === kind)
+    .filter((feature) => feature.kind === kind && isWithinMap(mapDefinition, feature.position.r, feature.position.c))
     .map((feature) => ({ ...feature.position }));
 }

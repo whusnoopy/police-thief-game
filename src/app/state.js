@@ -1,6 +1,6 @@
-import { cloneMapDefinition, createRampMapDefinition } from "../domain/map/mapModel.js";
+import { cloneMapDefinition, createNewMapDefinition } from "../domain/map/mapModel.js";
 
-const initialMapDefinition = createRampMapDefinition();
+const initialMapDefinition = createNewMapDefinition();
 
 export const state = {
   mapDefinition: initialMapDefinition,
@@ -16,6 +16,20 @@ export function setMapDefinition(mapDefinition) {
 export const els = {
   appHeader: document.getElementById("app-header"),
   appHeaderHome: document.getElementById("app-header-home"),
+  editorHeaderSlot: document.getElementById("editor-header-slot"),
+  gameSidebar: document.getElementById("game-sidebar"),
+  gameStatusPanel: document.getElementById("game-status-panel"),
+  gameDicePanel: document.getElementById("game-dice-panel"),
+  gameActions: document.getElementById("game-actions"),
+  isoPanelInfo: document.getElementById("iso-panel-info"),
+  isoPanelStatus: document.getElementById("iso-panel-status"),
+  isoPanelProgress: document.getElementById("iso-panel-progress"),
+  isoPanelDice: document.getElementById("iso-panel-dice"),
+  isoInfoContent: document.getElementById("iso-info-content"),
+  isoStatusContent: document.getElementById("iso-status-content"),
+  isoProgressContent: document.getElementById("iso-progress-content"),
+  isoDiceContent: document.getElementById("iso-dice-content"),
+  isoStatusZoom: document.getElementById("iso-status-zoom"),
   gameSidebarHeader: document.getElementById("game-sidebar-header"),
   gameSidebarView: document.getElementById("game-sidebar-view"),
   gameSidebarFeedback: document.getElementById("game-sidebar-feedback"),
@@ -33,6 +47,16 @@ export const els = {
   editorView: document.getElementById("editor-view"),
   gameView: document.getElementById("game-view"),
   mapListView: document.getElementById("map-list-view"),
+  editorMapSize: document.getElementById("editor-map-size"),
+  editorMapPosition: document.getElementById("editor-map-position"),
+  editorMapViewport: document.getElementById("editor-map-viewport"),
+  mapExpansionControls: document.getElementById("map-expansion-controls"),
+  btnEditorPaint: document.getElementById("btn-editor-paint"),
+  btnEditorPan: document.getElementById("btn-editor-pan"),
+  btnEditorZoomOut: document.getElementById("btn-editor-zoom-out"),
+  btnEditorZoomIn: document.getElementById("btn-editor-zoom-in"),
+  btnEditorFit: document.getElementById("btn-editor-fit"),
+  btnEditorDetail: document.getElementById("btn-editor-detail"),
   editorBoard: document.getElementById("editor-board"),
   gameBoard: document.getElementById("game-board"),
   btnViewTopdown: document.getElementById("btn-view-topdown"),
@@ -41,6 +65,7 @@ export const els = {
   boardZoomValue: document.getElementById("board-zoom-value"),
   btnBoardZoomIn: document.getElementById("btn-board-zoom-in"),
   btnBoardZoomOut: document.getElementById("btn-board-zoom-out"),
+  btnBoardFocus: document.getElementById("btn-board-focus"),
   btnBoardFit: document.getElementById("btn-board-fit"),
   isometricHelp: document.getElementById("isometric-help"),
   palette: document.getElementById("palette"),
@@ -84,6 +109,7 @@ export const els = {
   btnMapList: document.getElementById("btn-map-list"),
   btnBackFromList: document.getElementById("btn-back-from-list"),
   btnCreateMap: document.getElementById("btn-create-map"),
+  btnLoadExample: document.getElementById("btn-load-example"),
   mapListGrid: document.getElementById("map-list-grid"),
   mapListEmpty: document.getElementById("map-list-empty"),
   btnExportLibrary: document.getElementById("btn-export-library"),

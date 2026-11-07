@@ -1,3 +1,4 @@
+import { getMapDimensions } from "../../domain/map/mapDimensions.js";
 import { TILE_TYPES } from "../../config/constants.js";
 import { BRIDGE_DIRECTIONS, isBridgeTileType } from "../../domain/map/bridgeTopology.js";
 import { appendParkedCar, appendUnitToken } from "../game/unitRenderer.js";
@@ -16,6 +17,7 @@ import { createActorRecord, rebuildOcclusion, renderActorLabels, updateOutlineSe
 import { pickOccludedActor, readOpaqueGeometry } from "./occlusionGeometry.js";
 
 let nextSceneId = 0;
+const DETAIL_TILE_WIDTH = 112;
 
 function billboard(parent, { x, y }, width, height, className) {
   const foreignObject = svgElement("foreignObject", { x: x - width / 2, y: y - height, width, height, class: className });
@@ -27,9 +29,10 @@ function billboard(parent, { x, y }, width, height, className) {
 }
 
 export function createIsometricGameView(container, { viewState, onCellClick, onCellHover, onLeave, unitDirections, vehicleDirections }) {
-  const projection = createIsometricProjection();
+  let projection = createIsometricProjection();
   let scene, svg, viewport, stage, overlay, resizeObserver, geometry, defs, outlines, labels;
   let records = [], actors = [], disposed = false, refreshPending = false;
+  let initialView = false;
   let selectable = [], reachable = [], selected = null, path = [], lastHover = null;
   let pointerType = "mouse", drag = null, suppressClick = false;
   let touchPress = null;
@@ -57,7 +60,12 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
     if (!svg) return;
     const viewWidth = viewport.clientWidth || projection.width;
     const viewHeight = viewport.clientHeight || projection.height;
-    const scale = Math.min(viewWidth / projection.width, viewHeight / projection.height) * viewState.zoom;
+    const fit = Math.min(viewWidth / projection.width, viewHeight / projection.height);
+    if (initialView) {
+      viewState.zoom = Math.max(1, Math.min(5, DETAIL_TILE_WIDTH / projection.tileWidth / fit));
+      initialView = false;
+    }
+    const scale = fit * viewState.zoom;
     const width = projection.width * scale, height = projection.height * scale;
     // Leave half a viewport on each side so even the fitted map can be panned.
     const stageWidth = Math.max(viewWidth, width) + viewWidth;
@@ -190,6 +198,16 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
       container.className = "board iso-board";
       container.style.backgroundImage = "none";
       container.innerHTML = "";
+      const dimensions = getMapDimensions(session.mapDefinition);
+      projection = createIsometricProjection(dimensions);
+      const mapKey = `${dimensions.rows}x${dimensions.cols}`;
+      if (viewState.mapKey !== mapKey) {
+        initialView = dimensions.rows > 10;
+        viewState.mapKey = mapKey;
+        const first = session.thiefUnits.find(u => u.state === "ACTIVE") || session.policeUnits[0];
+        const focus = first && dimensions.rows > 10 ? projectSurfacePoint({ ...first, tileType: "ROAD" }, 0, 0, projection) : { x: projection.width / 2, y: projection.height / 2 };
+        viewState.centerX = focus.x; viewState.centerY = focus.y;
+      }
       scene = createIsometricScene(session, projection, { unitDirections, vehicleDirections });
       viewport = document.createElement("div");
       viewport.className = "iso-viewport";
@@ -253,7 +271,7 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
       refreshOcclusion();
       // Direction cues refer to map north/east, not the screen's up/right.
       for (const { direction, dr, dc, name } of BRIDGE_DIRECTIONS) {
-        const pos = projectPoint({ r: 4.5 + dr * 5.4, c: 4.5 + dc * 5.4 }, projection);
+        const pos = projectPoint({ r: (projection.rows - 1) / 2 + dr * (projection.rows / 2 + .4), c: (projection.cols - 1) / 2 + dc * (projection.cols / 2 + .4) }, projection);
         svg.appendChild(svgElement("text", { x: pos.x, y: pos.y, class: "iso-compass", "text-anchor": "middle", "data-direction": direction }, name));
       }
       svg.addEventListener("click", (event) => clickCell(eventCell(event), event));
@@ -325,8 +343,16 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
     clearPath() { path = []; drawHighlights(); },
     setZoom(zoom) {
       const centre = visibleCentre();
-      viewState.zoom = Math.min(2.5, Math.max(1, zoom));
+      viewState.zoom = Math.min(projection.rows > 10 ? 5 : 2.5, Math.max(1, zoom));
       fitScene(viewState.zoom === 1 ? { x: projection.width / 2, y: projection.height / 2 } : centre);
+    },
+    focusCell(position) {
+      const cell = scene.cells.find(cell => cell.r === position.r && cell.c === position.c);
+      if (!cell) return;
+      const fit = Math.min((viewport.clientWidth || projection.width) / projection.width, (viewport.clientHeight || projection.height) / projection.height);
+      const detail = projection.rows > 10 ? DETAIL_TILE_WIDTH / projection.tileWidth : 1;
+      viewState.zoom = Math.max(viewState.zoom, Math.min(projection.rows > 10 ? 5 : 2.5, detail / fit));
+      fitScene(cell.anchor);
     },
     dispose() {
       disposed = true;

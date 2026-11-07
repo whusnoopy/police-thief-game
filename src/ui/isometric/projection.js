@@ -1,13 +1,15 @@
 import { GRID_SIZE } from "../../config/constants.js";
+import { getMapCornerCut } from "../../domain/map/mapDimensions.js";
 import { getRampDirection, getSurfaceHeight } from "../../domain/map/bridgeTopology.js";
 
-export function createIsometricProjection({ size = GRID_SIZE, tileWidth = 80, tileHeight = 40, bridgeHeight = 16, padding = 48, headroom = 100 } = {}) {
+export function createIsometricProjection({ size = GRID_SIZE, rows = size, cols = size, tileWidth = 80, tileHeight = 40, bridgeHeight = 16, padding = 48, headroom = 100 } = {}) {
+  const cut = getMapCornerCut(rows, cols);
   return {
-    size, tileWidth, tileHeight, bridgeHeight,
-    originX: padding + size * tileWidth / 2,
-    originY: headroom + tileHeight / 2,
-    width: padding * 2 + size * tileWidth,
-    height: headroom + size * tileHeight + padding,
+    size: rows, rows, cols, tileWidth, tileHeight, bridgeHeight, cut,
+    originX: padding + (rows - cut) * tileWidth / 2,
+    originY: headroom + (1 - cut) * tileHeight / 2,
+    width: padding * 2 + (rows + cols - 2 * cut) * tileWidth / 2,
+    height: headroom + (rows + cols - 2 * cut) * tileHeight / 2 + padding,
   };
 }
 

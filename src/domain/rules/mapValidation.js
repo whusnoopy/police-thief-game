@@ -1,9 +1,11 @@
-import { GRID_SIZE, SIGNAL_PHASES } from "../../config/constants.js";
+import { SIGNAL_PHASES } from "../../config/constants.js";
 import { getAllowedCrosswalkAxis, isCrosswalkTileType, isStepAlongAxis } from "../map/crosswalk.js";
 import { getFeaturePositionsByKind } from "../map/mapQueries.js";
 import { getCellRuleAt } from "./cellRules.js";
 import { getMapGameplayBlocker, usesRampRules } from "../map/mapCompatibility.js";
 import { areCellsConnected, getRampConnectionIssues } from "../map/bridgeTopology.js";
+
+import { isWithinMap } from "../map/mapDimensions.js";
 
 const DIRECTIONS = [[-1, 0], [0, 1], [1, 0], [0, -1]];
 const PHASES = [SIGNAL_PHASES.PEDESTRIAN_GREEN, SIGNAL_PHASES.PEDESTRIAN_RED];
@@ -15,7 +17,7 @@ const positionLabel = ({ r, c }) => `第 ${r + 1} 行第 ${c + 1} 列`;
 // other players can take/return their cars. Only reject routes impossible even
 // with those favorable conditions. Money and travel mode remain separate states.
 export function getPotentialRoutes(mapDefinition, start, role, carTransferPositions = new Set()) {
-  const queue = [{ ...start, inCar: false, hasMoney: false }];
+  const queue = isWithinMap(mapDefinition, start.r, start.c) ? [{ ...start, inCar: false, hasMoney: false }] : [];
   const seen = new Set();
   const positions = new Set();
   const drivingPositions = new Set();
@@ -47,7 +49,7 @@ export function getPotentialRoutes(mapDefinition, start, role, carTransferPositi
       destinations.push(...manholes.map((position) => ({ ...position, teleport: true })));
     }
     for (const next of destinations) {
-      if (next.r < 0 || next.c < 0 || next.r >= GRID_SIZE || next.c >= GRID_SIZE) continue;
+      if (!isWithinMap(mapDefinition, next.r, next.c)) continue;
       if (!next.teleport && usesRampRules(mapDefinition) && !areCellsConnected(mapDefinition, current, next)) continue;
       const rule = getCellRuleAt(mapDefinition, next.r, next.c);
       if (!(current.inCar ? rule.drivableRoles : rule.walkableRoles).includes(role)) continue;
@@ -72,6 +74,8 @@ export function validateMapDefinition(mapDefinition, options = {}) {
   const blocker = getMapGameplayBlocker(mapDefinition, options);
   if (blocker) return { valid: false, errors: [blocker] };
   const errors = [];
+  const placements = [...(mapDefinition.features || []).map(f => f.position), ...(mapDefinition.spawns?.police || []), ...(mapDefinition.spawns?.thief || [])];
+  if (placements.some(p => !isWithinMap(mapDefinition, p.r, p.c))) return { valid: false, errors: ["设施和出生点必须放在地图内，不能位于削角区域。"] };
   if (usesRampRules(mapDefinition)) {
     getRampConnectionIssues(mapDefinition).forEach(({ r, c, reason }) => {
       errors.push(`上下桥格（${positionLabel({ r, c })}）${reason === "RAMP_HIGH_END" ? "高端必须连接普通高架" : "低端必须连接可驾车的陆上地块"}，请检查方向与相邻地块。`);

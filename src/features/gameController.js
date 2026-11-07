@@ -1,3 +1,4 @@
+import { getMapDimensions } from "../domain/map/mapDimensions.js";
 import { els, state } from "../app/state.js";
 import { createGameSession } from "../domain/game/sessionFactory.js";
 import {
@@ -21,7 +22,7 @@ import {
   projectSelectableUnitPositions,
 } from "./gameBoardProjection.js";
 import { createGameBoardView } from "../ui/game/gameBoardView.js";
-import { renderGameLayout } from "../ui/game/gameLayout.js";
+import { renderGameLayout, revealActionPanel } from "../ui/game/gameLayout.js";
 import { getTrailFacing } from "../ui/isometric/assetMetadata.js";
 import {
   getRandomDiceFace,
@@ -112,6 +113,8 @@ export const gameController = {
   init(mapDefinition = state.mapDefinition) {
     this.cancelPendingRoll();
     this.cancelPendingSearch();
+    this.boardView?.dispose(); this.boardView = null;
+    this.boardViewState = { zoom: 1, left: 0, top: 0 };
     this.session = createGameSession(mapDefinition);
     this.unitDirections = new Map();
     this.vehicleDirections = new Map();
@@ -184,6 +187,10 @@ export const gameController = {
     if (els.btnBoardZoomIn) els.btnBoardZoomIn.onclick = () => this.setBoardZoom(this.boardViewState.zoom + 0.25);
     if (els.btnBoardZoomOut) els.btnBoardZoomOut.onclick = () => this.setBoardZoom(this.boardViewState.zoom - 0.25);
     if (els.btnBoardFit) els.btnBoardFit.onclick = () => this.setBoardZoom(1);
+    if (els.btnBoardFocus) els.btnBoardFocus.onclick = () => {
+      const unit = this.selectedUnit || this.getActiveUnitsForTurn()[0];
+      if (unit) { this.boardView?.focusCell?.(unit); this.updateBoardControls(); }
+    };
     if (els.btnToggleGameSidebar) els.btnToggleGameSidebar.onclick = () => {
       this.sidebarCollapsed = !this.sidebarCollapsed;
       renderGameLayout(this.boardMode === "isometric", this.sidebarCollapsed);
@@ -234,7 +241,7 @@ export const gameController = {
     els.boardZoomControls?.classList.toggle("hidden", !iso);
     els.isometricHelp?.classList.toggle("hidden", !iso);
     if (els.boardZoomValue) els.boardZoomValue.textContent = `${Math.round(this.boardViewState.zoom * 100)}%`;
-    if (els.btnBoardZoomIn) els.btnBoardZoomIn.disabled = this.boardViewState.zoom >= 2.5;
+    if (els.btnBoardZoomIn) els.btnBoardZoomIn.disabled = this.boardViewState.zoom >= (getMapDimensions(this.session.mapDefinition).rows > 10 ? 5 : 2.5);
     if (els.btnBoardZoomOut) els.btnBoardZoomOut.disabled = this.boardViewState.zoom <= 1;
   },
 
@@ -534,6 +541,7 @@ export const gameController = {
     );
     renderMovePreview(describeAction({ session: this.session, turn: this.turn, unit: this.selectedUnit, action, diceValue: this.diceValue }), needsConfirmation);
     if (needsConfirmation && this.boardMode === "isometric") {
+      revealActionPanel();
       if (this.sidebarCollapsed) {
         this.sidebarCollapsed = false;
         renderGameLayout(true);

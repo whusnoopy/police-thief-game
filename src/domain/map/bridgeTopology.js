@@ -1,4 +1,4 @@
-import { GRID_SIZE } from "../../config/constants.js";
+import { getMapDimensions, isWithinMap } from "./mapDimensions.js";
 
 // Directions refer to the map, regardless of the camera. A ramp points uphill.
 export const BRIDGE_DIRECTIONS = Object.freeze([
@@ -27,9 +27,6 @@ export function getSurfaceHeight(tileType) {
   return tileType === "OVERPASS" ? 1 : isRampTileType(tileType) ? 0.5 : 0;
 }
 
-function isInBounds({ r, c }) {
-  return Number.isInteger(r) && Number.isInteger(c) && r >= 0 && c >= 0 && r < GRID_SIZE && c < GRID_SIZE;
-}
 
 function edgeHeight(tileType, dr, dc) {
   if (tileType === "OVERPASS") return 1;
@@ -43,7 +40,7 @@ function edgeHeight(tileType, dr, dc) {
 // Geometry only: role, driving mode, signals, occupants and costs remain separate
 // checks. Both ends must agree on the surface level at their shared edge.
 export function areCellsConnected(mapDefinition, from, to) {
-  if (!isInBounds(from) || !isInBounds(to)) return false;
+  if (!isWithinMap(mapDefinition, from.r, from.c) || !isWithinMap(mapDefinition, to.r, to.c)) return false;
   const dr = to.r - from.r;
   const dc = to.c - from.c;
   if (Math.abs(dr) + Math.abs(dc) !== 1) return false;
@@ -67,7 +64,8 @@ export function getBridgeConnectionMask(mapDefinition, r, c) {
 
 export function getRampConnectionIssues(mapDefinition) {
   const issues = [];
-  for (let r = 0; r < GRID_SIZE; r += 1) for (let c = 0; c < GRID_SIZE; c += 1) {
+  const { rows, cols } = getMapDimensions(mapDefinition);
+  for (let r = 0; r < rows; r += 1) for (let c = 0; c < cols; c += 1) {
     const ramp = getRampDirection(mapDefinition.terrain?.[r]?.[c]);
     if (!ramp) continue;
     for (const [sign, reason] of [[1, "RAMP_HIGH_END"], [-1, "RAMP_LOW_END"]]) {
@@ -82,7 +80,8 @@ export function getBridgeWarnings(mapDefinition) {
   const warnings = [];
   const seen = new Set();
   const invalidRamps = new Set(getRampConnectionIssues(mapDefinition).map(({ r, c }) => `${r},${c}`));
-  for (let r = 0; r < GRID_SIZE; r += 1) for (let c = 0; c < GRID_SIZE; c += 1) {
+  const { rows, cols } = getMapDimensions(mapDefinition);
+  for (let r = 0; r < rows; r += 1) for (let c = 0; c < cols; c += 1) {
     if (mapDefinition.terrain?.[r]?.[c] !== "OVERPASS" || seen.has(`${r},${c}`)) continue;
     const queue = [{ r, c }];
     let hasEntrance = false;

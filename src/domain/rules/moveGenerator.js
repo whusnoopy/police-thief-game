@@ -1,4 +1,5 @@
-import { GRID_SIZE, SIGNAL_PHASES, normalizeSignalPhase } from "../../config/constants.js";
+import { getMapDimensions, isWithinMap } from "../map/mapDimensions.js";
+import { SIGNAL_PHASES, normalizeSignalPhase } from "../../config/constants.js";
 import {
   getAllowedCrosswalkAxis,
   isCrosswalkTileType,
@@ -22,7 +23,7 @@ export const DRIVE_COST_POINTS = HALF_STEP_POINTS;
 
 // A full visited-set search can grow exponentially on large overpass areas. Keep a
 // bounded Pareto frontier for each gameplay state: this preserves meaningfully
-// different simple paths without allowing a 10x10 board to lock up the browser.
+// different simple paths while keeping board searches bounded.
 const MAX_STATE_PATH_VARIANTS = 64;
 
 class MinCostQueue {
@@ -97,9 +98,10 @@ function chooseBetterAction(existing, candidate) {
 }
 
 function createSearchBoard(session, role, unit) {
-  const cells = Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, index) => {
-    const r = Math.floor(index / GRID_SIZE);
-    const c = index % GRID_SIZE;
+  const { rows, cols } = getMapDimensions(session.mapDefinition);
+  const cells = Array.from({ length: rows * cols }, (_, index) => {
+    const r = Math.floor(index / cols);
+    const c = index % cols;
     return {
       r, c,
       rule: getCellRuleAt(session.mapDefinition, r, c),
@@ -128,10 +130,10 @@ function createSearchBoard(session, role, unit) {
     }
     return candidates.flatMap((move) => {
       const { nr, nc, isTeleport } = move;
-      if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) return [];
+      if (!isWithinMap(session.mapDefinition, nr, nc)) return [];
       if (!isTeleport && usesRampRules(session.mapDefinition) &&
           !areCellsConnected(session.mapDefinition, from, { r: nr, c: nc })) return [];
-      const to = cells[nr * GRID_SIZE + nc];
+      const to = cells[nr * cols + nc];
       if (to.animal || !canEnterCell(to.rule, role, isDriving)) return [];
       if (to.occupant && (role === "THIEF" || to.occupant.role === "POLICE" || unit.state === "CARRYING")) return [];
       if (isDriving && !isTeleport && to.parkedCar) return [];
@@ -143,7 +145,7 @@ function createSearchBoard(session, role, unit) {
       if (cost === null) return [];
       return [{
         ...move, cost, cellRule: to.rule, occupant: to.occupant,
-        availableCar: to.availableCar, bit: getVisitedBit(nr, nc),
+        availableCar: to.availableCar, bit: getVisitedBit(nr, nc, cols),
       }];
     });
   }));
@@ -246,8 +248,8 @@ function getSearchStateKey(node) {
   ].join("|");
 }
 
-function getVisitedBit(r, c) {
-  return 1n << BigInt(r * GRID_SIZE + c);
+function getVisitedBit(r, c, cols) {
+  return 1n << BigInt(r * cols + c);
 }
 
 function isVisitedSubset(subset, superset) {
@@ -307,8 +309,10 @@ function finalizeReachableActions(results) {
   );
 }
 
-export function calculateReachableActions({ session, turn, diceValue, unit }) {
+function* searchReachableActions({ session, turn, diceValue, unit }, firstOnly = false) {
+  const { cols } = getMapDimensions(session.mapDefinition);
   const results = new Map();
+  if (!isWithinMap(session.mapDefinition, unit.r, unit.c)) return results;
   const stateFrontiers = new Map();
   const isThief = turn === "THIEF";
   const role = isThief ? "THIEF" : "POLICE";
@@ -331,22 +335,25 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
     boardedCarAt: null,
     droppedCarAt: null,
     carPickups: [],
-    visitedMask: getVisitedBit(unit.r, unit.c),
+    visitedMask: getVisitedBit(unit.r, unit.c, cols),
   });
 
+  let iterations = 0;
   while (queue.length > 0) {
+    if (++iterations % 128 === 0) yield;
     const current = queue.shift();
     if (!shouldExpandState(stateFrontiers, current, needsPathVariants)) continue;
 
     if (current.trail.length > 0) {
       recordReachableAction(results, session, current);
+      if (firstOnly && results.size) return finalizeReachableActions(results);
     }
 
     if (current.pointsLeft === 0 || isTerminalAction(current)) {
       continue;
     }
 
-    const possibleMoves = searchBoard[Number(current.isDriving)][current.r * GRID_SIZE + current.c];
+    const possibleMoves = searchBoard[Number(current.isDriving)][current.r * cols + current.c];
     for (const move of possibleMoves) {
       const { nr, nc, cellRule, cost, occupant } = move;
       if ((current.visitedMask & move.bit) !== 0n) continue;
@@ -409,4 +416,32 @@ export function calculateReachableActions({ session, turn, diceValue, unit }) {
   }
 
   return finalizeReachableActions(results);
+}
+
+
+function runSearch(options, firstOnly = false) {
+  const search = searchReachableActions(options, firstOnly);
+  let next;
+  do { next = search.next(); } while (!next.done);
+  return next.value;
+}
+
+export function calculateReachableActions(options) { return runSearch(options); }
+export function hasReachableAction(options) { return runSearch(options, true).size > 0; }
+
+// Same search and ordering as the Worker; yield regularly when a large map
+// must run without one. Cancellation is checked between small batches.
+export async function calculateReachableActionsAsync(options, { cancelled = () => false, pause = () => new Promise(resolve => setTimeout(resolve, 0)) } = {}) {
+  await pause();
+  const search = searchReachableActions(options);
+  while (!cancelled()) {
+    const start = performance.now();
+    let next;
+    do {
+      next = search.next();
+      if (next.done) return next.value;
+    } while (!cancelled() && performance.now() - start < 8);
+    await pause();
+  }
+  return null;
 }

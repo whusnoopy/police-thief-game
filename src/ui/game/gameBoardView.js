@@ -1,3 +1,4 @@
+import { getMapDimensions } from "../../domain/map/mapDimensions.js";
 import { SIGNAL_PHASES, normalizeSignalPhase } from "../../config/constants.js";
 import { getCrosswalkSignalPositions, isCrosswalkTileType } from "../../domain/map/crosswalk.js";
 import { renderBoard } from "../board/boardRenderer.js";
@@ -11,6 +12,7 @@ export function createGameBoardView(container, options) {
   return {
     render(session) {
       container.className = "board grid-10x10";
+      container.parentNode?.classList.toggle("large-topdown", getMapDimensions(session.mapDefinition).rows > 10);
       renderBoard(container, {
         mapDefinition: session.mapDefinition,
         cellIdPrefix: prefix,

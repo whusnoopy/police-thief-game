@@ -81,7 +81,7 @@ test("startup and subsequent edits preserve a corrupt current map as a separate 
   realStorage.setItem(STORAGE_KEYS.mapList, JSON.stringify([brokenRecord, goodRecord]));
   realStorage.setItem(STORAGE_KEYS.currentMapId, brokenRecord.id);
   loadInitialMapIntoState();
-  setLegacyTileAt(state.mapDefinition, 0, 0, "BANK");
+  setLegacyTileAt(state.mapDefinition, 0, 3, "BANK");
   persistCurrentMap();
   const maps = getMapList();
   assert.equal(maps.length, 3);
@@ -104,7 +104,7 @@ test("an unreadable entire library is retained through startup, edits, retries, 
   realStorage.setItem(STORAGE_KEYS.mapList, raw);
   realStorage.setItem(STORAGE_KEYS.currentMapId, "old");
   assert.doesNotThrow(loadInitialMapIntoState);
-  setLegacyTileAt(state.mapDefinition, 1, 1, "BANK");
+  setLegacyTileAt(state.mapDefinition, 1, 2, "BANK");
   persistCurrentMap();
   retryMapSave();
   assert.equal(realStorage.getItem(STORAGE_KEYS.mapList), raw);

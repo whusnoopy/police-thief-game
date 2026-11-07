@@ -11,11 +11,11 @@ const { gameController } = await import("../src/features/gameController.js");
 
 test("storage failures do not prevent rendering, editing, or starting a playable game", () => {
   assert.doesNotThrow(init);
-  assert.equal(env.elements["editor-board"].children.length, 100);
-  env.document.getElementById("editor-cell-0-0").dispatchEvent({ type: "pointerdown", button: 0, pointerId: 1 });
+  assert.equal(env.elements["editor-board"].children.length, 376);
+  env.document.getElementById("editor-cell-0-3").dispatchEvent({ type: "pointerdown", button: 0, pointerId: 1 });
   env.document.dispatchEvent({ type: "pointerup", pointerId: 1 });
-  assert.equal(state.mapDefinition.terrain[0][0], "GRASS");
-  [[0, 0, "POLICE_SPAWN"], [9, 9, "THIEF_SPAWN"], [5, 5, "BANK"], [9, 0, "THIEF_BASE"]]
+  assert.equal(state.mapDefinition.terrain[0][3], "GRASS");
+  [[0, 3, "POLICE_SPAWN"], [9, 9, "THIEF_SPAWN"], [5, 5, "BANK"], [9, 0, "THIEF_BASE"]]
     .forEach(([r, c, type]) => setLegacyTileAt(state.mapDefinition, r, c, type));
   env.elements["btn-start-game"].click();
   assert.equal(state.mode, "GAME");
