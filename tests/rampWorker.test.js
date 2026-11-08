@@ -19,6 +19,27 @@ function browserWorkerAdapter() {
   return adapter;
 }
 
+test("Worker and cooperative fallback honor explicit fractional balances instead of refilling from dice", async()=>{
+  for(const direction of ["N","E","S","W"]) {
+    const {map}=createRampScenario(direction);map.actionRules="continuous";
+    const session=createGameSession(map),units=session.thiefUnits;units[0].inCar=true;
+    for(const movementPoints of [0,1,2,7]) {
+      const payload={session,units,turn:"THIEF",diceValue:6,movementPoints};
+      const result=await startReachabilityJob(payload,browserWorkerAdapter).promise;
+      assert.ok(result instanceof Map);
+      const expected=calculateReachableActions({...payload,unit:units[0]});assert.deepEqual(result.get("T1"),expected);
+      for(const action of expected.values())assert.ok(action.costSpent<=movementPoints);
+      if(!movementPoints)assert.equal(expected.size,0);
+    }
+  }
+  const {createNewMapDefinition,setLegacyTileAt}=await import("../src/domain/map/mapModel.js");
+  const map=createNewMapDefinition();setLegacyTileAt(map,10,10,"THIEF_SPAWN");
+  const session=createGameSession(map),units=session.thiefUnits;
+  const payload={session,units,turn:"THIEF",diceValue:6,movementPoints:6};
+  const result=await startReachabilityJob(payload,()=>null).promise;
+  assert.equal(result.get("T1").size,4);
+});
+
 test("production worker matches synchronous ramp search for all orientations, roles and dice values", async () => {
   for (const direction of ["N", "E", "S", "W"]) {
     const session = createGameSession(createRampScenario(direction).map);

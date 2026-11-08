@@ -9,9 +9,10 @@ export function createMapExpansionDraft({ encodedMap, mapId, name }) {
   const original = decodeMapDefinition(encodedMap);
   if (getMapDimensions(original).rows !== 10) throw new Error("Only 10×10 maps can be expanded");
   const draft = createEmptyMapDefinition({
-    ruleset: original.ruleset, actionRules: "single",
+    ruleset: original.ruleset, actionRules: original.actionRules || "single",
     meta: { ...original.meta, rows: 20, cols: 20 },
     ...(original.upgrade ? { upgrade: structuredClone(original.upgrade) } : {}),
+    ...(original.actionUpgrade ? { actionUpgrade: structuredClone(original.actionUpgrade) } : {}),
     expansion: { status: "editing", offset: { r: 5, c: 5 }, source: {
       encodedMap, ...(mapId !== undefined ? { mapId } : {}), ...(name !== undefined ? { name } : {}),
     } },

@@ -7,7 +7,7 @@ export const EXAMPLE_MAP_NAME = "双岸追缉 · 高架与暗道";
 
 // Coordinates here are zero based; the editor and route guide display 1–20.
 export function createExampleMap() {
-  const map = createNewMapDefinition();
+  const map = createNewMapDefinition({ actionRules: "single" });
   map.meta.name = EXAMPLE_MAP_NAME;
   for (let r = 0; r < 20; r++) for (let c = 0; c < 20; c++) {
     if (isWithinMap(map, r, c)) map.terrain[r][c] = "GRASS";

@@ -1,6 +1,7 @@
 import { SIGNAL_PHASES } from "../../config/constants.js";
 import { getActiveUnitsForTurn } from "../game/sessionSelectors.js";
 import { hasReachableAction } from "./moveGenerator.js";
+import { getUnitOperations } from "./unitOperations.js";
 
 export function isPermanentStalemate(session) {
   if (!session?.thiefUnits.some((unit) => unit.state === "ACTIVE")) return false;
@@ -12,6 +13,7 @@ export function isPermanentStalemate(session) {
     for (const turn of ["THIEF", "POLICE"]) {
       for (const unit of getActiveUnitsForTurn(session, turn)) {
         if (hasReachableAction({ session: futureSession, turn, unit, diceValue: 6 })) return false;
+        if (getUnitOperations({ session: futureSession, turn, unit, movementPoints: 24 }).some(op => op.enabled)) return false;
       }
     }
   }

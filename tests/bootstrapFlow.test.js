@@ -118,4 +118,5 @@ test("the library example button creates a playable copy and keeps the edited or
   assert.equal(env.elements["editor-board"].children.length,376);
   for(const record of original)assert.deepEqual(getMapList().find(map=>map.id===record.id),record);
   env.elements["btn-start-game"].click();assert.equal(state.mode,"GAME");
+  assert.equal(env.elements["game-board"].querySelectorAll(".iso-surface").length,376);
 });

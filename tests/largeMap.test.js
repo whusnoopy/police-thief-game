@@ -22,7 +22,7 @@ import { encodeLegacyMapDefinition } from "./helpers/legacyPayload.js";
 const wrap = p => `v${p.v}.${Buffer.from(JSON.stringify(p)).toString("base64url")}`;
 const payload = encoded => JSON.parse(Buffer.from(encoded.slice(3), "base64url").toString());
 function playable(size = 20, legacy = false) {
-  const map = size === 20 ? createNewMapDefinition() : legacy ? createEmptyMapDefinition() : createRampMapDefinition();
+  const map = size === 20 ? createNewMapDefinition({ actionRules: "single" }) : legacy ? createEmptyMapDefinition() : createRampMapDefinition();
   const edge = size === 20 ? 16 : size - 1, top = size === 20 ? 3 : 0;
   for (const [r,c,t] of [[size-1, edge, "THIEF_SPAWN"], [0,top,"POLICE_SPAWN"], [size-1,edge-1,"BANK"], [size-2,edge,"THIEF_BASE"], [0,top+1,"POLICE_STATION"]]) setLegacyTileAt(map,r,c,t);
   return map;
@@ -32,7 +32,7 @@ test("new maps default to 20×20 while historical factories and saved maps retai
   const map = createNewMapDefinition();
   assert.deepEqual(getMapDimensions(map), { rows:20, cols:20 });
   assert.equal(map.terrain.flat().length,400);
-  assert.equal(map.actionRules,"single");
+  assert.equal(map.actionRules,"continuous");
   assert.deepEqual(getMapDimensions(createEmptyMapDefinition()),{rows:10,cols:10});
   assert.equal(resolveInitialMapLoad().mapDefinition.meta.rows,20);
   for (const old of [createEmptyMapDefinition(),createRampMapDefinition()]) {
@@ -140,7 +140,7 @@ test("far-edge road movement, money, capture and vehicle parking use the full 20
 test("all four ramps beyond the old boundary preserve bridge costs, bank paths, side closures and unique visited cells", () => {
   for (const direction of ["N","E","S","W"]) {
     const fixture=createRampScenario(direction);
-    const map=createNewMapDefinition();
+    const map=createNewMapDefinition({ actionRules: "single" });
     for (let r=0;r<10;r++) for(let c=0;c<10;c++) map.terrain[r+8][c+8]=fixture.map.terrain[r][c];
     map.features=fixture.map.features.map(f=>({...f,position:{r:f.position.r+8,c:f.position.c+8}}));
     for(const side of ["police","thief"]) map.spawns[side]=fixture.map.spawns[side].map(p=>({r:p.r+8,c:p.c+8}));

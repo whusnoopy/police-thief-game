@@ -42,12 +42,15 @@ test("explicit editor expansion creates a distinct record, requires review and r
 });
 
 test("20×20 game renders every surface, focuses the far-edge actor and preserves preview across views",async()=>{
-  const map=createNewMapDefinition();for(const[r,c,t]of [[0,3,"POLICE_SPAWN"],[19,16,"THIEF_SPAWN"],[19,15,"BANK"],[18,16,"THIEF_BASE"]])setLegacyTileAt(map,r,c,t);
+  const map=createNewMapDefinition({ actionRules: "single" });for(const[r,c,t]of [[0,3,"POLICE_SPAWN"],[19,16,"THIEF_SPAWN"],[19,15,"BANK"],[18,16,"THIEF_BASE"]])setLegacyTileAt(map,r,c,t);
   game.boardMode="isometric";game.init(map);game.diceValue=2;await game.onDiceRolled();
   assert.equal(els.gameBoard.querySelectorAll(".iso-surface").length,376);
+  assert.equal(game.boardViewState.zoom,1,"a new game starts with the full map");
+  const overview={x:game.boardViewState.centerX,y:game.boardViewState.centerY};
   game.handleCellClick(19,16);game.handleCellClick(19,15,{previewOnly:true});
   els.btnBoardFit.click();assert.equal(game.boardViewState.zoom,1);els.btnBoardFocus.click();
   assert.ok(game.boardViewState.centerX>0);assert.ok(game.boardViewState.centerY>0);
+  assert.notDeepEqual({x:game.boardViewState.centerX,y:game.boardViewState.centerY},overview,"focus remains an explicit action");
   game.setBoardMode("topdown");assert.equal(els.gameBoard.querySelectorAll(".cell").length,376);
   game.setBoardMode("isometric");assert.deepEqual(game.pendingDestination,{r:19,c:15});game.confirmMove();
   assert.equal(game.thiefUnits[0].hasMoney,true);assert.equal(game.thiefUnits[0].c,15);assert.equal(game.turn,"POLICE");

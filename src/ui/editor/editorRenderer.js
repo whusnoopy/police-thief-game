@@ -21,13 +21,12 @@ const PALETTE_GROUPS = [
       "BARRIER",
       "CROSSWALK_HORIZONTAL",
       "CROSSWALK_VERTICAL",
-      "OVERPASS",
     ],
   },
   {
-    id: "bridge-ramps",
-    name: "上下桥方向",
-    tileIds: RAMP_TILE_TYPES,
+    id: "bridge-facilities",
+    name: "高架桥设施",
+    tileIds: ["OVERPASS", ...RAMP_TILE_TYPES],
   },
   {
     id: "spawns",
@@ -137,6 +136,12 @@ const TILE_HELP = {
   },
 };
 
+const CONTINUOUS_HELP = {
+  BANK: { summary: "小偷到位后取钱的地点。", details: ["警察和小偷都可进入。", "小偷到位后点击取钱，移动费之外另付 1 点；经过不会自动取钱。", "银行的钱不会被取空。"] },
+  PARKING: { summary: "提供车辆及停车下车的地点。", details: ["到空车处后可点击上车，另付 1 点。", "驾车可在无车停车场点击下车，另付 1 点。", "移动到位不自动上/下车，余额可继续使用。"] },
+  POLICE_STATION: { summary: "警察专属的交付地点。", details: ["只有警察可进入。", "押送到位后点击交付，另付 1 点，再次恢复抓捕能力。", "驾车到达需先下车 1 点、再交付 1 点。"] },
+};
+
 function getFallbackHelp() {
   return {
     summary: "基础地块。",
@@ -144,8 +149,8 @@ function getFallbackHelp() {
   };
 }
 
-function renderTileHelpPanel(panel, type) {
-  const help = TILE_HELP[type.id] || getFallbackHelp(type);
+function renderTileHelpPanel(panel, type, continuousRules = false) {
+  const help = (continuousRules && CONTINUOUS_HELP[type.id]) || TILE_HELP[type.id] || getFallbackHelp(type);
   panel.innerHTML = "";
   panel.dataset.type = type.id;
 
@@ -168,12 +173,12 @@ function renderTileHelpPanel(panel, type) {
   panel.append(title, summary, detailList);
 }
 
-function createTileHelpPanel(type) {
+function createTileHelpPanel(type, continuousRules) {
   const panel = document.createElement("div");
   panel.id = "tile-help-panel";
   panel.className = "tile-help-panel";
   panel.setAttribute("aria-live", "polite");
-  renderTileHelpPanel(panel, type);
+  renderTileHelpPanel(panel, type, continuousRules);
   return panel;
 }
 
@@ -246,7 +251,7 @@ function createPaletteGroup(
   summary.append(title, count);
 
   const grid = document.createElement("div");
-  grid.className = `palette-grid${group.id === "bridge-ramps" ? " ramp-direction-grid" : ""}`;
+  grid.className = `palette-grid${group.id === "bridge-facilities" ? " ramp-direction-grid" : ""}`;
   groupTileTypes.forEach((type) => {
     grid.appendChild(createPaletteItem(type, currentPaletteType, onPreview, onSelect));
   });
@@ -255,19 +260,19 @@ function createPaletteGroup(
   return details;
 }
 
-export function renderPalette(container, { tileTypes, currentPaletteType, onSelect, rampRules = false }) {
+export function renderPalette(container, { tileTypes, currentPaletteType, onSelect, rampRules = false, continuousRules = false }) {
   container.innerHTML = "";
 
   const typeById = new Map(tileTypes.map((type) => [type.id, type]));
   const groupedIds = new Set();
   let selectedTileType = typeById.has(currentPaletteType) ? currentPaletteType : tileTypes[0]?.id;
   const initialTileType = typeById.get(selectedTileType) || tileTypes[0];
-  const helpPanel = createTileHelpPanel(initialTileType);
+  const helpPanel = createTileHelpPanel(initialTileType, continuousRules);
 
   function previewTileHelp(typeId) {
     const type = typeById.get(typeId);
     if (type) {
-      renderTileHelpPanel(helpPanel, type);
+      renderTileHelpPanel(helpPanel, type, continuousRules);
       if (rampRules && typeId === "OVERPASS") {
         const extra = document.createElement("span");
         extra.textContent = "桥面不能直接进出相邻地面，请使用有方向的上下桥格。";
@@ -327,23 +332,6 @@ export function renderPalette(container, { tileTypes, currentPaletteType, onSele
     container.appendChild(groupElement);
   }
 
-  if (rampRules) {
-    const rotate = document.createElement("button");
-    rotate.type = "button";
-    rotate.id = "btn-rotate-ramp";
-    rotate.className = "btn secondary";
-    rotate.textContent = "↻ 轮换上下桥方向（R）";
-    rotate.addEventListener("click", () => {
-      const next = RAMP_TILE_TYPES[(RAMP_TILE_TYPES.indexOf(selectedTileType) + 1) % RAMP_TILE_TYPES.length];
-      const item = Array.from(container.querySelectorAll(".palette-item")).find((element) => element.dataset.type === next);
-      if (item) {
-        const group = item.closest(".palette-group");
-        if (group) group.open = true;
-        selectTile(next, item);
-      }
-    });
-    container.appendChild(rotate);
-  }
   container.appendChild(helpPanel);
 
   container.onmouseleave = restoreSelectedTileHelp;

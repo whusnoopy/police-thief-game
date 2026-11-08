@@ -13,9 +13,14 @@
     <div class="app-container">
       <div id="app-header-home">
         <header id="app-header">
-          <h1>🚓 警察抓小偷 🏃</h1>
+          <h1>警察抓小偷</h1>
           <span id="app-version" class="app-version"></span>
-          <div id="mode-indicator" class="badge">地图编辑模式</div>
+          <div id="mode-indicator" class="badge">
+            <span id="mode-indicator-label">地图编辑模式</span>
+            <button id="btn-rename-current-map" class="map-rename-control" type="button" aria-label="重命名当前地图" title="重命名当前地图">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5 4 4M4 20l5-1L20 8a2.8 2.8 0 0 0-4-4L5 15l-1 5Z"/></svg>
+            </button>
+          </div>
         </header>
       </div>
 
@@ -28,60 +33,24 @@
       </div>
 
       <main id="editor-view" class="view active">
-        <div class="palette-panel">
-          <div id="editor-header-slot"></div>
-          <div class="editor-actions">
-            <button
-              id="btn-start-game"
-              class="btn success"
-              type="button"
-            >
-              🚀 开始游戏
-            </button>
-            <div class="editor-history-actions">
-              <button id="btn-undo-map" class="btn secondary" type="button" disabled title="Ctrl / ⌘ Z">↶ 撤销</button>
-              <button id="btn-redo-map" class="btn secondary" type="button" disabled title="Ctrl / ⌘ Shift Z">↷ 重做</button>
-            </div>
-            <div class="editor-utility-actions">
-              <button id="btn-clear-map" class="btn danger" type="button">清空</button>
-              <button id="btn-map-list" class="btn info" type="button">地图库</button>
-              <div id="editor-help-wrapper" class="editor-help-wrapper">
-                <button
-                  id="btn-editor-help"
-                  class="btn secondary editor-help-button"
-                  type="button"
-                  aria-label="查看编辑提示"
-                  aria-expanded="false"
-                  aria-describedby="editor-help-tooltip"
-                >
-                  ℹ️
-                </button>
-                <div id="editor-help-tooltip" class="editor-help-tooltip hidden" role="tooltip">
-                  <p>选择地块类型后，用鼠标左键、手指或触控笔在棋盘上拖绘。一次拖绘可整体撤销，放山与周边变化、清空地图也可撤销。</p>
-                  <p>开始游戏前必须放置警察出生点、小偷出生点、小偷基地和银行，并连接取钱、逃脱路线。小偷多于警察时，还需要可到达的警察局。</p>
-                  <p>新地图为 20×20，每个角削去三层，保留 376 格；可切换“拖动”平移并缩放，或查看全图。旧 10×10 保留原尺寸，可创建扩展副本。地图会自动保存，清空按钮可将可编辑地块重置为普通道路，地图库按钮可进入管理多张地图。</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <section id="bridge-panel" class="bridge-panel" aria-label="高架与上下桥"></section>
-
-          <div id="palette" class="palette">
-            <!-- 生成的地块选项和当前地块说明会放在这里 -->
-          </div>
-        </div>
-
         <div class="board-container editor-map-area">
           <div class="editor-map-tools" aria-label="地图查看与编辑">
             <span id="editor-map-size"></span>
             <div class="editor-map-buttons">
-              <button id="btn-editor-paint" type="button" aria-pressed="true">绘制</button>
-              <button id="btn-editor-pan" type="button" aria-pressed="false">拖动</button>
-              <button id="btn-editor-zoom-out" type="button" aria-label="缩小编辑地图">−</button>
-              <button id="btn-editor-zoom-in" type="button" aria-label="放大编辑地图">＋</button>
-              <button id="btn-editor-fit" type="button">全图</button>
-              <button id="btn-editor-detail" type="button">原大小</button>
+              <div class="editor-tool-group editor-history-actions" role="group" aria-label="编辑历史">
+                <button id="btn-undo-map" type="button" disabled title="Ctrl / ⌘ Z">↶ 撤销</button>
+                <button id="btn-redo-map" type="button" disabled title="Ctrl / ⌘ Shift Z">↷ 重做</button>
+              </div>
+              <div class="editor-tool-group" role="group" aria-label="编辑方式">
+                <button id="btn-editor-paint" type="button" aria-pressed="true">绘制</button>
+                <button id="btn-editor-pan" type="button" aria-pressed="false">拖动</button>
+              </div>
+              <div class="editor-tool-group" role="group" aria-label="地图缩放">
+                <button id="btn-editor-zoom-out" type="button" aria-label="缩小编辑地图">−</button>
+                <button id="btn-editor-zoom-in" type="button" aria-label="放大编辑地图">＋</button>
+                <button id="btn-editor-fit" type="button">全图</button>
+                <button id="btn-editor-detail" type="button">原大小</button>
+              </div>
             </div>
             <span id="editor-map-position" aria-live="polite">选择地块后绘制；切换“拖动”查看其他区域。</span>
             <div id="map-expansion-controls"></div>
@@ -92,6 +61,46 @@
           </div>
           </div>
         </div>
+
+        <div class="palette-panel">
+          <div class="editor-sidebar-scroll">
+            <div id="editor-header-slot"></div>
+            <div class="editor-actions">
+              <div class="editor-utility-actions">
+                <button id="btn-clear-map" class="btn danger" type="button">清空</button>
+                <button id="btn-map-list" class="btn info" type="button">地图库</button>
+                <div id="editor-help-wrapper" class="editor-help-wrapper">
+                  <button
+                    id="btn-editor-help"
+                    class="btn secondary editor-help-button"
+                    type="button"
+                    aria-label="查看编辑提示"
+                    aria-expanded="false"
+                    aria-describedby="editor-help-tooltip"
+                  >
+                    ℹ️
+                  </button>
+                  <div id="editor-help-tooltip" class="editor-help-tooltip hidden" role="tooltip">
+                    <p>选择地块类型后，用鼠标左键、手指或触控笔在棋盘上拖绘。一次拖绘可整体撤销，放山与周边变化、清空地图也可撤销。</p>
+                    <p>开始游戏前必须放置警察出生点、小偷出生点、小偷基地和银行，并连接取钱、逃脱路线。小偷多于警察时，还需要可到达的警察局。</p>
+                    <p>新地图为 20×20，每个角削去三层，保留 376 格；可切换“拖动”平移并缩放，或查看全图。旧 10×10 保留原尺寸，可创建扩展副本。地图会自动保存，清空按钮可将可编辑地块重置为普通道路，地图库按钮可进入管理多张地图。</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <section id="action-rule-controls" class="editor-map-actions" aria-label="行动规则"></section>
+            <section id="bridge-panel" class="editor-map-actions" aria-label="高架与上下桥"></section>
+
+            <div id="palette" class="palette">
+              <!-- 生成的地块选项和当前地块说明会放在这里 -->
+            </div>
+          </div>
+          <div class="editor-play-footer">
+            <button id="btn-start-game" class="btn success" type="button">🚀 开始游戏</button>
+          </div>
+        </div>
+
       </main>
 
       <main id="game-view" class="view hidden">
@@ -99,17 +108,17 @@
           <div id="game-sidebar-header" class="hidden"></div>
           <div id="game-sidebar-view" class="hidden"></div>
           <div id="game-status-panel" class="status-panel">
-            <h3 id="turn-indicator">🏃 小偷回合</h3>
+            <h3 id="turn-indicator">小偷回合</h3>
             <p id="signal-indicator" class="signal-indicator pedestrian-go">
               🚥 当前：行人通行
             </p>
             <div class="player-stats">
               <div class="stat-box" id="police-stat">
-                <span class="icon">🚓</span>
+                <span id="police-role-icon" class="icon role-icon" aria-hidden="true"></span>
                 <span class="label">警察</span>
               </div>
               <div class="stat-box active" id="thief-stat">
-                <span class="icon">🏃</span>
+                <span id="thief-role-icon" class="icon role-icon" aria-hidden="true"></span>
                 <span class="label">小偷</span>
               </div>
             </div>
@@ -120,16 +129,19 @@
             <h3>获取步数</h3>
             <div id="dice" class="dice">🎲</div>
             <div class="dice-result">
-              <span>步数: </span>
+              <span>骰点: </span>
               <span id="dice-value">?</span>
             </div>
+            <p id="remaining-points" class="turn-budget hidden" aria-live="polite"></p>
             <p id="game-message" class="game-message">点击下方按钮掷骰子</p>
+            <div id="unit-operations" class="unit-operations hidden" aria-label="当前角色操作"></div>
             <div class="dice-actions">
               <button id="btn-roll-dice" class="btn primary">🎲 掷骰子</button>
               <button id="btn-skip-turn" class="btn warning hidden">
                 ⏭️ 跳过回合
               </button>
               <button id="btn-cancel-selection" class="btn secondary hidden" type="button">取消选中</button>
+              <button id="btn-end-turn" class="btn warning hidden" type="button">结束回合</button>
             </div>
           </div>
 
@@ -159,13 +171,8 @@
                 <button id="btn-board-focus" type="button">定位角色</button>
               </div>
             </div>
-            <p id="isometric-help" class="isometric-help hidden">在地图空白或不可点击处按住拖动；“全图”查看总览，“定位角色”返回选中或本回合角色。大地图默认显示局部区域。被遮挡的主体会显示彩色轮廓，也可点击编号选人。设施中的人物缩小在门口，车辆在旁侧停靠。</p>
           </div>
           <div class="board-container">
-            <div id="game-map-controls" class="game-map-controls hidden">
-              <button id="btn-toggle-game-sidebar" type="button" aria-controls="iso-panel-info iso-panel-status iso-panel-progress iso-panel-dice" aria-expanded="true">收起面板</button>
-              <div id="game-map-zoom-slot"></div>
-            </div>
             <div id="game-board" class="board grid-10x10">
               <!-- 游戏棋盘通过 JS 渲染 -->
             </div>
@@ -180,27 +187,23 @@
                   <button id="btn-cancel-move" class="btn secondary" type="button">取消预览</button>
                 </div>
               </div>
-              <p id="last-action" class="last-action" role="status" aria-live="polite">行动结果会显示在这里。</p>
+              <div id="last-action" class="last-action" role="log" aria-label="本局行动记录" aria-live="polite" tabindex="0">行动结果会显示在这里。</div>
             </section>
           </div>
         </div>
-        <details id="iso-panel-info" class="iso-corner-panel iso-info hidden" open>
-          <summary>游戏与规则</summary>
+        <section id="iso-panel-info" class="iso-corner-panel iso-info hidden" aria-label="游戏与规则">
           <div id="iso-info-content" class="iso-panel-content"></div>
-        </details>
-        <details id="iso-panel-status" class="iso-corner-panel iso-status hidden" open>
-          <summary>当前状态</summary>
-          <div id="iso-status-content" class="iso-panel-content"></div>
+        </section>
+        <section id="iso-panel-status" class="iso-corner-panel iso-status hidden" aria-label="游戏状态">
           <div id="iso-status-zoom" class="iso-panel-zoom"></div>
-        </details>
-        <details id="iso-panel-progress" class="iso-corner-panel iso-progress hidden" open>
-          <summary>行动与进度</summary>
+          <div id="iso-status-content" class="iso-panel-content"></div>
+        </section>
+        <section id="iso-panel-progress" class="iso-corner-panel iso-progress hidden" aria-label="行动与进度">
           <div id="iso-progress-content" class="iso-panel-content"></div>
-        </details>
-        <details id="iso-panel-dice" class="iso-corner-panel iso-dice hidden" open>
-          <summary>掷骰与行动</summary>
+        </section>
+        <section id="iso-panel-dice" class="iso-corner-panel iso-dice hidden" aria-label="掷骰与行动">
           <div id="iso-dice-content" class="iso-panel-content"></div>
-        </details>
+        </section>
       </main>
 
       <main id="map-list-view" class="view hidden map-list-view">
@@ -282,21 +285,26 @@
             </button>
           </div>
           <div class="rules-list">
-            <p><span class="emoji">👆</span> 掷骰后选择己方角色。触屏点击高亮落点可预览路线与结果，再按“确认移动”；鼠标悬停预览、点击直接移动。每次行动结束即换手，未用步数作废。</p>
-            <p><span class="emoji">🏁</span> 抓住全部小偷（含押送中）即警察获胜；全部小偷带钱逃脱即小偷获胜。若部分逃脱、部分被抓且没有活动小偷，则以混合结局结束。</p>
-            <p><span class="emoji">⬜🔵🔴</span> 道路消耗 1 步，出生点等同道路</p>
-            <p><span class="emoji">🌊🌉</span> 河流、高架桥和上下桥格只允许车辆通行；车辆过河每格消耗 2 步，进入桥面或上下桥格每格消耗 0.25 步。高架仅通过上下桥格连接地面，箭头朝向高端，反向可下桥，两侧封闭。</p>
-            <p><span class="emoji">↔️↕️</span> 斑马线分横向和纵向；行人只能按斑马线方向在绿灯时通过，车辆只能按垂直方向在红灯时通过</p>
-            <p><span class="emoji">🌿</span> 草地消耗 2 步</p>
-            <p><span class="emoji">🏢🏗️🚧⛰️</span> 建筑物、建筑工地、路障、山不可进入</p>
-            <p><span class="emoji">🚨</span> 警察局仅警察可进入，押送小偷进入警局将让警察可再次抓人</p>
-            <p><span class="emoji">🏦</span> 银行的钱无限，小偷必须自己进入银行拿到钱后，才能回小偷基地逃脱</p>
-            <p><span class="emoji">🚜🐷🐮</span> 农场会在相邻且有出口的空格刷新动物；每个农场最多 3 只。动物受困 3 轮或在外停留 6 轮后回农场，回场当轮该农场不刷新动物，留出通行机会</p>
-            <p><span class="emoji">🤝</span> 跳过回合时，若双方即使掷出 6、切换红绿灯且动物离开后也完全无法行动，则以平局结束</p>
-            <p><span class="emoji">🟢🔴</span> 斑马线两侧的小灯只表示行人信号；绿灯时行人可按斑马线方向通过，红灯时车辆可按垂直方向通过；每两次行动切换一次</p>
-            <p><span class="emoji">🏚️</span> 小偷基地仅带钱小偷可进入，进入即逃脱；若驾车到达，汽车会自动回到最近的空停车场</p>
-            <p><span class="emoji">🕳️</span> 井盖对警察等同道路，小偷站在井盖上可 1 步传送到其他任何井盖</p>
-            <p><span class="emoji">🅿️🚗</span> 步行进入空车会自动上车并结束行动；驾车以无车停车场为终点时自动下车，不能中途下车或换乘</p>
+            <p class="rule-row rules-isometric"><span class="emoji rule-icons" aria-hidden="true">🗺️</span><span class="rule-description">进入斜视游戏默认显示全图；可在地图空白或不可点击处按住拖动，用“全图”恢复总览，用“定位角色”查看选中或本回合角色。被遮挡的主体显示彩色轮廓，也可点击编号选人；设施内人物缩小在门口，车辆在旁侧停靠。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">👆</span><span class="rule-description">掷骰后选择己方角色。触屏点击高亮落点可预览路线与结果，再按“确认移动”；鼠标悬停预览、点击直接移动。</span></p>
+            <p class="rule-row rules-single"><span class="emoji rule-icons" aria-hidden="true">🎲</span><span class="rule-description">当前地图使用旧行动规则：每次行动结束即换手，未用步数作废。</span></p>
+            <p class="rule-row rules-continuous"><span class="emoji rule-icons" aria-hidden="true">🎲</span><span class="rule-description">当前地图使用连续行动：骰点形成本回合预算。首次实际行动前可换人、取消；首次扣点后锁定该角色，余额可继续移动和操作，也可主动结束。点数用尽、余额无合法行动或角色逃脱后结束回合。取消预览不扣点。</span></p>
+            <p class="rule-row rules-continuous"><span class="emoji rule-icons" aria-hidden="true">💰</span><span class="rule-description">上车、下车、银行取钱、警局交付各在移动费之外另扣 1 点。到位后点击对应操作按钮，余额不足可停留，下一回合再操作。抓捕、逃脱不另加操作费，井盖传送仍为 1 点。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🏁</span><span class="rule-description">抓住全部小偷（含押送中）即警察获胜；全部小偷带钱逃脱即小偷获胜。若部分逃脱、部分被抓且没有活动小偷，则以混合结局结束。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">⬜</span><span class="rule-description">道路步行消耗 1 点、驾车消耗 0.5 点，出生点等同道路。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🌊🌉</span><span class="rule-description">河流、高架桥和上下桥格只允许车辆通行；车辆过河每格消耗 2 点，进入桥面或上下桥格每格消耗 0.25 点。高架仅通过上下桥格连接地面，箭头朝向高端，反向可下桥，两侧封闭。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">↔️↕️</span><span class="rule-description">斑马线分横向和纵向；行人只能按斑马线方向在绿灯时通过，车辆只能按垂直方向在红灯时通过。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🌿</span><span class="rule-description">草地步行每格消耗 2 点，车辆不能进入。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🏢🏗️🚧⛰️</span><span class="rule-description">建筑物、建筑工地、路障和山均不可进入。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🚨</span><span class="rule-description">警察局仅警察可进入，交付小偷后可再次抓人。<span class="rules-single">押送进入时自动交付并下车。</span><span class="rules-continuous">驾车到达后，先下车 1 点、再交付 1 点，随后可用余额继续行动；也可留待之后的回合操作。</span></span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🏦</span><span class="rule-description">银行的钱无限，小偷必须自己在银行拿到钱后，才能回小偷基地逃脱。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🚜🐷🐮</span><span class="rule-description">农场会在相邻且有出口的空格刷新动物；每个农场最多 3 只。动物受困 3 轮或在外停留 6 轮后回农场，回场当轮该农场不刷新动物，留出通行机会。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🤝</span><span class="rule-description">跳过回合时，若双方即使掷出 6、切换红绿灯且动物离开后也完全无法行动，则以平局结束。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🟢🔴</span><span class="rule-description">斑马线两侧的小灯只表示行人信号；绿灯时行人可按斑马线方向通过，红灯时车辆可按垂直方向通过；每次警察回合结束时切换，动物也只在此时更新一次。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🏚️</span><span class="rule-description">小偷基地仅带钱小偷可进入，进入即逃脱；若驾车到达，汽车会自动回到最近的空停车场。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🕳️</span><span class="rule-description">井盖对警察等同道路，步行小偷站在井盖上可花 1 点传送到其他任何井盖。</span></p>
+            <p class="rule-row rules-single"><span class="emoji rule-icons" aria-hidden="true">🅿️🚗</span><span class="rule-description">步行进入空车会自动上车并结束行动；驾车以无车停车场为终点时自动下车，不能中途下车或换乘。</span></p>
+            <p class="rule-row rules-continuous"><span class="emoji rule-icons" aria-hidden="true">🅿️🚗</span><span class="rule-description">到空车处可点击上车；停车场或警察所在警局允许下车，车辆按原规则停放或回库。其他道路、河流、桥面不能任意下车。银行到位后点击取钱，经过银行不会自动获得钱。</span></p>
           </div>
           <div class="modal-actions rules-modal-actions">
             <button id="btn-close-rules-modal-footer" class="btn primary" type="button">知道了</button>

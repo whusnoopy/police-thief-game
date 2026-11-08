@@ -14,7 +14,7 @@ import {
 } from "../game/sessionSelectors.js";
 import { getCellRuleAt } from "./cellRules.js";
 import { areCellsConnected } from "../map/bridgeTopology.js";
-import { usesRampRules } from "../map/mapCompatibility.js";
+import { usesRampRules, usesContinuousActions } from "../map/mapCompatibility.js";
 
 export const STEP_POINTS = 4;
 export const HALF_STEP_POINTS = 2;
@@ -162,14 +162,14 @@ function canEnterCell(cellRule, role, isDriving) {
   return Array.isArray(allowedRoles) && allowedRoles.includes(role);
 }
 
-function getActionType({ turn, unit, occupant, tileType, hasMoney, isDriving }) {
+function getActionType({ turn, unit, occupant, tileType, hasMoney, isDriving, continuous }) {
   if (turn === "POLICE" && occupant && occupant.role === "THIEF" && unit.state === "IDLE") {
     return "CAPTURE";
   }
-  if (turn === "POLICE" && unit.state === "CARRYING" && tileType === "POLICE_STATION") {
+  if (!continuous && turn === "POLICE" && unit.state === "CARRYING" && tileType === "POLICE_STATION") {
     return "DELIVER";
   }
-  if (turn === "POLICE" && isDriving && tileType === "POLICE_STATION") {
+  if (!continuous && turn === "POLICE" && isDriving && tileType === "POLICE_STATION") {
     return "ENTER_STATION";
   }
   if (turn === "THIEF" && tileType === "THIEF_BASE" && hasMoney) {
@@ -199,6 +199,8 @@ function replaceLastTrailMovementKind(trail, movementKind) {
 }
 
 function createReachableAction(session, node) {
+  if (usesContinuousActions(session.mapDefinition)) return { ...node,
+    returnsVehicleToParking: node.isDriving && node.type === "ESCAPE" };
   if (
     node.type === "MOVE" &&
     node.isDriving &&
@@ -309,7 +311,10 @@ function finalizeReachableActions(results) {
   );
 }
 
-function* searchReachableActions({ session, turn, diceValue, unit }, firstOnly = false) {
+function* searchReachableActions({ session, turn, diceValue, movementPoints = getMovementPoints(diceValue), unit }, firstOnly = false) {
+  // An explicit budget is already in quarter-point units. Never refill it from
+  // the original dice when a later segment has only a fractional balance left.
+  if (!Number.isSafeInteger(movementPoints) || movementPoints < 0) throw new RangeError("Movement points must be a non-negative integer");
   const { cols } = getMapDimensions(session.mapDefinition);
   const results = new Map();
   if (!isWithinMap(session.mapDefinition, unit.r, unit.c)) return results;
@@ -317,7 +322,8 @@ function* searchReachableActions({ session, turn, diceValue, unit }, firstOnly =
   const isThief = turn === "THIEF";
   const role = isThief ? "THIEF" : "POLICE";
   const searchBoard = createSearchBoard(session, role, unit);
-  const needsPathVariants = isThief && !unit.hasMoney;
+  const continuous = usesContinuousActions(session.mapDefinition);
+  const needsPathVariants = !continuous && isThief && !unit.hasMoney;
   const queue = new MinCostQueue();
   queue.push({
     type: "MOVE",
@@ -326,7 +332,7 @@ function* searchReachableActions({ session, turn, diceValue, unit }, firstOnly =
     to: { r: unit.r, c: unit.c },
     r: unit.r,
     c: unit.c,
-    pointsLeft: getMovementPoints(diceValue),
+    pointsLeft: movementPoints,
     path: [{ r: unit.r, c: unit.c }],
     trail: [],
     costSpent: 0,
@@ -360,7 +366,7 @@ function* searchReachableActions({ session, turn, diceValue, unit }, firstOnly =
       const tileType = cellRule.tileType;
       if (current.pointsLeft < cost) continue;
 
-      const nextHasMoney = Boolean(current.hasMoney || (isThief && tileType === "BANK"));
+      const nextHasMoney = Boolean(current.hasMoney || (!continuous && isThief && tileType === "BANK"));
       if (isThief && tileType === "THIEF_BASE" && !nextHasMoney) continue;
 
       const pointsLeftAfterMove = current.pointsLeft - cost;
@@ -370,6 +376,7 @@ function* searchReachableActions({ session, turn, diceValue, unit }, firstOnly =
       let boardedCar = false;
       if (
         !nextDriving &&
+        !continuous &&
         !move.isTeleport &&
         move.availableCar &&
         canEnterCell(cellRule, role, true) &&
@@ -387,6 +394,7 @@ function* searchReachableActions({ session, turn, diceValue, unit }, firstOnly =
         tileType,
         hasMoney: nextHasMoney,
         isDriving: nextDriving,
+        continuous,
       });
       const movementKind = move.isTeleport ? "TELEPORT" : boardedCar ? "BOARD" : "STEP";
 

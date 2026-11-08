@@ -34,7 +34,6 @@ header {
 }
 
 @media (min-width: 744px) {
-  #editor-view,
   #game-view {
     display: grid;
     grid-template-columns: minmax(220px, 0.9fr) minmax(0, 2fr);
@@ -129,6 +128,11 @@ header {
   gap: 8px;
 }
 
+.turn-budget { grid-column: 1 / -1; margin: 0; padding: 8px; border-radius: 6px; background: #e9f2df; color: #385b47; font-weight: 700; font-size: 13px; line-height: 1.5; }
+.unit-operations { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
+.unit-operations .btn { margin: 0; min-height: 44px; }
+.continuous-actions .rules-single, body:not(.continuous-actions) .rules-continuous { display: none; }
+
 .game-board-area {
   min-width: 0;
   display: flex;
@@ -192,15 +196,15 @@ header {
 .board-container.large-topdown #game-board { --cell-size: 48px; flex-shrink: 0; touch-action: pan-x pan-y; }
 
 @media (min-width: 744px) {
-  #editor-view { grid-template-columns: clamp(220px, 20vw, 280px) minmax(0, 1fr); }
+  #editor-view { grid-template-columns: minmax(0, 1fr) clamp(220px, 20vw, 280px); }
 }
 #editor-map-viewport #editor-board { margin: 0 auto; }
 
 /* Editor tools and branding share one independently scrolling sidebar. */
 body.editor-playing { height: 100dvh; min-height: 0; overflow: hidden; }
 .editor-playing .app-container { height: 100dvh; padding: 10px; gap: 10px; }
-.editor-playing #editor-view { display: grid; grid-template-columns: clamp(220px, 20vw, 280px) minmax(0, 1fr); flex: 1; min-height: 0; gap: 12px; align-items: stretch; animation: none; }
-.editor-playing .palette-panel { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 14px; gap: 12px; }
+.editor-playing #editor-view { display: grid; grid-template-columns: minmax(0, 1fr) clamp(220px, 20vw, 280px); flex: 1; min-height: 0; gap: 12px; align-items: stretch; animation: none; }
+.editor-playing .palette-panel { min-height: 0; min-width: 0; overflow: hidden; padding: 14px; gap: 12px; }
 #editor-header-slot header { text-align: left; }
 #editor-header-slot h1 { font-size: 1.3rem; line-height: 1.4; }
 #editor-header-slot .badge { max-width: 100%; margin-top: 5px; font-size: 11px; padding: 4px 8px; }
@@ -214,9 +218,32 @@ body.editor-playing { height: 100dvh; min-height: 0; overflow: hidden; }
 .editor-playing .editor-map-viewport { flex: 1; height: auto; min-height: 0; }
 @media (max-width: 743px) {
   .editor-playing .app-container { padding: 6px; gap: 6px; }
-  .editor-playing #editor-view { grid-template-columns: 180px minmax(0, 1fr); gap: 6px; }
+  .editor-playing #editor-view { grid-template-columns: minmax(0, 1fr) 180px; gap: 6px; }
   .editor-playing .palette-panel { padding: 8px; }
   .editor-playing .editor-map-area { padding: 6px; }
   .editor-playing .editor-map-buttons { gap: 3px; }
   .editor-playing .editor-map-buttons button { padding: 6px; }
 }
+
+#mode-indicator { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; }
+#mode-indicator-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-rename-control { flex: 0 0 24px; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 3px; border: 0; border-radius: 50%; color: inherit; background: transparent; cursor: pointer; opacity: 0; pointer-events: none; }
+.map-rename-control svg { width: 18px; height: 18px; }
+#mode-indicator:hover .map-rename-control, #mode-indicator:focus-within .map-rename-control { opacity: 1; pointer-events: auto; }
+.map-rename-control:hover { background: #ffffff30; }
+.map-rename-control:focus-visible { opacity: 1; outline: 2px solid currentColor; outline-offset: 1px; }
+.editor-sidebar-scroll { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.editor-play-footer { flex-shrink: 0; padding-top: 12px; border-top: 1px solid #dce5d6; }
+.editor-play-footer .btn { min-height: 48px; margin: 0; }
+.editor-map-actions { display: flex; flex-direction: column; gap: 8px; }
+.editor-map-actions:empty { display: none; }
+.editor-map-actions .btn { margin: 0; min-height: 44px; }
+.editor-map-buttons { gap: 10px; }
+.editor-tool-group { display: flex; align-items: center; flex-wrap: nowrap; gap: 4px; padding: 3px; border: 1px solid #d5dfd0; border-radius: 8px; background: #f4f7ef; }
+.editor-tool-group button { width: auto; margin: 0; white-space: nowrap; }
+.editor-map-buttons button:disabled { opacity: .4; cursor: default; }
+@media (hover: none), (pointer: coarse) {
+  .map-rename-control { flex-basis: 36px; width: 36px; height: 36px; opacity: 1; pointer-events: auto; }
+}
+
+.ramp-direction-grid > .palette-item[data-type="OVERPASS"] { grid-column: 1 / -1; }

@@ -11,6 +11,8 @@ const { createEmptyMapDefinition, setLegacyTileAt } = await import(
 const { els } = await import("../src/app/state.js");
 const { GAME_PHASES, gameController } = await import("../src/features/gameController.js");
 
+gameController.boardMode = "topdown";
+
 test("crosswalk signal lights rerender on signal phase change", () => {
   const mapDefinition = createEmptyMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "POLICE_SPAWN");

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createTestEnvironment } from "./helpers/fakeDom.js";
 const env=createTestEnvironment();env.installGlobals();
 const { els }=await import("../src/app/state.js");
-const { renderGameLayout, revealActionPanel }=await import("../src/ui/game/gameLayout.js");
+const { renderGameLayout }=await import("../src/ui/game/gameLayout.js");
 const { renderAppShell }=await import("../src/app/appShellRenderer.js");
 const { getAppShellState }=await import("../src/app/appShellState.js");
 
@@ -28,7 +28,7 @@ test("editor branding shares the sidebar and restores its home through library a
   renderAppShell(getAppShellState({mode:"GAME"}));renderGameLayout(false);
 });
 
-test("four corner panels retain live controls and restore the 2D hierarchy after view switches and collapse",()=>{
+test("four corner panels retain live controls and restore the 2D hierarchy after view switches",()=>{
   els.gameDicePanel.appendChild(els.btnRollDice);
   els.gameActions.appendChild(els.btnViewRules);
   let rolls=0;els.btnRollDice.addEventListener("click",()=>rolls++);
@@ -43,10 +43,6 @@ test("four corner panels retain live controls and restore the 2D hierarchy after
     assert.equal(els.gameActionDetails.parentNode,els.isoProgressContent);
     assert.equal(els.boardZoomControls.parentNode,els.isoStatusZoom);
     assert.equal(els.btnRollDice,button);button.click();
-    els.isoPanelProgress.open=false;revealActionPanel();assert.equal(els.isoPanelProgress.open,true);
-    renderGameLayout(true,true);
-    assert.equal(els.boardZoomControls.parentNode,els.gameMapZoomSlot);
-    assert.equal(document.body.classList.contains("isometric-sidebar-collapsed"),true);
     renderGameLayout(false);
     assert.equal(els.appHeader.parentNode,els.appHeaderHome);
     assert.equal(els.gameDicePanel.parentNode,els.gameSidebar);

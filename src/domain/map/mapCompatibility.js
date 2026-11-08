@@ -1,6 +1,7 @@
 import { isRampTileType } from "./bridgeTopology.js";
 
 export const MAP_RULESETS = Object.freeze({ LEGACY: "legacy", RAMPS: "ramps" });
+export const ACTION_RULES = Object.freeze({ SINGLE: "single", CONTINUOUS: "continuous" });
 const UPGRADE_STATUSES = new Set(["pending", "editing", "ready"]);
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
@@ -8,8 +9,15 @@ export function normalizeMapCompatibility(mapDefinition) {
   const ruleset = mapDefinition.ruleset ?? MAP_RULESETS.LEGACY;
   if (!Object.values(MAP_RULESETS).includes(ruleset)) throw new Error("Unsupported map ruleset");
   const actionRules = mapDefinition.actionRules ?? (mapDefinition.meta?.rows === 20 ? "single" : undefined);
-  if (actionRules !== undefined && actionRules !== "single") throw new Error("Unsupported action rules");
+  if (actionRules !== undefined && !Object.values(ACTION_RULES).includes(actionRules)) throw new Error("Unsupported action rules");
   const compatibility = { ruleset, ...(actionRules !== undefined ? { actionRules } : {}) };
+  if (mapDefinition.actionUpgrade !== undefined) {
+    const source = mapDefinition.actionUpgrade?.source;
+    if (actionRules !== ACTION_RULES.CONTINUOUS || !isObject(source) || typeof source.encodedMap !== "string" || !source.encodedMap ||
+        (source.mapId !== undefined && typeof source.mapId !== "string") || (source.name !== undefined && typeof source.name !== "string")) throw new Error("Invalid action upgrade source");
+    compatibility.actionUpgrade = { source: { encodedMap: source.encodedMap,
+      ...(source.mapId !== undefined ? { mapId: source.mapId } : {}), ...(source.name !== undefined ? { name: source.name } : {}) } };
+  }
   if (mapDefinition.expansion !== undefined) {
     const e = mapDefinition.expansion;
     if (!isObject(e) || !["editing", "ready"].includes(e.status) || !isObject(e.source) ||
@@ -46,6 +54,10 @@ export function normalizeMapCompatibility(mapDefinition) {
 
 export function usesRampRules(mapDefinition) {
   return mapDefinition.ruleset === MAP_RULESETS.RAMPS;
+}
+
+export function usesContinuousActions(mapDefinition) {
+  return mapDefinition?.actionRules === ACTION_RULES.CONTINUOUS;
 }
 
 export function getMapGameplayBlocker(mapDefinition, { allowUpgradeDraft = false, allowExpansionDraft = false } = {}) {

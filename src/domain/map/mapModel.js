@@ -95,8 +95,8 @@ export function createRampMapDefinition(overrides = {}) {
   return createEmptyMapDefinition({ ...overrides, ruleset: MAP_RULESETS.RAMPS });
 }
 
-export function createNewMapDefinition() {
-  return createRampMapDefinition({ meta: { rows: NEW_GRID_SIZE, cols: NEW_GRID_SIZE }, actionRules: "single" });
+export function createNewMapDefinition({ actionRules = "continuous" } = {}) {
+  return createRampMapDefinition({ meta: { rows: NEW_GRID_SIZE, cols: NEW_GRID_SIZE }, actionRules });
 }
 
 export function positionToIndex(position, mapDefinition) {

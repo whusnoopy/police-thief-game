@@ -10,15 +10,6 @@ export function renderBridgePanel(container, { mapDefinition, onUpgrade, onCompl
   if (!container) return;
   container.innerHTML = "";
   const isNew = usesRampRules(mapDefinition);
-  const status = document.createElement("p");
-  status.className = "bridge-status";
-  status.setAttribute("role", "status");
-  status.textContent = isNew
-    ? mapDefinition.upgrade && mapDefinition.upgrade.status !== "ready"
-      ? "升级中：调整上下桥入口后，校验并完成升级。原图已保留。"
-      : `${mapDefinition.upgrade ? "升级已完成。" : ""}高架通过上下桥格连接地面；箭头朝高端，反向可下桥，两侧封闭。预览绿边相接、红边封闭。`
-    : "旧规则地图：创建升级副本后可使用上下桥格，原图会保留。含旧高架的地图须先升级才能游玩。";
-  container.appendChild(status);
 
   function action(id, label, handler) {
     const button = document.createElement("button");

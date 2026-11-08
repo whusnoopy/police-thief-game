@@ -32,7 +32,6 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
   let projection = createIsometricProjection();
   let scene, svg, viewport, stage, overlay, resizeObserver, geometry, defs, outlines, labels;
   let records = [], actors = [], disposed = false, refreshPending = false;
-  let initialView = false;
   let selectable = [], reachable = [], selected = null, path = [], lastHover = null;
   let pointerType = "mouse", drag = null, suppressClick = false;
   let touchPress = null;
@@ -61,10 +60,6 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
     const viewWidth = viewport.clientWidth || projection.width;
     const viewHeight = viewport.clientHeight || projection.height;
     const fit = Math.min(viewWidth / projection.width, viewHeight / projection.height);
-    if (initialView) {
-      viewState.zoom = Math.max(1, Math.min(5, DETAIL_TILE_WIDTH / projection.tileWidth / fit));
-      initialView = false;
-    }
     const scale = fit * viewState.zoom;
     const width = projection.width * scale, height = projection.height * scale;
     // Leave half a viewport on each side so even the fitted map can be panned.
@@ -202,11 +197,10 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
       projection = createIsometricProjection(dimensions);
       const mapKey = `${dimensions.rows}x${dimensions.cols}`;
       if (viewState.mapKey !== mapKey) {
-        initialView = dimensions.rows > 10;
         viewState.mapKey = mapKey;
-        const first = session.thiefUnits.find(u => u.state === "ACTIVE") || session.policeUnits[0];
-        const focus = first && dimensions.rows > 10 ? projectSurfacePoint({ ...first, tileType: "ROAD" }, 0, 0, projection) : { x: projection.width / 2, y: projection.height / 2 };
-        viewState.centerX = focus.x; viewState.centerY = focus.y;
+        viewState.zoom = 1;
+        viewState.centerX = projection.width / 2;
+        viewState.centerY = projection.height / 2;
       }
       scene = createIsometricScene(session, projection, { unitDirections, vehicleDirections });
       viewport = document.createElement("div");

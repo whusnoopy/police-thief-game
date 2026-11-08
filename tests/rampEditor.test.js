@@ -50,8 +50,9 @@ function loadLegacyBridge() {
 test("new maps show the package version and all ramp directions; visible and keyboard rotation agree", () => {
   assert.equal(state.mapDefinition.ruleset, "ramps");
   assert.equal(env.elements["app-version"].textContent, APP_VERSION_LABEL);
-  assert.equal(APP_VERSION_LABEL, "测试版 5.0.6");
-  env.document.getElementById("btn-rotate-ramp").click();
+  assert.equal(APP_VERSION_LABEL, "测试版 5.0.7");
+  assert.equal(env.document.getElementById("btn-rotate-ramp"), null);
+  select("OVERPASS_RAMP_N");
   assert.equal(state.currentPaletteType, "OVERPASS_RAMP_N");
   env.document.dispatchEvent({ type: "keydown", key: "r", target: env.elements["editor-board"], preventDefault() {} });
   assert.equal(state.currentPaletteType, "OVERPASS_RAMP_E");

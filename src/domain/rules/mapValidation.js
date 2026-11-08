@@ -2,7 +2,7 @@ import { SIGNAL_PHASES } from "../../config/constants.js";
 import { getAllowedCrosswalkAxis, isCrosswalkTileType, isStepAlongAxis } from "../map/crosswalk.js";
 import { getFeaturePositionsByKind } from "../map/mapQueries.js";
 import { getCellRuleAt } from "./cellRules.js";
-import { getMapGameplayBlocker, usesRampRules } from "../map/mapCompatibility.js";
+import { getMapGameplayBlocker, usesRampRules, usesContinuousActions } from "../map/mapCompatibility.js";
 import { areCellsConnected, getRampConnectionIssues } from "../map/bridgeTopology.js";
 
 import { isWithinMap } from "../map/mapDimensions.js";
@@ -63,7 +63,7 @@ export function getPotentialRoutes(mapDefinition, start, role, carTransferPositi
       if (rule.tileType === "THIEF_BASE" && !hasMoney) continue;
       const modes = rule.tileType === "PARKING"
         ? [false, true]
-        : [rule.tileType === "POLICE_STATION" ? false : current.inCar];
+        : rule.tileType === "POLICE_STATION" ? (usesContinuousActions(mapDefinition) ? [false, current.inCar] : [false]) : [current.inCar];
       modes.forEach((inCar) => queue.push({ r: next.r, c: next.c, inCar, hasMoney }));
     }
   }

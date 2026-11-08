@@ -22,9 +22,6 @@ const DEFAULT_ELEMENT_IDS = [
   "board-toolbar-home",
   "board-feedback-home",
   "game-action-details",
-  "game-map-controls",
-  "game-map-zoom-slot",
-  "btn-toggle-game-sidebar",
   "storage-notice",
   "storage-notice-message",
   "btn-export-map-backup",
@@ -52,9 +49,9 @@ const DEFAULT_ELEMENT_IDS = [
   "btn-board-zoom-in",
   "btn-board-zoom-out",
   "btn-board-fit",
-  "isometric-help",
   "palette",
   "mode-indicator",
+  "mode-indicator-label",
   "app-version",
   "bridge-panel",
   "btn-clear-map",
@@ -76,10 +73,17 @@ const DEFAULT_ELEMENT_IDS = [
   "turn-indicator",
   "signal-indicator",
   "police-stat",
+  "police-role-icon",
+  "thief-role-icon",
+  "btn-rename-current-map",
   "thief-stat",
   "dice",
   "dice-value",
   "game-message",
+  "remaining-points",
+  "unit-operations",
+  "btn-end-turn",
+  "action-rule-controls",
   "btn-roll-dice",
   "btn-skip-turn",
   "btn-view-rules",
@@ -532,6 +536,7 @@ export function createTestEnvironment({ search = "" } = {}) {
   const promptResponses = [];
   const confirms = [];
 
+  elements["mode-indicator"].append(elements["mode-indicator-label"], elements["btn-rename-current-map"]);
   const location = {
     protocol: "https:",
     host: "example.com",

@@ -14,8 +14,9 @@ import { encodeMapDefinition } from "../domain/map/mapCodec.js";
 import { renderTileIcon } from '../ui/board/storybookArt.js';
 import { persistCurrentMap, getCurrentMapId, getCurrentMapName, getMapList, updateModeIndicatorForEditor } from "../storage/mapRepository.js";
 import { createMapUpgradeDraft, beginMapUpgrade, completeMapUpgrade } from "../domain/map/mapUpgrade.js";
-import { usesRampRules } from "../domain/map/mapCompatibility.js";
-import { BRIDGE_DIRECTIONS, getBridgeConnectionMask, isBridgeTileType, isRampTileType } from "../domain/map/bridgeTopology.js";
+import { usesRampRules, usesContinuousActions } from "../domain/map/mapCompatibility.js";
+import { createActionUpgradeCopy } from "../domain/map/mapActionUpgrade.js";
+import { BRIDGE_DIRECTIONS, RAMP_TILE_TYPES, getBridgeConnectionMask, isBridgeTileType, isRampTileType } from "../domain/map/bridgeTopology.js";
 import { renderBridgePanel } from "../ui/editor/bridgePanelRenderer.js";
 import { validateMapDefinition } from "../domain/rules/mapValidation.js";
 import {
@@ -59,6 +60,7 @@ function recordEdit(before, { reviewed = false } = {}) {
   syncHistoryButtons();
   refreshBridgePanel();
   renderExpansionControls();
+  renderActionRuleControls();
 }
 
 function finishStroke(event) {
@@ -120,7 +122,9 @@ function bindPointerState() {
     const key = event.key.toLowerCase();
     if (key === "r" && !event.ctrlKey && !event.metaKey && usesRampRules(state.mapDefinition)) {
       event.preventDefault();
-      document.getElementById("btn-rotate-ramp")?.click();
+      const next = RAMP_TILE_TYPES[(RAMP_TILE_TYPES.indexOf(state.currentPaletteType) + 1) % RAMP_TILE_TYPES.length];
+      const item = Array.from(els.palette.querySelectorAll(".palette-item")).find(element => element.dataset.type === next);
+      if (item) { const group = item.closest(".palette-group"); if (group) group.open = true; item.click(); }
       return;
     }
     if (!(event.ctrlKey || event.metaKey)) return;
@@ -273,13 +277,16 @@ function paintPlacement(r, c) {
 
 function syncEditorPalette(force = false) {
   const rampRules = usesRampRules(state.mapDefinition);
-  if (!force && paletteRuleset === rampRules) return;
-  paletteRuleset = rampRules;
+  const continuousRules = usesContinuousActions(state.mapDefinition);
+  const paletteKey = `${rampRules}:${continuousRules}`;
+  if (!force && paletteRuleset === paletteKey) return;
+  paletteRuleset = paletteKey;
   if (!rampRules && isRampTileType(state.currentPaletteType)) state.currentPaletteType = "ROAD";
   renderPalette(els.palette, {
     tileTypes: Object.values(TILE_TYPES).filter((tileType) => !tileType.hiddenFromPalette && (rampRules || !isRampTileType(tileType.id))),
     currentPaletteType: state.currentPaletteType,
     rampRules,
+    continuousRules,
     onSelect(typeId, item) {
       clearPlacementPreview();
       document.querySelectorAll(".palette-item").forEach((paletteItem) => {
@@ -349,6 +356,7 @@ export function initEditor() {
   syncEditorPalette(true);
   syncPaletteRequirementStatus();
 
+  els.btnRenameCurrentMap.addEventListener("click", renameCurrentMap);
   els.btnClearMap.addEventListener("click", clearMap);
   els.btnUndoMap.addEventListener("click", undoMap);
   els.btnRedoMap.addEventListener("click", redoMap);
@@ -388,6 +396,7 @@ export function renderEditorBoard() {
   refreshBridgePanel();
   syncEditorViewport(state.mapDefinition);
   renderExpansionControls();
+  renderActionRuleControls();
 }
 
 export function clearMap() {
@@ -395,7 +404,7 @@ export function clearMap() {
 
   finishStroke();
   const before = cloneMapDefinition(state.mapDefinition);
-  setMapDefinition(createEmptyMapDefinition({ meta: before.meta, ruleset: before.ruleset, ...(before.actionRules ? { actionRules: before.actionRules } : {}), ...(before.expansion ? { expansion: before.expansion } : {}), ...(before.upgrade ? { upgrade: before.upgrade } : {}) }));
+  setMapDefinition(createEmptyMapDefinition({ meta: before.meta, ruleset: before.ruleset, ...(before.actionRules ? { actionRules: before.actionRules } : {}), ...(before.actionUpgrade ? { actionUpgrade: before.actionUpgrade } : {}), ...(before.expansion ? { expansion: before.expansion } : {}), ...(before.upgrade ? { upgrade: before.upgrade } : {}) }));
   historyMap = state.mapDefinition;
   recordEdit(before);
   renderEditorBoard();
@@ -447,4 +456,39 @@ export function validateMap() {
   const result = validateMapDefinition(state.mapDefinition);
   if (!result.valid) alert(`这张地图还不能开始游戏：\n${result.errors.join("\n")}`);
   return result.valid;
+}
+
+function renderActionRuleControls() {
+  const container = els.actionRuleControls;
+  if (!container) return;
+  container.innerHTML = "";
+  if (!usesContinuousActions(state.mapDefinition)) {
+    const button = document.createElement("button"); button.id = "btn-upgrade-actions";
+    button.type = "button"; button.className = "btn secondary"; button.textContent = "创建连续行动副本";
+    button.onclick = createContinuousActionCopy; container.appendChild(button);
+  }
+}
+
+export function createContinuousActionCopy() {
+  finishStroke();
+  if (usesContinuousActions(state.mapDefinition)) return;
+  const encodedMap = encodeMapDefinition(state.mapDefinition);
+  const saved = getMapList().find(map => map.id === getCurrentMapId());
+  if (!saved || saved.encodedMap !== encodedMap) persistCurrentMap();
+  const name = getCurrentMapName() || "地图";
+  const map = createActionUpgradeCopy({ encodedMap, mapId: getCurrentMapId(), name });
+  const names = new Set(getMapList().map(record => record.name));
+  let nextName = `${name}（连续行动）`;
+  for (let i = 2; names.has(nextName); i++) nextName = `${name}（连续行动${i}）`;
+  setMapDefinition(map); persistCurrentMap({ forceNewMap: true, mapName: nextName });
+  renderEditorBoard(); updateModeIndicatorForEditor();
+}
+
+export function renameCurrentMap() {
+  if (state.mode !== "EDITOR") return;
+  finishStroke();
+  const name = prompt("请输入地图名称:", getCurrentMapName());
+  if (!name?.trim() || name.trim() === getCurrentMapName()) return;
+  persistCurrentMap({ mapName: name.trim() });
+  updateModeIndicatorForEditor();
 }

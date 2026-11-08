@@ -20,6 +20,7 @@ export function resolveEndOfRoundEffects(session, options = {}) {
   session.signalPhase = getNextSignalPhase(session.signalPhase);
   const signalChanged = normalizeSignalPhase(session.signalPhase) !== previousSignalPhase;
   const animalChanged = resolveAnimalTurn(session, options).animalChanged;
+  if (signalChanged || animalChanged) session.revision = (session.revision || 0) + 1;
 
   return {
     signalChanged,

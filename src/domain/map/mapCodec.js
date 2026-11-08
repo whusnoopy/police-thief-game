@@ -9,7 +9,7 @@ import {
   normalizeMapDefinition,
   positionToIndex,
 } from "./mapModel.js";
-import { MAP_RULESETS, normalizeMapCompatibility } from "./mapCompatibility.js";
+import { ACTION_RULES, MAP_RULESETS, normalizeMapCompatibility, usesContinuousActions } from "./mapCompatibility.js";
 import { isBridgeTileType, isRampTileType } from "./bridgeTopology.js";
 
 import { getMapDimensions, isWithinMap } from "./mapDimensions.js";
@@ -107,10 +107,10 @@ function validateJsonPayload(payload, version) {
   const terrainTypes = version === 2 ? V2_TERRAIN_TYPES : version === 3 ? LEGACY_TERRAIN_TYPE_BY_CODE : TERRAIN_TYPE_BY_CODE;
   const featureTypes = version === 2 ? FEATURE_TILE_TYPES : FEATURE_TYPE_BY_CODE;
   const dimensions = version === 5 ? getMapDimensions({ meta: { rows: payload?.d?.[0], cols: payload?.d?.[1] } }) : { rows: GRID_SIZE, cols: GRID_SIZE };
-  if (version === 5 && (!Array.isArray(payload?.d) || payload.d.length !== 2 || payload.a !== "single" || !Object.values(MAP_RULESETS).includes(payload.b))) {
+  if (version === 5 && (!Array.isArray(payload?.d) || payload.d.length !== 2 || !Object.values(ACTION_RULES).includes(payload.a) || !Object.values(MAP_RULESETS).includes(payload.b))) {
     throw new Error("Invalid map payload: unsupported dimensions or action rules");
   }
-  if (version < 5 && ["d", "a", "x", "s"].some(key => payload?.[key] !== undefined)) throw new Error("Invalid map payload: dimensions and action rules require v5");
+  if (version < 5 && ["d", "a", "x", "s", "q"].some(key => payload?.[key] !== undefined)) throw new Error("Invalid map payload: dimensions and action rules require v5");
   if (version === 5 && payload.s !== (dimensions.rows === 20 ? "cut3" : "square")) throw new Error("Invalid map payload: unsupported map shape");
   const cellCount = dimensions.rows * dimensions.cols;
   const validIndex = (value) => Number.isInteger(value) && value >= 0 && value < cellCount &&
@@ -143,7 +143,8 @@ function validateJsonPayload(payload, version) {
       throw new Error("Invalid map payload: unsupported ramp rules or metadata");
     }
     if (payload.b === MAP_RULESETS.LEGACY && [...payload.t].some(char => isRampTileType(terrainTypes[BASE64_ALPHABET.indexOf(char)]))) throw new Error("Ramp terrain requires ramp rules");
-    normalizeMapCompatibility({ ruleset: payload.b, upgrade: payload.u, ...(version === 5 ? { meta: dimensions, actionRules: payload.a, expansion: payload.x } : {}) });
+    normalizeMapCompatibility({ ruleset: payload.b, upgrade: payload.u, ...(version === 5 ? { meta: dimensions, actionRules: payload.a, expansion: payload.x, actionUpgrade: payload.q } : {}) });
+    if (payload.q && usesContinuousActions(decodeMapDefinition(payload.q.source.encodedMap))) throw new Error("Invalid action upgrade source: already continuous");
     if (payload.x) validateExpansionSource(payload.x);
     validateUpgradeSource(payload.u);
   } else if (payload.b !== undefined || payload.u !== undefined) {
@@ -233,7 +234,7 @@ export function encodeMapDefinition(mapDefinition) {
     h: normalized.spawns.thief.map(p => positionToIndex(p, normalized)),
     m: normalized.meta.name ? { n: normalized.meta.name } : undefined,
     ...(version >= 4 ? { b: normalized.ruleset, ...(normalized.upgrade ? { u: normalized.upgrade } : {}) } : {}),
-    ...(version === 5 ? { d: [dimensions.rows, dimensions.cols], s: dimensions.rows === 20 ? "cut3" : "square", a: normalized.actionRules || "single", ...(normalized.expansion ? { x: normalized.expansion } : {}) } : {}),
+    ...(version === 5 ? { d: [dimensions.rows, dimensions.cols], s: dimensions.rows === 20 ? "cut3" : "square", a: normalized.actionRules || "single", ...(normalized.expansion ? { x: normalized.expansion } : {}), ...(normalized.actionUpgrade ? { q: normalized.actionUpgrade } : {}) } : {}),
   };
   validateJsonPayload(payload, version);
   return `v${version}.${encodeJsonPayload(payload)}`;
@@ -275,7 +276,7 @@ function decodeModernMapDefinition(encodedMap, version) {
   const mapDefinition = createEmptyMapDefinition({
     ruleset: version >= 4 ? payload.b : MAP_RULESETS.LEGACY,
     ...(version >= 4 && payload.u !== undefined ? { upgrade: payload.u } : {}),
-    ...(version === 5 ? { actionRules: payload.a, ...(payload.x ? { expansion: payload.x } : {}) } : {}),
+    ...(version === 5 ? { actionRules: payload.a, ...(payload.x ? { expansion: payload.x } : {}), ...(payload.q ? { actionUpgrade: payload.q } : {}) } : {}),
     meta: {
       name: typeof payload.m?.n === "string" ? payload.m.n : "",
       ...dimensions,

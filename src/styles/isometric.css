@@ -1,11 +1,10 @@
 .board-view-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .board-view-switch, .board-zoom-controls { display: flex; align-items: center; gap: 4px; }
-.board-view-toolbar button, .game-map-controls button, .iso-panel-zoom button { min-height: 44px; min-width: 44px; padding: 8px 12px; border: 1px solid #c6d0cb; border-radius: 7px; background: #fffdf5; color: #43584e; font-family: inherit; font-size: 14px; font-weight: 700; line-height: 1.2; cursor: pointer; touch-action: manipulation; }
+.board-view-toolbar button, .iso-panel-zoom button { min-height: 44px; min-width: 44px; padding: 8px 12px; border: 1px solid #c6d0cb; border-radius: 7px; background: #fffdf5; color: #43584e; font-family: inherit; font-size: 14px; font-weight: 700; line-height: 1.2; cursor: pointer; touch-action: manipulation; }
 .board-view-toolbar button[aria-pressed="true"] { background: #3d6d69; color: #fff; border-color: #3d6d69; }
-.board-view-toolbar button:disabled, .game-map-controls button:disabled, .iso-panel-zoom button:disabled { opacity: .4; cursor: default; }
-.board-view-toolbar button:focus-visible, .game-map-controls button:focus-visible, .iso-panel-zoom button:focus-visible, .iso-viewport:focus-visible { outline: 3px solid #438dbe; outline-offset: 2px; }
+.board-view-toolbar button:disabled, .iso-panel-zoom button:disabled { opacity: .4; cursor: default; }
+.board-view-toolbar button:focus-visible, .iso-panel-zoom button:focus-visible, .iso-viewport:focus-visible { outline: 3px solid #438dbe; outline-offset: 2px; }
 .board-zoom-controls span { min-width: 42px; text-align: center; font-size: 12px; color: #526271; }
-.isometric-help { margin: 0; color: #657369; font-size: 12px; line-height: 1.5; }
 #game-board.iso-board { display: block; width: 100%; min-width: 0; border: 0; background: #edf1e4; border-radius: 8px; touch-action: pan-x pan-y; }
 .iso-viewport { width: 100%; height: 100%; overflow: auto; border-radius: inherit; overscroll-behavior: contain; touch-action: pan-x pan-y; scrollbar-width: thin; cursor: grab; user-select: none; -webkit-user-select: none; }
 .iso-viewport.over-action { cursor: pointer; }
@@ -44,9 +43,6 @@
 .game-action-details { display: flex; flex-direction: column; gap: 10px; }
 .action-details-title { display: none; }
 /* The map fills the viewport; controls occupy its four corner spaces. */
-.game-map-controls { position: absolute; z-index: 25; top: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: flex-start; gap: 8px; max-width: calc(100% - 24px); pointer-events: none; }
-.game-map-controls > * { pointer-events: auto; }
-.game-map-controls .board-zoom-controls { background: #fffdf5ed; padding: 4px; border: 1px solid #c6d0cb; border-radius: 9px; box-shadow: 0 2px 10px #43584e15; }
 body.isometric-playing { height: 100dvh; min-height: 0; overflow: hidden; }
 .isometric-playing .app-container { width: 100%; max-width: none; height: 100dvh; padding: 10px; gap: 10px; }
 .isometric-playing #game-view { flex: 1; min-height: 0; position: relative; display: block; animation: none; }
@@ -55,19 +51,19 @@ body.isometric-playing { height: 100dvh; min-height: 0; overflow: hidden; }
 .isometric-playing .game-board-area > .board-container { position: relative; flex: 1; min-height: 0; height: 100%; padding: 0; overflow: hidden; }
 .isometric-playing #game-board.iso-board { height: 100%; }
 .iso-corner-panel { position: absolute; z-index: 20; width: 288px; max-height: calc(50% - 24px); overflow: auto; padding: 10px 12px; border: 1px solid #d4ddcf; border-radius: 12px; background: #fffef7ed; box-shadow: 0 3px 12px #43584e16; overscroll-behavior: contain; scrollbar-width: thin; }
-.iso-corner-panel > summary { min-height: 28px; cursor: pointer; font-size: 12px; font-weight: 700; color: #6b7d6e; user-select: none; }
-.iso-corner-panel:not([open]) { width: auto; }
 .iso-panel-content { display: flex; flex-direction: column; gap: 9px; }
 .iso-info { top: 12px; left: 12px; }
 .iso-status { top: 12px; right: 12px; width: 320px; }
 .iso-progress { bottom: 12px; left: 12px; width: 350px; }
 .iso-dice { bottom: 12px; right: 12px; }
-.iso-corner-panel header { text-align: left; }
+.iso-info header { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.iso-info header h1 { order: 0; }
+.iso-info #mode-indicator { order: 1; }
+.iso-info #app-version { order: 2; margin: 0; }
 .iso-corner-panel h1 { font-size: 1.15rem; line-height: 1.4; }
 .iso-corner-panel .badge { font-size: 11px; margin-top: 3px; padding: 3px 8px; }
 .iso-corner-panel .btn { min-height: 42px; padding: 9px 8px; margin: 0; font-size: 13px; }
-.iso-corner-panel .isometric-help { font-size: 11px; line-height: 1.5; }
-.iso-corner-panel .board-view-toolbar { justify-content: flex-start; }
+.iso-corner-panel .board-view-toolbar { justify-content: center; }
 .iso-corner-panel .game-actions { display: flex; flex-direction: row; gap: 6px; margin: 0; }
 .iso-corner-panel .game-actions .btn { flex: 1; font-size: 12px; padding: 9px 4px; }
 .iso-corner-panel .status-panel { margin: 0; padding: 6px 8px; }
@@ -75,22 +71,21 @@ body.isometric-playing { height: 100dvh; min-height: 0; overflow: hidden; }
 .iso-corner-panel .player-stats { margin-top: 8px; }
 .iso-corner-panel .signal-indicator { margin: 6px 0; font-size: 13px; }
 .iso-corner-panel .unit-counts { margin: 0; font-size: 12px; line-height: 1.5; }
-.iso-panel-zoom { margin-top: 10px; }
+.iso-panel-zoom { position: sticky; top: 0; z-index: 1; margin: 0 0 10px; padding-bottom: 8px; background: #fffef7; border-bottom: 1px solid #d4ddcf; }
 .iso-panel-zoom .board-zoom-controls { justify-content: space-between; }
 .iso-panel-zoom button { min-width: 36px; padding: 8px; font-size: 13px; }
 .iso-panel-zoom #btn-board-focus { min-width: 68px; }
 .iso-panel-zoom span { min-width: 34px; }
-.iso-corner-panel .dice-panel { min-height: 0; padding: 8px; margin: 0; display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 8px; align-items: center; }
+.iso-corner-panel .dice-panel { min-height: 0; padding: 12px; margin: 0; border: 0; background: #fffef7ed; border-radius: 10px; display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 8px; align-items: center; }
 .iso-corner-panel .dice-panel h3 { display: none; }
 .iso-corner-panel .dice { font-size: 2.6rem; line-height: 1.2; margin: 0; }
 .iso-corner-panel .dice-result { font-size: 1rem; margin: 0; }
 .iso-corner-panel .game-message { grid-column: 1 / -1; min-height: 0; margin: 0; font-size: 14px; line-height: 1.5; }
-.iso-corner-panel .dice-actions { grid-column: 1 / -1; min-height: 42px; }
+.iso-corner-panel .dice-actions { grid-column: 1 / -1; min-height: 0; margin: 0; }
 .iso-corner-panel .action-details-title { display: none; }
 .iso-corner-panel .move-preview, .iso-corner-panel .last-action { padding: 8px; margin: 0; font-size: 13px; }
 .iso-corner-panel .move-confirm-actions { flex-wrap: wrap; }
 .iso-corner-panel .move-confirm-actions .btn { flex: 1 0 80px; }
-.isometric-sidebar-collapsed .iso-corner-panel { display: none; }
 .isometric-playing .storage-notice { flex-shrink: 0; max-height: 25dvh; overflow: auto; padding: 8px 12px; font-size: 13px; }
 @media (max-width: 999px) {
   .isometric-playing .app-container { padding: 6px; gap: 6px; }
@@ -101,9 +96,35 @@ body.isometric-playing { height: 100dvh; min-height: 0; overflow: hidden; }
   .iso-info, .iso-progress { left: 8px; }
   .iso-status, .iso-dice { right: 8px; }
   .iso-progress, .iso-dice { bottom: 8px; }
-  .game-map-controls { top: 8px; }
 }
 @media (max-height: 700px) {
   .iso-corner-panel { max-height: calc(50% - 16px); padding: 6px 9px; }
-  .iso-corner-panel > summary { min-height: 22px; }
+}
+
+/* One readable surface per action area, without nested panel frames. */
+.iso-progress, .iso-dice { padding: 0; border: 0; background: transparent; border-radius: 0; box-shadow: none; }
+.iso-progress { display: flex; flex-direction: column; overflow: hidden; }
+.iso-progress .iso-panel-content, .iso-progress .game-action-details { min-height: 0; }
+.iso-progress .move-preview, .iso-progress .last-action { padding: 12px; border: 0; background: #fffef7ed; border-radius: 10px; }
+.iso-progress .move-preview { flex-shrink: 0; }
+.iso-progress .last-action { max-height: min(32dvh, 320px); scrollbar-gutter: stable; }
+.iso-progress .action-result-line { display: block; }
+.iso-progress .action-result-line + .action-result-separator + .action-result-line { margin-top: 4px; }
+.iso-progress .action-result-separator { display: none; }
+.isometric-playing .unit-operations .btn { background: var(--primary-color); color: #fff; border: 1px solid var(--primary-color); }
+.isometric-playing .unit-operations .btn:disabled { background: #edf1ec; color: #758279; border-color: #d6dfd4; opacity: 1; }
+.isometric-playing #btn-end-turn, .isometric-playing #btn-skip-turn { background: transparent; color: #63736a; border: 1px solid #cbd6cb; box-shadow: none; }
+.isometric-playing #btn-end-turn:hover, .isometric-playing #btn-skip-turn:hover { background: #eaf0e6; }
+body:not(.isometric-playing) .rules-isometric { display: none; }
+.isometric-playing .rules-modal-header { padding-bottom: 12px; border-bottom: 1px solid #e2e8df; }
+.isometric-playing .rules-list { gap: 0; }
+.isometric-playing .rules-list p { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 14px; padding: 12px 0; border-top: 1px solid #e2e8df; }
+.isometric-playing .rules-list p:first-child { padding-top: 0; border-top: 0; }
+.isometric-playing .rules-list .rule-icons { text-align: right; font-size: 18px; line-height: 1.5; }
+.isometric-playing .rules-list .rule-description { min-width: 0; text-align: left; }
+.isometric-playing .rules-modal-actions { padding-top: 12px; border-top: 1px solid #e2e8df; margin-top: 12px; }
+.isometric-playing.continuous-actions .rules-list > .rules-single,
+.isometric-playing:not(.continuous-actions) .rules-list > .rules-continuous { display: none; }
+@media (max-width: 600px) {
+  .isometric-playing .rules-list p { grid-template-columns: 64px minmax(0, 1fr); gap: 10px; }
 }

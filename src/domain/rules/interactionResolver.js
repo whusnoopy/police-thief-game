@@ -54,6 +54,7 @@ function jailCarriedThief(session, policeUnit) {
 }
 
 export function applyResolvedAction({ session, turn, unit, action }) {
+  session.revision = (session.revision || 0) + 1;
   getActionCarPickups(action).forEach((coordKey) => {
     session.parkingCars.delete(coordKey);
     session.parkedCars.delete(coordKey);

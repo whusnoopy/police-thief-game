@@ -294,11 +294,16 @@
 .move-preview { border-color: var(--primary-color); background: #eef7ff; }
 .move-confirm-actions { margin-top: 10px; }
 .move-confirm-actions .btn { margin-bottom: 0; min-height: 44px; }
-.last-action { color: #415669; }
+.last-action { color: #415669; max-height: 280px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.action-turn + .action-turn { margin-top: 12px; padding-top: 12px; border-top: 1px solid #dce5d6; }
+.action-result-entry + .action-result-entry { margin-top: 8px; }
 
 .dice-actions {
-  margin-top: auto;
-  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  min-height: 0;
 }
 
 .dice-actions .btn {
@@ -407,3 +412,8 @@
     transform: rotate(0deg) translate(0);
   }
 }
+
+.role-icon { display: inline-flex; width: 30px; height: 36px; flex-shrink: 0; vertical-align: middle; }
+.role-portrait { width: 100%; height: 100%; object-fit: contain; }
+#turn-indicator, #victory-title { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.stat-box { display: flex; align-items: center; gap: 6px; }

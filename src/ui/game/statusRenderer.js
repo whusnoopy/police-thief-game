@@ -1,11 +1,16 @@
 import { els } from "../../app/state.js";
 import { SIGNAL_PHASES, normalizeSignalPhase } from "../../config/constants.js";
+import { renderRoleIcon, renderRoleLabel } from "./roleArtwork.js";
 
 const DICE_FACES = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+let actionTurn = null;
+let actionTurnLabel = "";
 
 function setTurnIndicator(turn) {
   const isThief = turn === "THIEF";
-  els.turnIndicator.textContent = isThief ? "🏃 小偷回合" : "🚓 警察回合";
+  renderRoleLabel(els.turnIndicator, isThief ? "thief" : "police", isThief ? "小偷回合" : "警察回合");
+  renderRoleIcon(els.policeRoleIcon, "police");
+  renderRoleIcon(els.thiefRoleIcon, "thief");
   els.policeStat.classList.toggle("active", !isThief);
   els.thiefStat.classList.toggle("active", isThief);
 }
@@ -36,6 +41,8 @@ export function getRandomDiceFace() {
 }
 
 export function renderTurnStart(turn, signalPhase) {
+  actionTurn = null;
+  actionTurnLabel = turn === "THIEF" ? "小偷回合" : "警察回合";
   setTurnIndicator(turn);
   setSignalIndicator(signalPhase);
   els.diceEl.classList.remove("rolling");
@@ -99,6 +106,58 @@ export function hideMovePreview() {
   els.moveConfirmActions.classList.add("hidden");
 }
 
+export function resetActionResults() {
+  actionTurn = null;
+  els.lastAction.textContent = "行动结果会显示在这里。";
+  els.lastAction.scrollTop = 0;
+}
+
+export function renderActionResult(text) {
+  if (!actionTurn) {
+    if (els.lastAction.children.length === 0) els.lastAction.textContent = "";
+    actionTurn = document.createElement("div");
+    actionTurn.className = "action-turn";
+    actionTurn.setAttribute("role", "group");
+    actionTurn.setAttribute("aria-label", actionTurnLabel);
+    els.lastAction.appendChild(actionTurn);
+  }
+  const entry = document.createElement("div");
+  entry.className = "action-result-entry";
+  text.split("；").forEach((part, index) => {
+    if (index) {
+      const separator = document.createElement("span");
+      separator.className = "action-result-separator";
+      separator.textContent = "；";
+      entry.appendChild(separator);
+    }
+    const line = document.createElement("span");
+    line.className = "action-result-line";
+    line.textContent = part;
+    entry.appendChild(line);
+  });
+  actionTurn.appendChild(entry);
+  els.lastAction.scrollTop = els.lastAction.scrollHeight;
+}
+
+export function renderTurnBudget({ continuous, active, points, unitId, formatPoints, operations, onOperation }) {
+  els.remainingPoints.classList.toggle("hidden", !continuous || !active);
+  els.remainingPoints.textContent = `剩余 ${formatPoints(points)} 行动点${unitId ? ` · 本回合锁定 ${unitId}` : " · 首次行动前可换人"}`;
+  els.btnEndTurn.classList.toggle("hidden", !continuous || !active);
+  els.btnEndTurn.textContent = `结束回合${points ? `（放弃 ${formatPoints(points)} 点）` : ""}`;
+  if (unitId) els.btnCancelSelection.classList.add("hidden");
+  els.unitOperations.innerHTML = "";
+  els.unitOperations.classList.toggle("hidden", operations.length === 0);
+  for (const operation of operations) {
+    const button = document.createElement("button");
+    button.type = "button"; button.className = "btn secondary";
+    button.dataset.operation = operation.type;
+    button.textContent = `${operation.label}（1 点）${operation.reason ? ` · ${operation.reason}` : ""}`;
+    button.disabled = !operation.enabled;
+    button.onclick = () => onOperation(operation.type);
+    els.unitOperations.appendChild(button);
+  }
+}
+
 export function renderVictory({ type, escaped = 0, caught = 0 }) {
   els.btnCancelSelection.classList.add("hidden");
   els.victoryModal.classList.remove("hidden");
@@ -111,14 +170,14 @@ export function renderVictory({ type, escaped = 0, caught = 0 }) {
   }
 
   if (type === "POLICE") {
-    els.victoryTitle.textContent = "🚓 警察胜利！";
+    renderRoleLabel(els.victoryTitle, "police", "警察胜利！");
     els.victoryTitle.style.color = "var(--primary-color)";
     els.victoryMessage.textContent = "所有小偷都已被抓住（含押送中），警察获胜，无需继续押回警局。";
     return;
   }
 
   if (type === "THIEF") {
-    els.victoryTitle.textContent = "🏃 小偷胜利！";
+    renderRoleLabel(els.victoryTitle, "thief", "小偷胜利！");
     els.victoryTitle.style.color = "var(--danger-color)";
     els.victoryMessage.textContent = "所有小偷都带着钱成功逃脱！";
     return;

@@ -36,12 +36,12 @@ export function startReachabilityJob(payload, workerFactory = createWorker) {
   return { promise, cancel: () => { fallback?.cancel(); finish(null, true); } };
 }
 
-function startCooperativeJob({ session, turn, diceValue, units }) {
+function startCooperativeJob({ session, turn, diceValue, movementPoints, units }) {
   let cancelled = false;
   const promise = (async () => {
     const results = new Map();
     for (const unit of units) {
-      const moves = await calculateReachableActionsAsync({ session, turn, diceValue, unit }, { cancelled: () => cancelled });
+      const moves = await calculateReachableActionsAsync({ session, turn, diceValue, movementPoints, unit }, { cancelled: () => cancelled });
       if (cancelled || !moves) return null;
       results.set(unit.id, moves);
     }

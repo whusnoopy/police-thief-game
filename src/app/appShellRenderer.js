@@ -17,7 +17,8 @@ export function renderAppShell(shellState) {
 
   if (!els.modeIndicator) return;
 
-  els.modeIndicator.textContent = shellState.modeIndicatorText;
+  els.modeIndicatorLabel.textContent = shellState.modeIndicatorText;
+  els.btnRenameCurrentMap.classList.toggle("hidden", !editing);
   els.modeIndicator.style.backgroundColor = shellState.modeIndicatorColor;
   els.modeIndicator.title = shellState.modeIndicatorTitle;
 }

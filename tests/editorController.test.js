@@ -45,7 +45,7 @@ test("editor previews valid and invalid tile placement before painting", () => {
   const paletteGroups = env.elements.palette.querySelectorAll(".palette-group");
   assert.deepEqual(
     paletteGroups.map((group) => group.dataset.group),
-    ["terrain", "building-facilities", "spawns", "special"],
+    ["terrain", "building-facilities", "bridge-facilities", "spawns", "special"],
   );
   assert.equal(paletteGroups[0].open, true);
   assert.equal(paletteGroups[1].open, false);
