@@ -3,13 +3,16 @@ import { legacyTileMatrixToMapDefinition } from "../domain/map/mapModel.js";
 import { GRID_SIZE, TILE_TYPES } from "../config/constants.js";
 import { isRampTileType } from "../domain/map/bridgeTopology.js";
 
+const namespace = import.meta.env?.VITE_MAP_STORAGE_NAMESPACE;
+const storageKey = (key) => namespace ? `${namespace}:${key}` : key;
+
 export const STORAGE_KEYS = {
-  mapList: "policeThief.maps.v3",
-  v2MapList: "policeThief.maps.v2",
-  currentMapId: "policeThief.currentMapId",
-  legacyMapList: "policeThiefMapList",
-  legacyCurrentMapId: "policeThiefCurrentMapId",
-  legacySingleMap: "policeThiefMap",
+  mapList: storageKey("policeThief.maps.v3"),
+  v2MapList: storageKey("policeThief.maps.v2"),
+  currentMapId: storageKey("policeThief.currentMapId"),
+  legacyMapList: storageKey("policeThiefMapList"),
+  legacyCurrentMapId: storageKey("policeThiefCurrentMapId"),
+  legacySingleMap: storageKey("policeThiefMap"),
 };
 
 export function generateMapId() {

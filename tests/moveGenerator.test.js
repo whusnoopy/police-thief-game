@@ -103,7 +103,7 @@ test("units cannot enter mountain terrain when walking or driving", () => {
   assert.equal(getActionAt(drivingActions, 0, 2), null);
 });
 
-test("driving units use river, ramp and overpass movement costs", () => {
+test("cars cannot enter water, while single-action ramps and bridge decks keep their fractional costs", () => {
   const mapDefinition = createRampMapDefinition();
   setLegacyTileAt(mapDefinition, 0, 0, "THIEF_SPAWN");
   setLegacyTileAt(mapDefinition, 0, 1, "RIVER");
@@ -135,9 +135,7 @@ test("driving units use river, ramp and overpass movement costs", () => {
     unit: thief,
   }), 0, 1);
 
-  assert.ok(riverAction);
-  assert.equal(riverAction.costSpent, 8);
-  assert.equal(riverAction.pointsLeft, 0);
+  assert.equal(riverAction, null);
 });
 
 test("overpass movement search stays bounded on a full board", () => {

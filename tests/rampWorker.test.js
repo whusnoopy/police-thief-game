@@ -19,17 +19,20 @@ function browserWorkerAdapter() {
   return adapter;
 }
 
-test("Worker and cooperative fallback honor explicit fractional balances instead of refilling from dice", async()=>{
+test("Worker and cooperative fallback honor explicit budgets and settle continuous moves at whole points", async()=>{
   for(const direction of ["N","E","S","W"]) {
     const {map}=createRampScenario(direction);map.actionRules="continuous";
     const session=createGameSession(map),units=session.thiefUnits;units[0].inCar=true;
-    for(const movementPoints of [0,1,2,7]) {
+    for(const movementPoints of [0,1,2,4,7]) {
       const payload={session,units,turn:"THIEF",diceValue:6,movementPoints};
       const result=await startReachabilityJob(payload,browserWorkerAdapter).promise;
       assert.ok(result instanceof Map);
       const expected=calculateReachableActions({...payload,unit:units[0]});assert.deepEqual(result.get("T1"),expected);
-      for(const action of expected.values())assert.ok(action.costSpent<=movementPoints);
-      if(!movementPoints)assert.equal(expected.size,0);
+      for(const action of expected.values()) {
+        assert.ok(action.costSpent<=movementPoints);
+        assert.equal(action.costSpent % 4, 0);
+      }
+      if(movementPoints<4)assert.equal(expected.size,0);
     }
   }
   const {createNewMapDefinition,setLegacyTileAt}=await import("../src/domain/map/mapModel.js");

@@ -110,7 +110,7 @@ test("driving direction follows the final step and survives view changes, while 
   }
 });
 
-test("raised grass and lowered water retain surface-aligned previews and resolved unit positions across views", async () => {
+test("raised grass retains a surface-aligned preview across views and lowered water cannot be selected", async () => {
   const { createRampMapDefinition, setLegacyTileAt } = await import("../src/domain/map/mapModel.js");
   const { createIsometricProjection, projectSurfacePoint } = await import("../src/ui/isometric/projection.js");
   const projection = createIsometricProjection();
@@ -125,6 +125,13 @@ test("raised grass and lowered water retain surface-aligned previews and resolve
     game.onDiceRolled();
     game.handleCellClick(4, 3);
     game.handleCellClick(4, 4, { previewOnly: true });
+    if (type === "RIVER") {
+      assert.equal(game.reachable.has("4,4"), false);
+      assert.equal(game.pendingDestination, null);
+      assert.equal(board.querySelectorAll(".iso-path-line").length, 0);
+      game.dispose();
+      continue;
+    }
     const first = projectSurfacePoint({ r: 4, c: 3, tileType: "ROAD" }, 0, 0.5, projection);
     const next = projectSurfacePoint({ r: 4, c: 4, tileType: type }, 0, -0.5, projection);
     const centre = projectSurfacePoint({ r: 4, c: 4, tileType: type }, 0, 0, projection);
@@ -141,19 +148,19 @@ test("raised grass and lowered water retain surface-aligned previews and resolve
     }
     game.confirmMove();
     assert.deepEqual({ r: game.thiefUnits[0].r, c: game.thiefUnits[0].c }, { r: 4, c: 4 });
-    assert.equal(game.thiefUnits[0].inCar, type === "RIVER");
+    assert.equal(game.thiefUnits[0].inCar, false);
     assert.equal(game.turn, "POLICE");
     game.dispose();
   }
   game.boardMode = "topdown";
 });
 
-test("touch and pen use the original tap point when the browser retargets a water destination to a nearby car", async () => {
+test("touch and pen use the original road tap when the browser retargets it to a nearby car", async () => {
   const { createRampMapDefinition, setLegacyTileAt } = await import("../src/domain/map/mapModel.js");
   const { createIsometricProjection, projectSurfacePoint } = await import("../src/ui/isometric/projection.js");
   const projection = createIsometricProjection();
   const map = createRampMapDefinition();
-  for (const [r, c, type] of [[4, 3, "THIEF_SPAWN"], [4, 4, "RIVER"], [9, 9, "POLICE_SPAWN"], [0, 1, "BANK"], [0, 2, "THIEF_BASE"]]) setLegacyTileAt(map, r, c, type);
+  for (const [r, c, type] of [[4, 3, "THIEF_SPAWN"], [9, 9, "POLICE_SPAWN"], [0, 1, "BANK"], [0, 2, "THIEF_BASE"]]) setLegacyTileAt(map, r, c, type);
   game.boardMode = "isometric";
   game.init(map);
   game.thiefUnits[0].inCar = true;
@@ -165,7 +172,7 @@ test("touch and pen use the original tap point when the browser retargets a wate
   svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: projection.width, height: projection.height });
   const token = board.querySelectorAll(".character").find(e => e.dataset.id === "T1");
   const actor = token.parentNode.parentNode;
-  const point = projectSurfacePoint({ r: 4, c: 4, tileType: "RIVER" }, 0, 0, projection);
+  const point = projectSurfacePoint({ r: 4, c: 4, tileType: "ROAD" }, 0, 0, projection);
   try {
     for (const pointerType of ["touch", "pen"]) {
       game.handleCellClick(4, 3);

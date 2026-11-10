@@ -62,6 +62,29 @@ test("new maps show the package version and all ramp directions; visible and key
   assert.equal(state.currentPaletteType, "OVERPASS_RAMP_W");
 });
 
+test("palette shortcut selects numbered tiles and directional ramps, and cancels before other editing", () => {
+  const press = (key, options = {}) => env.document.dispatchEvent({
+    type: "keydown", key, target: env.elements["editor-board"], preventDefault() {}, ...options,
+  });
+  press("t");
+  assert.equal(env.elements.palette.dataset.shortcutStage, "group");
+  press("1"); press("3");
+  assert.equal(state.currentPaletteType, "RIVER");
+  press("t"); press("3"); press("ArrowLeft");
+  assert.equal(state.currentPaletteType, "OVERPASS_RAMP_W");
+  press("r");
+  assert.equal(state.currentPaletteType, "OVERPASS_RAMP_N");
+  press("t"); press("3"); press("4");
+  assert.equal(state.currentPaletteType, "OVERPASS_RAMP_S");
+  press("t"); press("Escape"); press("1"); press("2");
+  assert.equal(state.currentPaletteType, "OVERPASS_RAMP_S");
+  press("t", { target: { tagName: "INPUT" } });
+  assert.equal(env.elements.palette.dataset.shortcutStage, "");
+  loadLegacyBridge();
+  press("t"); press("3"); press("ArrowUp"); press("r");
+  assert.equal(state.currentPaletteType, "ROAD");
+});
+
 test("ramp preview distinguishes both connected ends; painting a rotation undoes and redoes as one edit", () => {
   const { map, positions } = createRampScenario();
   setMapDefinition(map);

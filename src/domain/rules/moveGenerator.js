@@ -302,27 +302,32 @@ function shouldExpandState(frontiers, node, needsPathVariants) {
   return nextFrontier.includes(entry);
 }
 
-function finalizeReachableActions(results) {
-  return new Map(
-    Array.from(results, ([key, action]) => [
-      key,
-      (({ visitedMask: _visitedMask, ...publicAction }) => publicAction)(action),
-    ]),
-  );
+function finalizeReachableActions(results, continuous) {
+  const actions = new Map();
+  for (const [key, { visitedMask: _visitedMask, ...action }] of results) {
+    if (continuous) {
+      const charged = Math.ceil(action.costSpent / STEP_POINTS) * STEP_POINTS;
+      action.pointsLeft -= charged - action.costSpent;
+      action.costSpent = charged;
+    }
+    actions.set(key, action);
+  }
+  return actions;
 }
 
 function* searchReachableActions({ session, turn, diceValue, movementPoints = getMovementPoints(diceValue), unit }, firstOnly = false) {
-  // An explicit budget is already in quarter-point units. Never refill it from
-  // the original dice when a later segment has only a fractional balance left.
+  // Search with base costs to keep the cheapest route. Continuous movement
+  // settles once per segment, so only complete points can fund a route.
   if (!Number.isSafeInteger(movementPoints) || movementPoints < 0) throw new RangeError("Movement points must be a non-negative integer");
+  const continuous = usesContinuousActions(session.mapDefinition);
+  const maxCost = continuous ? Math.floor(movementPoints / STEP_POINTS) * STEP_POINTS : movementPoints;
   const { cols } = getMapDimensions(session.mapDefinition);
   const results = new Map();
-  if (!isWithinMap(session.mapDefinition, unit.r, unit.c)) return results;
+  if (maxCost === 0 || !isWithinMap(session.mapDefinition, unit.r, unit.c)) return results;
   const stateFrontiers = new Map();
   const isThief = turn === "THIEF";
   const role = isThief ? "THIEF" : "POLICE";
   const searchBoard = createSearchBoard(session, role, unit);
-  const continuous = usesContinuousActions(session.mapDefinition);
   const needsPathVariants = !continuous && isThief && !unit.hasMoney;
   const queue = new MinCostQueue();
   queue.push({
@@ -352,10 +357,10 @@ function* searchReachableActions({ session, turn, diceValue, movementPoints = ge
 
     if (current.trail.length > 0) {
       recordReachableAction(results, session, current);
-      if (firstOnly && results.size) return finalizeReachableActions(results);
+      if (firstOnly && results.size) return finalizeReachableActions(results, continuous);
     }
 
-    if (current.pointsLeft === 0 || isTerminalAction(current)) {
+    if (current.costSpent === maxCost || isTerminalAction(current)) {
       continue;
     }
 
@@ -364,7 +369,7 @@ function* searchReachableActions({ session, turn, diceValue, movementPoints = ge
       const { nr, nc, cellRule, cost, occupant } = move;
       if ((current.visitedMask & move.bit) !== 0n) continue;
       const tileType = cellRule.tileType;
-      if (current.pointsLeft < cost) continue;
+      if (current.costSpent + cost > maxCost) continue;
 
       const nextHasMoney = Boolean(current.hasMoney || (!continuous && isThief && tileType === "BANK"));
       if (isThief && tileType === "THIEF_BASE" && !nextHasMoney) continue;
@@ -423,7 +428,7 @@ function* searchReachableActions({ session, turn, diceValue, movementPoints = ge
     }
   }
 
-  return finalizeReachableActions(results);
+  return finalizeReachableActions(results, continuous);
 }
 
 

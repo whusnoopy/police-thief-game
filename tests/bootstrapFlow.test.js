@@ -110,13 +110,29 @@ test("file import reports an invalid file without changing the editor or library
   assert.equal(state.mode, "MAP_LIST");
 });
 
-test("the library example button creates a playable copy and keeps the edited original intact",()=>{
-  const original=structuredClone(getMapList()),currentId=getCurrentMapId();
-  showMapList();env.elements["btn-load-example"].click();
-  assert.equal(state.mode,"EDITOR");assert.notEqual(getCurrentMapId(),currentId);
-  assert.equal(state.mapDefinition.spawns.police.length,2);assert.equal(state.mapDefinition.spawns.thief.length,2);
-  assert.equal(env.elements["editor-board"].children.length,376);
-  for(const record of original)assert.deepEqual(getMapList().find(map=>map.id===record.id),record);
-  env.elements["btn-start-game"].click();assert.equal(state.mode,"GAME");
-  assert.equal(env.elements["game-board"].querySelectorAll(".iso-surface").length,376);
+test("the library lists three system maps and loads each as a playable copy", () => {
+  for (const [id, police, thieves, rule] of [
+    ["river-city", 2, 2, "single"],
+    ["river-city-many", 5, 8, "continuous"],
+    ["river-city-duel", 2, 2, "continuous"],
+  ]) {
+    const original = structuredClone(getMapList());
+    const currentId = getCurrentMapId();
+    showMapList();
+    const buttons = env.elements["built-in-map-grid"].querySelectorAll("button");
+    assert.equal(buttons.length, 3);
+    assert.deepEqual(getMapList(), original);
+    buttons.find(button => button.dataset.exampleId === id).click();
+    assert.equal(state.mode, "EDITOR");
+    assert.notEqual(getCurrentMapId(), currentId);
+    assert.equal(state.mapDefinition.actionRules, rule);
+    assert.equal(state.mapDefinition.spawns.police.length, police);
+    assert.equal(state.mapDefinition.spawns.thief.length, thieves);
+    for (const record of original) assert.deepEqual(getMapList().find(map => map.id === record.id), record);
+    env.elements["btn-start-game"].click();
+    assert.equal(state.mode, "GAME");
+    assert.equal(env.elements["game-board"].querySelectorAll(".iso-surface").length, 376);
+    env.elements["btn-modal-editor"].click();
+    assert.equal(state.mode, "EDITOR");
+  }
 });

@@ -38,7 +38,7 @@ export function createExampleMap() {
   for (const r of [8,10]) { row(r, 3, 5);row(r, 13, 16); }
   row(13, 3, 7);row(13, 12, 16);column(15, 12, 16);
 
-  // The ford leaves both river cells intact: vehicles can use it, walkers cannot.
+  // Keep roads to the riverbank on both sides of the blocked crossing.
   put(13, 8, "ROAD");put(13, 11, "ROAD");
   // A connected elevated junction. Nothing can travel under its footprint.
   row(9, 7, 12, "OVERPASS");column(12, 7, 11, "OVERPASS");

@@ -28,6 +28,8 @@
   gap: 20px;
 }
 
+.map-list-section-title { margin: 22px 0 10px; }
+
 .map-backup-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .map-backup-actions .btn { width: auto; min-height: 44px; margin-bottom: 0; }
 .map-backup-help, .map-import-status { margin: 10px 0 16px; line-height: 1.5; }

@@ -60,7 +60,7 @@ const REQUIRED_TILE_LABELS = {
 const TILE_HELP = {
   ...Object.fromEntries(BRIDGE_DIRECTIONS.map(({ direction, name }) => [`OVERPASS_RAMP_${direction}`, {
     summary: `向${name}上坡，反向可下桥；两侧封闭。`,
-    details: ["高端连接普通高架，低端连接可驾车的陆上地块。", "只允许车辆，进入每格消耗 0.25 步。", "选择四个方向之一，或按 R 轮换方向；在已有坡道上绘制可改变方向。"],
+    details: ["高端连接普通高架，低端连接可驾车的陆上地块。", "只允许车辆，每格基础费用 0.25 点。", "按 T、3 后可用方向键选坡道，R 轮换方向。在已有坡道上绘制可改变方向。"],
   }])),
   GRASS: {
     summary: "普通可通行地形，行人移动较慢。",
@@ -80,15 +80,15 @@ const TILE_HELP = {
   },
   ROAD: {
     summary: "标准地块，适合作为主要路线。",
-    details: ["警察和小偷都可步行进入。", "步行每格消耗 1 步。", "开车每格消耗 0.5 步。"],
+    details: ["警察和小偷都可步行进入。", "步行每格消耗 1 步。", "开车每格基础费用为 0.5 点。"],
   },
   RIVER: {
-    summary: "水路地块，只允许车辆通过。",
-    details: ["步行不能进入。", "车辆可通行，每格消耗 2 步。"],
+    summary: "不可通行的水面。",
+    details: ["行人和汽车均不能进入。", "可以用堤道或高架桥连接两岸。"],
   },
   OVERPASS: {
     summary: "高速车行地块，只允许车辆通过。",
-    details: ["步行不能进入。", "车辆可通行，每格消耗 0.25 步。"],
+    details: ["步行不能进入。", "车辆可通行，每格基础费用为 0.25 点。"],
   },
   MOUNTAIN: {
     summary: "山可相邻组成山脉，外围保留草地缓冲。",
@@ -182,7 +182,14 @@ function createTileHelpPanel(type, continuousRules) {
   return panel;
 }
 
-function createPaletteItem(type, currentPaletteType, onPreview, onSelect) {
+function createShortcutKey(number) {
+  const key = document.createElement("kbd");
+  key.className = "palette-shortcut-key";
+  key.textContent = String(number);
+  return key;
+}
+
+function createPaletteItem(type, number, currentPaletteType, onPreview, onSelect) {
   const item = document.createElement("button");
   item.type = "button";
   item.className = `palette-item ${type.id === currentPaletteType ? "active" : ""}`;
@@ -200,9 +207,8 @@ function createPaletteItem(type, currentPaletteType, onPreview, onSelect) {
   name.className = "palette-name";
   const ramp = BRIDGE_DIRECTIONS[RAMP_TILE_TYPES.indexOf(type.id)];
   name.textContent = ramp ? `向${ramp.name}上坡` : type.name;
-  if (ramp) item.classList.add("ramp-direction-item");
 
-  item.append(icon, name);
+  item.append(createShortcutKey(number), icon, name);
   if (REQUIRED_TILE_LABELS[type.id]) {
     const requirement = document.createElement("span");
     requirement.className = "palette-requirement-status missing";
@@ -224,6 +230,7 @@ function createPaletteItem(type, currentPaletteType, onPreview, onSelect) {
 
 function createPaletteGroup(
   group,
+  number,
   groupTileTypes,
   currentPaletteType,
   onPreview,
@@ -233,6 +240,7 @@ function createPaletteGroup(
   const details = document.createElement("details");
   details.className = "palette-group";
   details.dataset.group = group.id;
+  details.dataset.name = group.name;
   details.open = groupTileTypes.some((type) => type.id === currentPaletteType);
   details.addEventListener("toggle", () => {
     if (details.open) onOpen(details);
@@ -246,14 +254,14 @@ function createPaletteGroup(
 
   const count = document.createElement("span");
   count.className = "palette-group-count";
-  count.textContent = `${groupTileTypes.length}`;
+  count.textContent = `${groupTileTypes.length} 种`;
 
-  summary.append(title, count);
+  summary.append(createShortcutKey(number), title, count);
 
   const grid = document.createElement("div");
-  grid.className = `palette-grid${group.id === "bridge-facilities" ? " ramp-direction-grid" : ""}`;
-  groupTileTypes.forEach((type) => {
-    grid.appendChild(createPaletteItem(type, currentPaletteType, onPreview, onSelect));
+  grid.className = "palette-grid";
+  groupTileTypes.forEach((type, index) => {
+    grid.appendChild(createPaletteItem(type, index + 1, currentPaletteType, onPreview, onSelect));
   });
 
   details.append(summary, grid);
@@ -308,6 +316,7 @@ export function renderPalette(container, { tileTypes, currentPaletteType, onSele
     group.tileIds.forEach((tileId) => groupedIds.add(tileId));
     const groupElement = createPaletteGroup(
       group,
+      paletteGroups.length + 1,
       groupTileTypes,
       currentPaletteType,
       previewTileHelp,
@@ -322,6 +331,7 @@ export function renderPalette(container, { tileTypes, currentPaletteType, onSele
   if (ungroupedTileTypes.length > 0) {
     const groupElement = createPaletteGroup(
       { id: "other", name: "其他地块" },
+      paletteGroups.length + 1,
       ungroupedTileTypes,
       currentPaletteType,
       previewTileHelp,

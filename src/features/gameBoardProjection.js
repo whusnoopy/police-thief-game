@@ -17,7 +17,7 @@ export function projectPathPreview(action, formatMovementPoints) {
   let costSpent = 0;
   const preview = [];
 
-  action.trail.forEach((segment) => {
+  action.trail.forEach((segment, index) => {
     costSpent += segment.cost;
     if (segment.movementKind === "BOARD" || segment.movementKind === "PARK") {
       preview.push({
@@ -31,7 +31,7 @@ export function projectPathPreview(action, formatMovementPoints) {
     preview.push({
       r: segment.r,
       c: segment.c,
-      label: formatMovementPoints(costSpent),
+      label: formatMovementPoints(index === action.trail.length - 1 ? action.costSpent ?? costSpent : costSpent),
     });
   });
 

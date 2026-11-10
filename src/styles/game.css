@@ -5,6 +5,25 @@
   overflow: visible;
 }
 
+#editor-palette-shortcut { margin: 0; font-size: .8rem; color: #536777; }
+.palette-shortcut-key {
+  display: none;
+  flex: none;
+  min-width: 22px;
+  min-height: 22px;
+  place-items: center;
+  border: 1px solid #7697b4;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #e7f1fa;
+  color: #234766;
+  font-size: .8rem;
+  font-weight: 700;
+}
+.palette[data-shortcut-stage="group"] .palette-group-title .palette-shortcut-key,
+.palette[data-shortcut-stage="tile"] .palette-item .palette-shortcut-key { display: inline-grid; }
+.palette-item .palette-shortcut-key { margin-right: 8px; }
+
 .palette-panel {
   overflow: visible;
   gap: 10px;
@@ -22,7 +41,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px;
   padding: 8px 10px;
   color: var(--text-color);
   cursor: pointer;
@@ -49,13 +68,11 @@
 }
 
 .palette-group-count {
-  min-width: 24px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background-color: #eef3f7;
-  color: #566675;
+  flex: none;
+  color: #637581;
   font-size: 0.75rem;
-  text-align: center;
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 .palette-grid {

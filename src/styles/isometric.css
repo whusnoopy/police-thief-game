@@ -22,8 +22,13 @@
 .iso-billboard .driving-token .unit-state-badge { bottom: 16px; }
 .iso-vehicle-art { overflow: visible; }
 .iso-billboard .story-fallback { font-size: 13px; }
-.iso-ground-mark { font: 700 17px sans-serif; fill: #647d84; }
-.iso-ground-mark.mark-THIEF_SPAWN { fill: #af7159; }
+.iso-ground-mark { font: 800 14px sans-serif; color: #647d84; fill: currentColor; }
+.iso-ground-mark.mark-POLICE_SPAWN { color: var(--police-spawn-color); }
+.iso-ground-mark.mark-THIEF_SPAWN { color: var(--thief-spawn-color); }
+.iso-spawn-ring { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-dasharray: 3 2; }
+.iso-ground-mark.mark-PARKING { color: #fffdf1; }
+.iso-parking-plaque { fill: var(--parking-sign-color); stroke: #fffdf1; stroke-width: 1.2; }
+.iso-ground-mark.mark-TRAFFIC_LIGHT { font-size: 17px; }
 .iso-feature-label { font: 11px sans-serif; fill: #5f6856; paint-order: stroke; stroke: #fff8e4; stroke-width: 3px; stroke-linejoin: round; }
 .iso-compass { font: 700 13px sans-serif; fill: #7b8678; pointer-events: none; }
 .iso-highlight { fill: #45b87520; stroke: #23854f; stroke-width: 2.5px; stroke-linejoin: round; }

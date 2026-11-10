@@ -56,8 +56,8 @@ const TERRAIN_RULES = {
     category: "TERRAIN",
     walkCost: null,
     walkableRoles: [],
-    drivableRoles: ["POLICE", "THIEF"],
-    driveCost: TWO_STEP_COST,
+    drivableRoles: [],
+    driveCost: null,
   },
   OVERPASS: {
     tileType: "OVERPASS",
@@ -188,11 +188,13 @@ const SPAWN_RULES = {
 };
 
 export function getCellRuleAt(mapDefinition, r, c) {
+  const terrain = getTerrainAt(mapDefinition, r, c);
+  if (terrain === "RIVER") return TERRAIN_RULES.RIVER;
   const spawnSide = getSpawnSideAt(mapDefinition, r, c);
   if (spawnSide) return SPAWN_RULES[spawnSide];
 
   const feature = getFeatureAt(mapDefinition, r, c);
   if (feature) return FEATURE_RULES[feature.kind];
 
-  return TERRAIN_RULES[getTerrainAt(mapDefinition, r, c)] || TERRAIN_RULES.GRASS;
+  return TERRAIN_RULES[terrain] || TERRAIN_RULES.GRASS;
 }

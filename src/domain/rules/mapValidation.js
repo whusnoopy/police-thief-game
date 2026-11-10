@@ -1,6 +1,6 @@
 import { SIGNAL_PHASES } from "../../config/constants.js";
 import { getAllowedCrosswalkAxis, isCrosswalkTileType, isStepAlongAxis } from "../map/crosswalk.js";
-import { getFeaturePositionsByKind } from "../map/mapQueries.js";
+import { getFeaturePositionsByKind, getTerrainAt } from "../map/mapQueries.js";
 import { getCellRuleAt } from "./cellRules.js";
 import { getMapGameplayBlocker, usesRampRules, usesContinuousActions } from "../map/mapCompatibility.js";
 import { areCellsConnected, getRampConnectionIssues } from "../map/bridgeTopology.js";
@@ -76,6 +76,9 @@ export function validateMapDefinition(mapDefinition, options = {}) {
   const errors = [];
   const placements = [...(mapDefinition.features || []).map(f => f.position), ...(mapDefinition.spawns?.police || []), ...(mapDefinition.spawns?.thief || [])];
   if (placements.some(p => !isWithinMap(mapDefinition, p.r, p.c))) return { valid: false, errors: ["设施和出生点必须放在地图内，不能位于削角区域。"] };
+  if (placements.some(({ r, c }) => getTerrainAt(mapDefinition, r, c) === "RIVER")) {
+    return { valid: false, errors: ["设施和出生点必须放在陆地上，请移开水面上的设施或出生点。"] };
+  }
   if (usesRampRules(mapDefinition)) {
     getRampConnectionIssues(mapDefinition).forEach(({ r, c, reason }) => {
       errors.push(`上下桥格（${positionLabel({ r, c })}）${reason === "RAMP_HIGH_END" ? "高端必须连接普通高架" : "低端必须连接可驾车的陆上地块"}，请检查方向与相邻地块。`);

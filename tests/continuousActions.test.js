@@ -30,11 +30,34 @@ test("explicit quarter-point budgets override the original dice, including zero,
   for(const points of [0,1,2,4,6,9]) {
     const options={session,turn:"THIEF",unit,diceValue:6,movementPoints:points};
     const actions=calculateReachableActions(options);
-    for(const action of actions.values())assert.ok(action.costSpent<=points);
+    for(const action of actions.values()) {
+      assert.ok(action.costSpent<=points);
+      assert.equal(action.costSpent % 4, 0);
+    }
     if(points<4)assert.equal(actions.size,0);
     assert.deepEqual(await calculateReachableActionsAsync(options),actions);
   }
   for(const points of [-1,NaN,1.5,Infinity])assert.throws(()=>calculateReachableActions({session,turn:"THIEF",unit,movementPoints:points}),/Movement points/);
+});
+
+test("continuous driving rounds the whole route, and excludes routes whose rounded cost exceeds the budget",()=>{
+  const map = createRampMapDefinition({ actionRules: "continuous" });
+  for (const [r, c, tile] of [[4,2,"THIEF_SPAWN"],[4,3,"OVERPASS_RAMP_E"],[4,4,"OVERPASS"],[4,5,"OVERPASS_RAMP_W"]]) {
+    setLegacyTileAt(map, r, c, tile);
+  }
+  const session = createGameSession(map);
+  const unit = session.thiefUnits[0];
+  unit.inCar = true;
+  const options = { session, turn: "THIEF", unit, diceValue: 6 };
+  const short = calculateReachableActions({ ...options, movementPoints: 4 });
+  assert.deepEqual(short.get("4,5").trail.map(step => step.cost), [1, 1, 1]);
+  assert.equal(short.get("4,5").costSpent, 4);
+  assert.equal(short.get("4,5").pointsLeft, 0);
+  assert.equal(short.get("6,2").costSpent, 4, "two half-point road cells fit in one point");
+  assert.equal(short.has("4,6"), false);
+  const across = calculateReachableActions({ ...options, movementPoints: 12 }).get("4,6");
+  assert.equal(across.costSpent, 8, "a 1.25-point route charges two points");
+  assert.equal(across.pointsLeft, 4);
 });
 
 test("new maps use continuous rules; old encodings retain single actions and upgrade/expansion preserve their source",()=>{
@@ -53,15 +76,17 @@ test("new maps use continuous rules; old encodings retain single actions and upg
 });
 
 test("moving, boarding, driving, collecting money and moving again spend one original budget without automatic operations",async()=>{
-  await roll();const unit=g.thiefUnits[0];
+  await roll(fixture(),5);const unit=g.thiefUnits[0];
   g.handleCellClick(8,8);g.cancelUnitSelection();g.handleCellClick(0,0);
-  await g.moveSelectedUnit(0,1);assert.equal(unit.inCar,false);assert.equal(g.session.remainingPoints,12);assert.equal(g.session.actingUnitId,unit.id);
+  await g.moveSelectedUnit(0,1);assert.equal(unit.inCar,false);assert.equal(g.session.remainingPoints,16);assert.equal(g.session.actingUnitId,unit.id);
   g.handleCellClick(8,8);g.cancelUnitSelection();assert.equal(g.selectedUnit,unit);
-  await g.performOperation("BOARD");assert.equal(unit.inCar,true);assert.equal(g.session.remainingPoints,8);
-  await g.moveSelectedUnit(0,2);assert.equal(unit.hasMoney,false);assert.equal(g.session.remainingPoints,6);
-  assert.match(els.remainingPoints.textContent,/剩余 1.5/);
-  await g.performOperation("STEAL");assert.equal(unit.hasMoney,true);assert.equal(g.session.remainingPoints,2);
-  g.performOperation("STEAL");assert.equal(g.session.remainingPoints,2,"duplicate operation cannot pay or execute again");
+  await g.performOperation("BOARD");assert.equal(unit.inCar,true);assert.equal(g.session.remainingPoints,12);
+  g.handleCellClick(0,2,{previewOnly:true});
+  assert.match(els.movePreviewText.textContent,/本次消耗 1 点，剩余 2 点/);
+  await g.moveSelectedUnit(0,2);assert.equal(unit.hasMoney,false);assert.equal(g.session.remainingPoints,8);
+  assert.match(els.remainingPoints.textContent,/剩余 2 行动点/);
+  await g.performOperation("STEAL");assert.equal(unit.hasMoney,true);assert.equal(g.session.remainingPoints,4);
+  g.performOperation("STEAL");assert.equal(g.session.remainingPoints,4,"duplicate operation cannot pay or execute again");
   await g.moveSelectedUnit(0,3);assert.equal(g.turn,"POLICE");assert.equal(g.diceValue,0);assert.equal(g.session.remainingPoints,null);
   assert.equal(unit.c,3);assert.equal(g.session.actingUnitId,null);g.dispose();
 });
@@ -101,24 +126,23 @@ test("action history retains segments and turn boundaries through view switches,
   assert.equal(els.lastAction.textContent,"行动结果会显示在这里。");g.dispose();
 });
 
-test("insufficient operation balance never takes money, and voluntarily ending discards only the remaining balance",async()=>{
+test("rounding the last drive can exhaust the budget before a bank operation",async()=>{
   const map=fixture([[0,1,"ROAD"],[0,2,"ROAD"],[0,3,"BANK"]]);
   await roll(map,2);const unit=g.thiefUnits[0];unit.inCar=true;
   g.invalidateReachability();g.finishDiceSelection(g.getActiveUnitsForTurn());g.handleCellClick(0,0);
-  await g.moveSelectedUnit(0,3);assert.equal(g.session.remainingPoints,2);
-  assert.equal(g.operationsFor(unit).find(op=>op.type==="STEAL").enabled,false);
-  g.performOperation("STEAL");assert.equal(unit.hasMoney,false);assert.equal(g.session.remainingPoints,2);
-  g.endTurn();assert.equal(g.turn,"POLICE");assert.match(els.lastAction.textContent,/放弃 0.5 点/);
-  g.endTurn();assert.equal(g.turn,"POLICE");g.dispose();
+  await g.moveSelectedUnit(0,3);
+  assert.equal(g.turn,"POLICE");assert.equal(g.session.remainingPoints,null);
+  assert.match(els.lastAction.textContent,/本次消耗 2 点，剩余 0 点/);
+  g.performOperation("STEAL");assert.equal(unit.hasMoney,false);g.dispose();
 });
 
-test("parking charges one operation point, preserves the vehicle and automatically ends an unusable fractional balance",async()=>{
+test("parking spends the last whole point and preserves the vehicle",async()=>{
   await roll(fixture(),2);const unit=g.thiefUnits[0];unit.inCar=true;
   g.session.parkingCars.clear();g.session.parkedCars.clear();g.invalidateReachability();g.finishDiceSelection(g.getActiveUnitsForTurn());
   g.handleCellClick(0,0);await g.moveSelectedUnit(0,1);
-  assert.equal(unit.inCar,true);assert.equal(g.session.remainingPoints,6);
+  assert.equal(unit.inCar,true);assert.equal(g.session.remainingPoints,4);
   await g.performOperation("PARK");assert.equal(unit.inCar,false);assert.ok(g.session.parkingCars.has("0,1"));
-  assert.equal(g.turn,"POLICE");assert.match(els.lastAction.textContent,/剩余 0.5 点无法支付/);g.dispose();
+  assert.equal(g.turn,"POLICE");assert.match(els.lastAction.textContent,/剩余 0 点/);g.dispose();
 });
 
 test("police can capture, drive to station, pay separately to disembark and deliver, then capture again with the balance",async()=>{
@@ -126,12 +150,12 @@ test("police can capture, drive to station, pay separately to disembark and deli
   for(const[r,c,t]of [[1,0,"POLICE_SPAWN"],[1,1,"THIEF_SPAWN"],[1,3,"THIEF_SPAWN"],[1,2,"POLICE_STATION"],[2,0,"PARKING"]])setLegacyTileAt(map,r,c,t);
   await roll(map,6,"POLICE");const unit=g.policeUnits[0];unit.inCar=true;
   g.session.parkingCars.clear();g.session.parkedCars.clear();g.invalidateReachability();g.finishDiceSelection(g.getActiveUnitsForTurn());g.handleCellClick(1,0);
-  await g.moveSelectedUnit(1,1);assert.equal(unit.state,"CARRYING");assert.equal(g.session.remainingPoints,22);
+  await g.moveSelectedUnit(1,1);assert.equal(unit.state,"CARRYING");assert.equal(g.session.remainingPoints,20);
   await g.moveSelectedUnit(1,2);assert.equal(unit.state,"CARRYING");assert.equal(unit.inCar,true);
-  g.performOperation("DELIVER");assert.equal(g.session.remainingPoints,20);
-  await g.performOperation("PARK");assert.equal(unit.inCar,false);assert.equal(g.session.remainingPoints,16);assert.ok(g.session.parkingCars.has("2,0"));
-  await g.performOperation("DELIVER");assert.equal(unit.state,"IDLE");assert.equal(g.thiefUnits[0].state,"JAILED");assert.equal(g.session.remainingPoints,12);
-  await g.moveSelectedUnit(1,3);assert.equal(g.thiefUnits[1].state,"CARRIED");assert.equal(g.phase,GAME_PHASES.FINISHED);assert.equal(g.session.remainingPoints,8);g.dispose();
+  g.performOperation("DELIVER");assert.equal(g.session.remainingPoints,16);
+  await g.performOperation("PARK");assert.equal(unit.inCar,false);assert.equal(g.session.remainingPoints,12);assert.ok(g.session.parkingCars.has("2,0"));
+  await g.performOperation("DELIVER");assert.equal(unit.state,"IDLE");assert.equal(g.thiefUnits[0].state,"JAILED");assert.equal(g.session.remainingPoints,8);
+  await g.moveSelectedUnit(1,3);assert.equal(g.thiefUnits[1].state,"CARRIED");assert.equal(g.phase,GAME_PHASES.FINISHED);assert.equal(g.session.remainingPoints,4);g.dispose();
 });
 
 test("signals and animals advance once when a full police turn ends, never for each segment",async()=>{

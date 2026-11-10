@@ -1,8 +1,9 @@
 import { getMapDimensions } from "../../domain/map/mapDimensions.js";
+import { usesContinuousActions } from "../../domain/map/mapCompatibility.js";
 import { renderBoard } from "../board/boardRenderer.js";
 import { escapeHTML } from "../../utils/helpers.js";
 
-function createMapActions({ mapObj, isCurrentMap, onLoad, onRename, onDelete, onShare, onDuplicate, onExport }) {
+function createMapActions({ mapObj, isCurrentMap, builtIn, onLoad, onRename, onDelete, onShare, onDuplicate, onExport }) {
   const actions = document.createElement("div");
   actions.className = "map-card-actions";
 
@@ -10,6 +11,12 @@ function createMapActions({ mapObj, isCurrentMap, onLoad, onRename, onDelete, on
   btnLoad.className = "btn primary btn-full";
   btnLoad.innerHTML = isCurrentMap ? "📝 继续编辑" : "📥 加载地图";
   btnLoad.onclick = () => onLoad(mapObj);
+  if (builtIn) {
+    btnLoad.textContent = "载入地图";
+    btnLoad.dataset.exampleId = mapObj.id;
+    actions.appendChild(btnLoad);
+    return actions;
+  }
 
   const btnRename = document.createElement("button");
   btnRename.className = "btn warning";
@@ -45,19 +52,22 @@ function createMapActions({ mapObj, isCurrentMap, onLoad, onRename, onDelete, on
   return actions;
 }
 
-function createMapCard({ mapObj, currentMapId, resolveMapDefinition, onLoad, onRename, onDelete, onShare, onDuplicate, onExport }) {
+function createMapCard({ mapObj, currentMapId, builtIn, resolveMapDefinition, onLoad, onRename, onDelete, onShare, onDuplicate, onExport }) {
   const card = document.createElement("div");
   card.className = "map-card";
 
-  const isCurrentMap = mapObj.id === currentMapId;
+  const isCurrentMap = !builtIn && mapObj.id === currentMapId;
   if (isCurrentMap) card.classList.add("current-map");
 
   const header = document.createElement("div");
   header.className = "map-card-header";
-  const dateText = new Date(mapObj.updatedAt).toLocaleString();
+  const mapDefinition = mapObj.isCorrupt ? null : resolveMapDefinition(mapObj);
+  const subtitle = builtIn
+    ? `${mapDefinition.spawns.police.length} 警 · ${mapDefinition.spawns.thief.length} 贼 · ${usesContinuousActions(mapDefinition) ? "连续行动" : "单次行动"}`
+    : `最后修改：${new Date(mapObj.updatedAt).toLocaleString()}`;
   header.innerHTML = `
       <span class="map-card-title">${escapeHTML(mapObj.name)}</span>
-      <span class="map-card-date">最后修改：${dateText}</span>
+      <span class="map-card-date">${subtitle}</span>
     `;
 
   if (isCurrentMap) {
@@ -74,7 +84,6 @@ function createMapCard({ mapObj, currentMapId, resolveMapDefinition, onLoad, onR
   if (mapObj.isCorrupt) {
     thumb.textContent = "地图无法读取，原始数据已保留";
   } else {
-    const mapDefinition = resolveMapDefinition(mapObj);
     const { rows, cols } = getMapDimensions(mapDefinition);
     header.appendChild(Object.assign(document.createElement("span"), { className: "map-card-size", textContent: `${rows}×${cols}` }));
     renderBoard(boardElement, { mapDefinition });
@@ -87,6 +96,7 @@ function createMapCard({ mapObj, currentMapId, resolveMapDefinition, onLoad, onR
     createMapActions({
       mapObj,
       isCurrentMap,
+      builtIn,
       onLoad,
       onRename,
       onDelete,
@@ -103,6 +113,7 @@ export function renderMapListGrid(container, options) {
   const {
     maps,
     currentMapId,
+    builtIn = false,
     resolveMapDefinition,
     onLoad,
     onRename,
@@ -118,6 +129,7 @@ export function renderMapListGrid(container, options) {
       createMapCard({
         mapObj,
         currentMapId,
+        builtIn,
         resolveMapDefinition,
         onLoad,
         onRename,

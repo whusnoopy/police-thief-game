@@ -8,9 +8,21 @@
 .story-cell.occupied-feature .character { width: 72%; height: 78%; right: 0; bottom: 5%; }
 .story-cell.occupied-feature > .tile-label { left: 2px; transform: none; max-width: 95%; }
 .spawn-sign, .parking-sign, .manhole-sign, .legacy-signal-sign { position: absolute; pointer-events: none; }
-.spawn-sign { left: 3px; bottom: 3px; width: 18px; height: 18px; border: 1px dashed currentColor; border-radius: 50%; font: 700 11px/16px sans-serif; text-align: center; color: #4b7795; }
-.thief-sign { color: #ac6754; }
-.parking-sign { top: 8%; left: 8%; color: #557c8a; border: 2px solid #71939b; border-radius: 4px; padding: 0 4px; font: 700 calc(var(--cell-size, 40px) * .35)/1.2 sans-serif; }
+.spawn-sign { left: 3px; bottom: 3px; width: 18px; height: 18px; border: 1px dashed currentColor; border-radius: 50%; font: 700 11px/16px sans-serif; text-align: center; color: var(--police-spawn-color); }
+.thief-sign { color: var(--thief-spawn-color); }
+.parking-sign {
+  top: 8%;
+  left: 8%;
+  display: grid;
+  place-items: center;
+  width: clamp(10px, calc(var(--cell-size, 40px) * .43), 22px);
+  aspect-ratio: 1;
+  color: #fffdf1;
+  background: var(--parking-sign-color);
+  border: 1px solid #fffdf1;
+  border-radius: 3px;
+  font: 800 clamp(7px, calc(var(--cell-size, 40px) * .31), 16px)/1 sans-serif;
+}
 .manhole-sign { width: 44%; aspect-ratio: 1; border: 3px double #7d8d81; border-radius: 50%; background: repeating-linear-gradient(45deg,#9baa94 0 2px,#bbc5a9 2px 5px); }
 .legacy-signal-sign { font-size: 12px; color: #94bd90; background: #526c6a; padding: 1px 3px; border-radius: 3px; }
 .story-cell .character { width: 92%; height: 94%; bottom: 2%; border: 0; border-radius: 0; background: transparent; box-shadow: none; pointer-events: none; }
@@ -32,6 +44,7 @@
 .board .story-cell.placement-invalid { box-shadow: inset 0 0 0 4px var(--danger-color); }
 .story-icon { position: relative; display: inline-flex; justify-content: center; align-items: center; width: 40px; height: 40px; --cell-size: 40px; background: #ddd6bd; border-radius: 5px; }
 .story-icon .tile-label { display: none; }
+.story-icon .parking-sign { top: 50%; left: 50%; transform: translate(-50%, -50%); }
 .story-icon.type-GRASS { background: #b9cea0; }
 .story-icon.type-RIVER { background: repeating-linear-gradient(170deg,#8ebdc4 0 12px,#b8d8d8 13px,#8ebdc4 15px); }
 .story-icon.type-OVERPASS { background: repeating-linear-gradient(90deg,#a9b5b5 0 12px,#dce1d8 13px,#a9b5b5 15px); }
@@ -48,5 +61,5 @@
 .mini-board { gap: 0 !important; }
 .mini-board .tile-label { display: none; }
 .mini-board .spawn-sign { width: 10px; height: 10px; font-size: 7px; line-height: 8px; left: 1px; bottom: 1px; }
-.mini-board .parking-sign { font-size: 8px; padding: 0 1px; border-width: 1px; }
+.mini-board .parking-sign { border-radius: 2px; }
 .mini-board .manhole-sign { border-width: 1px; }

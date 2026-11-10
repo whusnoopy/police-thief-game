@@ -1,6 +1,6 @@
 import { decodeMapDefinition, encodeMapDefinition, normalizeEncodedMap } from "../domain/map/mapCodec.js";
 import { createNewMapDefinition } from "../domain/map/mapModel.js";
-import { createExampleMap, EXAMPLE_MAP_ID } from "../domain/map/exampleMap.js";
+import { createBuiltInMap } from "../domain/map/builtInMaps.js";
 
 function tryDecodeMapDefinition(encodedMap) {
   if (!encodedMap) return null;
@@ -13,12 +13,12 @@ function tryDecodeMapDefinition(encodedMap) {
 }
 
 export function resolveInitialMapLoad({ savedEncodedMap = null, sharedEncodedMap = null, exampleId = null } = {}) {
-  const exampleRequested = !sharedEncodedMap && exampleId === EXAMPLE_MAP_ID;
-  const sharedMapDefinition = exampleRequested ? createExampleMap() : tryDecodeMapDefinition(sharedEncodedMap);
+  const example = sharedEncodedMap ? null : createBuiltInMap(exampleId);
+  const sharedMapDefinition = example ?? tryDecodeMapDefinition(sharedEncodedMap);
   const savedMapDefinition = tryDecodeMapDefinition(savedEncodedMap);
   if (sharedMapDefinition) {
     return {
-      source: exampleRequested ? "example" : "url",
+      source: example ? "example" : "url",
       mapDefinition: sharedMapDefinition,
       forceNewMap: Boolean(
         savedEncodedMap &&

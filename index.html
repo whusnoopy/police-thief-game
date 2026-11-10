@@ -92,6 +92,7 @@
             <section id="action-rule-controls" class="editor-map-actions" aria-label="行动规则"></section>
             <section id="bridge-panel" class="editor-map-actions" aria-label="高架与上下桥"></section>
 
+            <p id="editor-palette-shortcut" aria-live="polite">按 T 选择地块</p>
             <div id="palette" class="palette">
               <!-- 生成的地块选项和当前地块说明会放在这里 -->
             </div>
@@ -220,12 +221,16 @@
           <div class="map-backup-actions">
             <button id="btn-export-library" class="btn info" type="button">导出全部地图</button>
             <button id="btn-import-library" class="btn secondary" type="button">导入地图备份</button>
-            <button id="btn-load-example" class="btn success" type="button">载入示例地图</button>
             <input id="map-backup-input" type="file" accept=".json,application/json" hidden />
           </div>
           <p class="map-backup-help">备份可在平板和电脑之间迁移。导入会新增地图，跳过重复内容，保留已有地图。</p>
-          <p class="map-backup-help">示例「双岸追缉」：两警两贼、六辆车，包含高架、井盖、堤道与水路。载入时创建新副本，保留当前地图。</p>
           <p id="map-import-status" class="map-import-status" role="status" aria-live="polite"></p>
+          <section aria-labelledby="built-in-map-title">
+            <h3 id="built-in-map-title" class="map-list-section-title">系统自带地图</h3>
+            <p class="map-backup-help">载入后会创建可编辑的副本，保留已有地图。</p>
+            <div id="built-in-map-grid" class="map-list-grid"></div>
+          </section>
+          <h3 class="map-list-section-title">我的地图</h3>
           <div id="map-list-grid" class="map-list-grid">
             <!-- 地图卡片由 JS 渲染 -->
           </div>
@@ -288,11 +293,11 @@
             <p class="rule-row rules-isometric"><span class="emoji rule-icons" aria-hidden="true">🗺️</span><span class="rule-description">进入斜视游戏默认显示全图；可在地图空白或不可点击处按住拖动，用“全图”恢复总览，用“定位角色”查看选中或本回合角色。被遮挡的主体显示彩色轮廓，也可点击编号选人；设施内人物缩小在门口，车辆在旁侧停靠。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">👆</span><span class="rule-description">掷骰后选择己方角色。触屏点击高亮落点可预览路线与结果，再按“确认移动”；鼠标悬停预览、点击直接移动。</span></p>
             <p class="rule-row rules-single"><span class="emoji rule-icons" aria-hidden="true">🎲</span><span class="rule-description">当前地图使用旧行动规则：每次行动结束即换手，未用步数作废。</span></p>
-            <p class="rule-row rules-continuous"><span class="emoji rule-icons" aria-hidden="true">🎲</span><span class="rule-description">当前地图使用连续行动：骰点形成本回合预算。首次实际行动前可换人、取消；首次扣点后锁定该角色，余额可继续移动和操作，也可主动结束。点数用尽、余额无合法行动或角色逃脱后结束回合。取消预览不扣点。</span></p>
+            <p class="rule-row rules-continuous"><span class="emoji rule-icons" aria-hidden="true">🎲</span><span class="rule-description">当前地图使用连续行动。首次扣点后锁定该角色，余额可继续移动或操作。每次移动先合计整条路线的费用，再向上取整扣点。例如驾车走一格道路扣 1 点，连走两格道路也扣 1 点。点数用尽、无合法动作或角色逃脱后结束回合。取消预览不扣点，也可主动结束回合。</span></p>
             <p class="rule-row rules-continuous"><span class="emoji rule-icons" aria-hidden="true">💰</span><span class="rule-description">上车、下车、银行取钱、警局交付各在移动费之外另扣 1 点。到位后点击对应操作按钮，余额不足可停留，下一回合再操作。抓捕、逃脱不另加操作费，井盖传送仍为 1 点。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🏁</span><span class="rule-description">抓住全部小偷（含押送中）即警察获胜；全部小偷带钱逃脱即小偷获胜。若部分逃脱、部分被抓且没有活动小偷，则以混合结局结束。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">⬜</span><span class="rule-description">道路步行消耗 1 点、驾车消耗 0.5 点，出生点等同道路。</span></p>
-            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🌊🌉</span><span class="rule-description">河流、高架桥和上下桥格只允许车辆通行；车辆过河每格消耗 2 点，进入桥面或上下桥格每格消耗 0.25 点。高架仅通过上下桥格连接地面，箭头朝向高端，反向可下桥，两侧封闭。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🌊🌉</span><span class="rule-description">行人和汽车均不可进入水面。高架桥和上下桥格仅供车辆通行，每格基础费用为 0.25 点。高架仅通过上下桥格连接地面，箭头朝向高端，反向可下桥，两侧封闭。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">↔️↕️</span><span class="rule-description">斑马线分横向和纵向；行人只能按斑马线方向在绿灯时通过，车辆只能按垂直方向在红灯时通过。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🌿</span><span class="rule-description">草地步行每格消耗 2 点，车辆不能进入。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🏢🏗️🚧⛰️</span><span class="rule-description">建筑物、建筑工地、路障和山均不可进入。</span></p>

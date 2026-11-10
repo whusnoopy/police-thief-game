@@ -41,6 +41,7 @@ let editorButtonsBound = false;
 let historyMap = null;
 let stroke = null;
 let paletteRuleset = null;
+let paletteShortcutGroup = null;
 const undoStack = [];
 const redoStack = [];
 const HISTORY_LIMIT = 50;
@@ -98,15 +99,77 @@ function paintStrokeTo(r, c) {
   stroke.last = { r, c };
 }
 
+function setPaletteShortcutStage(stage = "", group = null) {
+  paletteShortcutGroup = group;
+  els.palette.dataset.shortcutStage = stage;
+  let hint = "按 T 选择地块";
+  if (stage === "group") hint = "按分类编号，Esc 取消";
+  if (group) {
+    const ramps = group.dataset.group === "bridge-facilities" && usesRampRules(state.mapDefinition);
+    hint = `${group.dataset.name}：${ramps ? "按地块编号或方向键，R 轮换" : "按地块编号"}，Esc 取消`;
+  }
+  els.editorPaletteShortcut.textContent = hint;
+}
+
+function cancelPaletteShortcut() {
+  if (els.palette.dataset.shortcutStage) setPaletteShortcutStage();
+}
+
+function selectPaletteShortcutItem(item) {
+  if (!item) return false;
+  cancelPaletteShortcut();
+  item.closest(".palette-group").open = true;
+  item.click();
+  return true;
+}
+
+function handlePaletteShortcut(key) {
+  if (key === "t") {
+    setPaletteShortcutStage("group");
+    return true;
+  }
+  if (key === "r" && usesRampRules(state.mapDefinition)) {
+    const next = RAMP_TILE_TYPES[(RAMP_TILE_TYPES.indexOf(state.currentPaletteType) + 1) % RAMP_TILE_TYPES.length];
+    return selectPaletteShortcutItem(Array.from(els.palette.querySelectorAll(".palette-item")).find(item => item.dataset.type === next));
+  }
+
+  const stage = els.palette.dataset.shortcutStage;
+  if (!stage) return false;
+  const index = /^[1-9]$/.test(key) ? Number(key) - 1 : -1;
+  if (stage === "group") {
+    const group = els.palette.querySelectorAll(".palette-group")[index];
+    if (group) {
+      group.open = true;
+      setPaletteShortcutStage("tile", group);
+      group.scrollIntoView?.({ block: "nearest" });
+      return true;
+    }
+  } else {
+    const items = paletteShortcutGroup.querySelectorAll(".palette-item");
+    const direction = ["arrowup", "arrowright", "arrowdown", "arrowleft"].indexOf(key);
+    if (direction >= 0 && paletteShortcutGroup.dataset.group === "bridge-facilities") {
+      const ramp = Array.from(items).find(item => item.dataset.type === RAMP_TILE_TYPES[direction]);
+      if (selectPaletteShortcutItem(ramp)) return true;
+    }
+    if (selectPaletteShortcutItem(items[index])) return true;
+  }
+  cancelPaletteShortcut();
+  return key === "escape";
+}
+
 function bindPointerState() {
   if (pointerStateBound) return;
 
   document.addEventListener("pointerup", finishStroke);
   document.addEventListener("pointercancel", finishStroke);
+  document.addEventListener("pointerdown", cancelPaletteShortcut);
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) finishStroke();
   });
-  window.addEventListener?.("blur", () => finishStroke());
+  window.addEventListener?.("blur", () => {
+    finishStroke();
+    cancelPaletteShortcut();
+  });
   els.editorBoard.addEventListener("lostpointercapture", finishStroke);
   els.editorBoard.addEventListener("pointermove", (event) => {
     if (!stroke || event.pointerId !== stroke.pointerId) return;
@@ -116,19 +179,19 @@ function bindPointerState() {
     paintStrokeTo(Number(cell.dataset.r), Number(cell.dataset.c));
   });
   document.addEventListener("keydown", (event) => {
-    if (state.mode !== "EDITOR" || event.altKey) return;
     const target = event.target;
-    if (["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName) || target?.isContentEditable) return;
-    if ([els.rulesModal, els.shareLinkModal, els.victoryModal].some((modal) => !modal.classList.contains("hidden"))) return;
-    const key = event.key.toLowerCase();
-    if (key === "r" && !event.ctrlKey && !event.metaKey && usesRampRules(state.mapDefinition)) {
-      event.preventDefault();
-      const next = RAMP_TILE_TYPES[(RAMP_TILE_TYPES.indexOf(state.currentPaletteType) + 1) % RAMP_TILE_TYPES.length];
-      const item = Array.from(els.palette.querySelectorAll(".palette-item")).find(element => element.dataset.type === next);
-      if (item) { const group = item.closest(".palette-group"); if (group) group.open = true; item.click(); }
+    const editingText = ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName) || target?.isContentEditable;
+    const modalOpen = [els.rulesModal, els.shareLinkModal, els.victoryModal].some((modal) => !modal.classList.contains("hidden"));
+    if (state.mode !== "EDITOR" || event.altKey || event.isComposing || editingText || modalOpen) {
+      cancelPaletteShortcut();
       return;
     }
-    if (!(event.ctrlKey || event.metaKey)) return;
+    const key = event.key.toLowerCase();
+    if (!event.ctrlKey && !event.metaKey) {
+      if (!event.repeat && handlePaletteShortcut(key)) event.preventDefault();
+      return;
+    }
+    cancelPaletteShortcut();
     if (key !== "z" && key !== "y") return;
     event.preventDefault();
     if (key === "y" || event.shiftKey) redoMap(); else undoMap();
@@ -281,6 +344,7 @@ function syncEditorPalette(force = false) {
   const continuousRules = usesContinuousActions(state.mapDefinition);
   const paletteKey = `${rampRules}:${continuousRules}`;
   if (!force && paletteRuleset === paletteKey) return;
+  cancelPaletteShortcut();
   paletteRuleset = paletteKey;
   if (!rampRules && isRampTileType(state.currentPaletteType)) state.currentPaletteType = "ROAD";
   renderPalette(els.palette, {
@@ -368,6 +432,7 @@ export function initEditor() {
 export function renderEditorBoard() {
   syncEditorPalette();
   if (historyMap !== state.mapDefinition) {
+    cancelPaletteShortcut();
     stroke = null;
     undoStack.length = 0;
     redoStack.length = 0;

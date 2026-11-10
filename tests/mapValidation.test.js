@@ -53,13 +53,25 @@ test("uses walking manholes to connect disconnected islands", () => {
   assert.equal(validateMapDefinition(map).valid, false);
 });
 
-test("requires a car for water routes and allows parking before a grass route", () => {
+test("water cuts routes even with a car, while parking connects a bridge route to a grass exit", () => {
   const map = mapWith([[0, 0, "THIEF_SPAWN"], [1, 0, "POLICE_SPAWN"], [0, 1, "ROAD"],
     [0, 2, "RIVER"], [0, 3, "ROAD"], [0, 4, "OVERPASS_RAMP_E"], [0, 5, "OVERPASS"],
     [0, 6, "OVERPASS_RAMP_W"], [0, 7, "BANK"], [0, 8, "PARKING"], [0, 9, "GRASS"], [1, 9, "THIEF_BASE"]], "BUILDING", "ramps");
   assert.equal(validateMapDefinition(map).valid, false);
   setLegacyTileAt(map, 0, 1, "PARKING");
+  assert.ok(validateMapDefinition(map).errors.some(message => message.includes("无法到达银行")));
+  setLegacyTileAt(map, 0, 2, "ROAD");
   assert.equal(validateMapDefinition(map).valid, true);
+  setLegacyTileAt(map, 0, 1, "ROAD");
+  assert.equal(validateMapDefinition(map).valid, false);
+});
+
+test("a layered import with a facility on water is blocked with an editing hint", () => {
+  const map = mapWith(required, "ROAD");
+  map.terrain[0][9] = "RIVER";
+  const validation = validateMapDefinition(map);
+  assert.equal(validation.valid, false);
+  assert.match(validation.errors[0], /水面/);
 });
 
 test("respects crosswalk direction but does not reject a route just because lights will change", () => {

@@ -330,7 +330,7 @@ export function loadInitialMapIntoState() {
   setMapDefinition(loadPlan.mapDefinition);
   persistCurrentMap({
     forceNewMap,
-    mapName: (loadPlan.source === "example" || (loadPlan.source === "url" && (forceNewMap || !currentMap)))
+    mapName: (loadPlan.source === "example" || loadPlan.source === "url") && (forceNewMap || !currentMap)
       ? loadPlan.mapDefinition.meta.name || null
       : null,
   });

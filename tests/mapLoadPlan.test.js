@@ -87,6 +87,14 @@ test("a named example loads as a separate map, while a matching saved example ca
   assert.equal(result.source,"example");assert.equal(result.forceNewMap,true);
   assert.equal(result.mapDefinition.meta.name,EXAMPLE_MAP_NAME);assert.equal(result.mapDefinition.spawns.thief.length,2);
   assert.equal(resolveInitialMapLoad({savedEncodedMap:encodeMapDefinition(createExampleMap()),exampleId:"river-city"}).forceNewMap,false);
+  const many = resolveInitialMapLoad({ savedEncodedMap, exampleId: "river-city-many" });
+  assert.equal(many.source, "example");
+  assert.equal(many.forceNewMap, true);
+  assert.equal(many.mapDefinition.spawns.thief.length, 8);
+  const duel = resolveInitialMapLoad({ exampleId: "river-city-duel" });
+  assert.equal(duel.source, "example");
+  assert.equal(duel.mapDefinition.actionRules, "continuous");
+  assert.equal(duel.mapDefinition.spawns.thief.length, 2);
 });
 
 test("explicit shared maps take precedence over examples and unknown example names preserve the saved map",()=>{

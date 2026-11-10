@@ -42,7 +42,7 @@ test("each of the four starting characters can actually board a nearby available
   assert.equal(session.parkingCars.size,2);
 });
 
-test("the example elevated junction serves all four ramps, while the ford is an actual vehicle-only water route",()=>{
+test("the example elevated junction serves all four ramps and cars cannot use the former ford",()=>{
   const session=createGameSession(createExampleMap()),unit=session.thiefUnits[0];
   Object.assign(unit,{r:9,c:5,inCar:true});
   const options=reachable(session,unit,"THIEF",3);
@@ -52,8 +52,10 @@ test("the example elevated junction serves all four ramps, while the ford is an 
   for(const[r,c,ramp]of [[5,12,"OVERPASS_RAMP_S"],[13,12,"OVERPASS_RAMP_N"]])assert.ok(options.get(`${r},${c}`)?.path.some(p=>session.mapDefinition.terrain[p.r][p.c]===ramp));
   Object.assign(unit,{r:9,c:7});const deck=reachable(session,unit);
   assert.equal(deck.has("8,7"),false);assert.equal(deck.has("10,7"),false);
-  Object.assign(unit,{r:13,c:8});const ford=reachable(session,unit,"THIEF",5).get("13,12");
-  assert.ok(ford);assert.equal(ford.costSpent,20);assert.deepEqual(ford.path,[{r:13,c:8},{r:13,c:9},{r:13,c:10},{r:13,c:11},{r:13,c:12}]);
+  Object.assign(unit,{r:13,c:8});
+  const fromBank = reachable(session,unit,"THIEF",6);
+  assert.equal(fromBank.has("13,9"),false);
+  assert.equal(fromBank.has("13,10"),false);
   unit.inCar=false;assert.equal(reachable(session,unit,"THIEF",6).has("13,9"),false);
 });
 

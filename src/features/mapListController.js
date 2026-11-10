@@ -6,7 +6,7 @@ import { cloneMapDefinition, createEmptyMapDefinition, createNewMapDefinition } 
 import { renderEditorBoard } from "./editorController.js";
 import { renderMapListGrid, setMapListEmptyState } from "../ui/map-list/mapListRenderer.js";
 import { MAX_BACKUP_BYTES } from "../storage/mapBackup.js";
-import { createExampleMap, EXAMPLE_MAP_NAME } from "../domain/map/exampleMap.js";
+import { BUILT_IN_MAPS } from "../domain/map/builtInMaps.js";
 import {
   formatDefaultMapName,
   exportMapRecord,
@@ -29,15 +29,14 @@ export function initMapList() {
   initShareLinkModal();
   if (mapListBound) return;
   mapListBound = true;
-  els.btnLoadExample.addEventListener("click", loadExampleMap);
   els.btnExportLibrary.addEventListener("click", exportMapBackup);
   els.btnImportLibrary.addEventListener("click", () => els.mapBackupInput.click());
   els.mapBackupInput.addEventListener("change", () => importMapFile(els.mapBackupInput.files?.[0]));
 }
 
-export function loadExampleMap() {
-  setMapDefinition(createExampleMap());
-  persistCurrentMap({ forceNewMap: true, mapName: EXAMPLE_MAP_NAME });
+function loadBuiltInMap({ mapDefinition }) {
+  setMapDefinition(mapDefinition);
+  persistCurrentMap({ forceNewMap: true, mapName: mapDefinition.meta.name });
   renderEditorBoard();
   hideMapList();
 }
@@ -72,6 +71,15 @@ export function hideMapList() {
 }
 
 export function renderMapList() {
+  renderMapListGrid(els.builtInMapGrid, {
+    builtIn: true,
+    maps: BUILT_IN_MAPS.map(({ id, createMap }) => {
+      const mapDefinition = createMap();
+      return { id, name: mapDefinition.meta.name, mapDefinition };
+    }),
+    resolveMapDefinition: ({ mapDefinition }) => mapDefinition,
+    onLoad: loadBuiltInMap,
+  });
   const maps = getMapList();
   const currentMapId = getCurrentMapId();
   const isEmpty = maps.length === 0;

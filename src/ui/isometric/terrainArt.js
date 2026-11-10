@@ -250,18 +250,29 @@ export function renderGround(parent, cell, projection, session) {
     TRAFFIC_LIGHT: "●",
   }[type];
   if (marker) {
-    const pos = p.at(0.14, -0.12, 0);
-    group.appendChild(
+    const spawn = type === "POLICE_SPAWN" || type === "THIEF_SPAWN";
+    const parking = type === "PARKING";
+    // Parked cars take up more of the tile than characters do.
+    let pos = p.at(0.14, -0.12, 0);
+    if (parking) pos = p.at(0.36, -0.36, 0);
+    else if (spawn) pos = p.at(0.26, -0.26, 0);
+    const mark = svgElement("g", {
+      transform: `matrix(1 .5 -1 .5 ${pos.x} ${pos.y})`,
+      class: `iso-ground-mark mark-${type}`,
+      "aria-hidden": "true",
+    });
+    if (spawn) mark.appendChild(svgElement("circle", { r: 9, class: "iso-spawn-ring" }));
+    if (parking) {
+      mark.appendChild(svgElement("rect", { x: -9, y: -9, width: 18, height: 18, rx: 2, class: "iso-parking-plaque" }));
+    }
+    mark.appendChild(
       svgElement(
         "text",
-        {
-          transform: `matrix(1 .5 -1 .5 ${pos.x} ${pos.y})`,
-          class: `iso-ground-mark mark-${type}`,
-          "text-anchor": "middle",
-        },
+        { y: spawn || parking ? 5 : 0, "text-anchor": "middle" },
         marker,
       ),
     );
+    group.appendChild(mark);
   }
 }
 
