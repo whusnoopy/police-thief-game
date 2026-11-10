@@ -318,7 +318,7 @@ export const gameController = {
   },
 
   refreshTurnControls() {
-    const active = this.diceValue > 0 && ![GAME_PHASES.AWAIT_ROLL, GAME_PHASES.ROLLING, GAME_PHASES.FINISHED].includes(this.phase);
+    const active = this.diceValue > 0 && ![GAME_PHASES.AWAIT_ROLL, GAME_PHASES.ROLLING, GAME_PHASES.NO_MOVES, GAME_PHASES.FINISHED].includes(this.phase);
     renderTurnBudget({ continuous: this.isContinuous(), active, points: this.getMovementPoints(),
       unitId: this.session?.actingUnitId, formatPoints: formatRuleMovementPoints,
       operations: this.phase === GAME_PHASES.SELECT_DESTINATION ? this.operationsFor(this.selectedUnit) : [],
@@ -571,8 +571,13 @@ export const gameController = {
   },
 
   endTurn() {
+    if (this.phase === GAME_PHASES.NO_MOVES) return this.skipTurn();
     if (!this.isContinuous() || !this.diceValue || [GAME_PHASES.AWAIT_ROLL, GAME_PHASES.ROLLING, GAME_PHASES.FINISHED].includes(this.phase)) return;
     renderActionResult(`${this.turn === "THIEF" ? "小偷" : "警察"}主动结束回合，放弃 ${this.formatMovementPoints(this.getMovementPoints())} 点。`);
+    if (!this.session?.actingUnitId && isPermanentStalemate(this.session)) {
+      this.showVictory("DRAW");
+      return;
+    }
     this.advanceTurn();
   },
 

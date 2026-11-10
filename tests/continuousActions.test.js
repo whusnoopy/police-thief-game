@@ -151,7 +151,15 @@ test("a stationary operation remains selectable without a reachable destination 
   assert.equal(isPermanentStalemate(session),false);
   g.init(map);g.session.thiefUnits.push({...unit});g.diceValue=2;await g.onDiceRolled();g.handleCellClick(0,0);
   assert.equal(g.phase,GAME_PHASES.SELECT_DESTINATION);assert.ok(g.operationsFor(g.selectedUnit).some(op=>op.enabled));
-  await g.performOperation("STEAL");assert.equal(g.thiefUnits[0].hasMoney,true);assert.equal(g.turn,"POLICE");g.dispose();
+  await g.performOperation("STEAL");assert.equal(g.thiefUnits[0].hasMoney,true);assert.equal(g.turn,"POLICE");
+  g.diceValue=6;await g.onDiceRolled();
+  assert.equal(g.phase,GAME_PHASES.NO_MOVES);
+  assert.equal(els.btnSkipTurn.classList.contains("hidden"),false);
+  assert.equal(els.btnEndTurn.classList.contains("hidden"),true,"no-moves uses skip turn instead of showing a duplicate end-turn button");
+  g.endTurn();
+  assert.equal(g.phase,GAME_PHASES.FINISHED,"ending when permanently immobile still resolves as a draw");
+  assert.match(els.victoryTitle.textContent,/平局/);
+  g.dispose();
 });
 
 test("budget and board changes invalidate cached reachability and ignore a superseded Worker result",async()=>{

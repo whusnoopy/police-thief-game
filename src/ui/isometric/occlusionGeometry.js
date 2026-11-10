@@ -101,7 +101,7 @@ export function readOpaqueGeometry(root) {
       }
       if (vertices.length) shapes.push(shape(vertices, false, sw));
     }
-    for (const child of Array.from(el.children || [])) walk(child);
+    for (const child of el.children || []) walk(child);
   }
   walk(root);
   const bounds = shapes.length
@@ -134,12 +134,23 @@ export function getOccludingRecords(actor, records) {
 }
 
 export function hasActualOcclusion(actor, occluders) {
+  const point = { x: 0, y: 0 };
   for (const front of occluders) {
     const box = intersectBounds(actor.bounds, front.bounds);
     if (!box) continue;
+    if (box.width >= 4 && box.height >= 4) {
+      for (let y = box.y + 2; y <= box.y + box.height; y += 4) {
+        point.y = y;
+        for (let x = box.x + 2; x <= box.x + box.width; x += 4) {
+          point.x = x;
+          if (actor.contains(point) && front.contains(point)) return true;
+        }
+      }
+    }
     for (let y = box.y + 0.5; y <= box.y + box.height; y += 1) {
+      point.y = y;
       for (let x = box.x + 0.5; x <= box.x + box.width; x += 1) {
-        const point = { x, y };
+        point.x = x;
         if (actor.contains(point) && front.contains(point)) return true;
       }
     }

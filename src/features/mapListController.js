@@ -23,8 +23,12 @@ import {
   updateModeIndicatorForEditor,
 } from "../storage/mapRepository.js";
 
+let mapListBound = false;
+
 export function initMapList() {
   initShareLinkModal();
+  if (mapListBound) return;
+  mapListBound = true;
   els.btnLoadExample.addEventListener("click", loadExampleMap);
   els.btnExportLibrary.addEventListener("click", exportMapBackup);
   els.btnImportLibrary.addEventListener("click", () => els.mapBackupInput.click());

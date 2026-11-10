@@ -31,7 +31,8 @@ function billboard(parent, { x, y }, width, height, className) {
 export function createIsometricGameView(container, { viewState, onCellClick, onCellHover, onLeave, unitDirections, vehicleDirections }) {
   let projection = createIsometricProjection();
   let scene, svg, viewport, stage, overlay, resizeObserver, geometry, defs, outlines, labels;
-  let records = [], actors = [], disposed = false, refreshPending = false;
+  let cellMap = new Map();
+  let records = [], actors = [], disposed = false, refreshPending = false, frameId = null;
   let selectable = [], reachable = [], selected = null, path = [], lastHover = null;
   let pointerType = "mouse", drag = null, suppressClick = false;
   let touchPress = null;
@@ -125,11 +126,18 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
     rebuildOcclusion(defs, outlines, actors, records, selected);
     refreshActorPresentation();
   }
+  function cancelScheduledOcclusion() {
+    if (frameId !== null && typeof cancelAnimationFrame === "function") {
+      cancelAnimationFrame(frameId);
+    }
+    frameId = null;
+    refreshPending = false;
+  }
   function scheduleOcclusion() {
     if (disposed || refreshPending) return;
     refreshPending = true;
-    const refresh = () => { refreshPending = false; refreshOcclusion(); };
-    if (typeof requestAnimationFrame === "function") requestAnimationFrame(refresh);
+    const refresh = () => { frameId = null; refreshPending = false; refreshOcclusion(); };
+    if (typeof requestAnimationFrame === "function") frameId = requestAnimationFrame(refresh);
     else refresh();
   }
   function isActionTarget(cell) {
@@ -155,14 +163,14 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
     overlay.innerHTML = "";
     for (const [positions, className] of [[selectable, "selectable-unit"], [reachable, "reachable"], [selected ? [selected] : [], "unit-selected"], [path, "path-hover"]]) {
       for (const position of positions) {
-        const cell = scene.cells.find(({ r, c }) => r === position.r && c === position.c);
+        const cell = cellMap.get(`${position.r},${position.c}`);
         if (cell) polygon(overlay, cell.polygon, { class: `iso-highlight ${className}`, "data-r": cell.r, "data-c": cell.c });
       }
     }
     // A teleport is a separate jump; never draw a straight walk through obstacles.
-    let previous = selected ? scene.cells.find(({ r, c }) => r === selected.r && c === selected.c) : null;
+    let previous = selected ? cellMap.get(`${selected.r},${selected.c}`) : null;
     for (const position of path) {
-      const cell = scene.cells.find(({ r, c }) => r === position.r && c === position.c);
+      const cell = cellMap.get(`${position.r},${position.c}`);
       if (!cell) continue;
       if (previous && Math.abs(previous.r - cell.r) + Math.abs(previous.c - cell.c) === 1) {
         const edge = projectSurfacePoint(previous, (cell.r - previous.r) / 2, (cell.c - previous.c) / 2, projection);
@@ -174,7 +182,7 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
       previous = cell;
     }
     for (const position of path) {
-      const cell = scene.cells.find(({ r, c }) => r === position.r && c === position.c);
+      const cell = cellMap.get(`${position.r},${position.c}`);
       if (!cell) continue;
       const { x, y } = cell.anchor;
       const width = Math.max(24, String(position.label).length * 10 + 8);
@@ -187,6 +195,7 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
 
   return {
     render(session) {
+      cancelScheduledOcclusion();
       for (const actor of actors) actor.unsubscribe();
       records = []; actors = []; disposed = false;
       const prefix = `iso-scene-${++nextSceneId}`;
@@ -203,6 +212,7 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
         viewState.centerY = projection.height / 2;
       }
       scene = createIsometricScene(session, projection, { unitDirections, vehicleDirections });
+      cellMap = new Map(scene.cells.map((cell) => [`${cell.r},${cell.c}`, cell]));
       viewport = document.createElement("div");
       viewport.className = "iso-viewport";
       viewport.style.aspectRatio = `${projection.width} / ${projection.height}`;
@@ -341,7 +351,7 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
       fitScene(viewState.zoom === 1 ? { x: projection.width / 2, y: projection.height / 2 } : centre);
     },
     focusCell(position) {
-      const cell = scene.cells.find(cell => cell.r === position.r && cell.c === position.c);
+      const cell = cellMap.get(`${position.r},${position.c}`);
       if (!cell) return;
       const fit = Math.min((viewport.clientWidth || projection.width) / projection.width, (viewport.clientHeight || projection.height) / projection.height);
       const detail = projection.rows > 10 ? DETAIL_TILE_WIDTH / projection.tileWidth : 1;
@@ -350,6 +360,7 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
     },
     dispose() {
       disposed = true;
+      cancelScheduledOcclusion();
       for (const actor of actors) actor.unsubscribe();
       if (viewport) {
         const centre = visibleCentre();

@@ -123,8 +123,6 @@ body:not(.isometric-playing) .rules-isometric { display: none; }
 .isometric-playing .rules-list .rule-icons { text-align: right; font-size: 18px; line-height: 1.5; }
 .isometric-playing .rules-list .rule-description { min-width: 0; text-align: left; }
 .isometric-playing .rules-modal-actions { padding-top: 12px; border-top: 1px solid #e2e8df; margin-top: 12px; }
-.isometric-playing.continuous-actions .rules-list > .rules-single,
-.isometric-playing:not(.continuous-actions) .rules-list > .rules-continuous { display: none; }
 @media (max-width: 600px) {
   .isometric-playing .rules-list p { grid-template-columns: 64px minmax(0, 1fr); gap: 10px; }
 }

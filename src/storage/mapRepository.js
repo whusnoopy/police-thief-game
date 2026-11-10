@@ -84,7 +84,12 @@ export function exportMapRecord(record) {
   downloadJson("police-thief-map-backup.json", record);
 }
 
+let storageNoticeBound = false;
+let shareLinkModalBound = false;
+
 export function initStorageNotice() {
+  if (storageNoticeBound) return;
+  storageNoticeBound = true;
   els.btnExportMapBackup?.addEventListener("click", exportMapBackup);
   els.btnRetryMapSave?.addEventListener("click", retryMapSave);
 }
@@ -232,6 +237,8 @@ export function shareMapByData(encodedMap) {
 }
 
 export function initShareLinkModal() {
+  if (shareLinkModalBound) return;
+  shareLinkModalBound = true;
   if (els.btnCloseShareLinkModal) {
     els.btnCloseShareLinkModal.addEventListener("click", hideShareLinkModal);
   }
@@ -319,8 +326,13 @@ export function loadInitialMapIntoState() {
     exampleId: urlParams.get("example"),
   });
 
+  const forceNewMap = loadPlan.forceNewMap || Boolean(currentMap?.isCorrupt);
   setMapDefinition(loadPlan.mapDefinition);
-  persistCurrentMap({ forceNewMap: loadPlan.forceNewMap || Boolean(currentMap?.isCorrupt),
-    mapName: loadPlan.source === "example" ? loadPlan.mapDefinition.meta.name : null });
+  persistCurrentMap({
+    forceNewMap,
+    mapName: (loadPlan.source === "example" || (loadPlan.source === "url" && (forceNewMap || !currentMap)))
+      ? loadPlan.mapDefinition.meta.name || null
+      : null,
+  });
   renderStorageNotice();
 }

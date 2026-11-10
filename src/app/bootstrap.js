@@ -40,6 +40,8 @@ function backToEditor(options = {}) {
   renderEditorBoard();
 }
 
+let bootstrapListenersBound = false;
+
 export function init() {
   if (els.appVersion) els.appVersion.textContent = APP_VERSION_LABEL;
   initStorageNotice();
@@ -50,6 +52,9 @@ export function init() {
   updateModeIndicatorForEditor();
   els.rulesModal.classList.add("hidden");
   els.editorHelpTooltip.classList.add("hidden");
+
+  if (bootstrapListenersBound) return;
+  bootstrapListenersBound = true;
 
   const closeRulesModal = () => els.rulesModal.classList.add("hidden");
   let isEditorHelpPinned = false;

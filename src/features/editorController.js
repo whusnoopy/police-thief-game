@@ -37,6 +37,7 @@ const PLACEMENT_PREVIEW_CLASSES = [
 
 let pointerStateBound = false;
 let placementPreviewStateBound = false;
+let editorButtonsBound = false;
 let historyMap = null;
 let stroke = null;
 let paletteRuleset = null;
@@ -150,13 +151,13 @@ function syncPaletteRequirementStatus() {
 }
 
 function clearPlacementPreview() {
-  document.querySelectorAll(".bridge-preview-edge").forEach((edge) => edge.remove());
-  document.querySelectorAll(".placement-ghost").forEach((ghost) => {
+  els.editorBoard.querySelectorAll(".bridge-preview-edge").forEach((edge) => edge.remove());
+  els.editorBoard.querySelectorAll(".placement-ghost").forEach((ghost) => {
     if (ghost.parentNode) {
       ghost.parentNode.removeChild(ghost);
     }
   });
-  document.querySelectorAll(".placement-preview").forEach((cell) => {
+  els.editorBoard.querySelectorAll(".placement-preview").forEach((cell) => {
     cell.classList.remove(...PLACEMENT_PREVIEW_CLASSES);
   });
 }
@@ -289,7 +290,7 @@ function syncEditorPalette(force = false) {
     continuousRules,
     onSelect(typeId, item) {
       clearPlacementPreview();
-      document.querySelectorAll(".palette-item").forEach((paletteItem) => {
+      els.palette.querySelectorAll(".palette-item").forEach((paletteItem) => {
         paletteItem.classList.remove("active");
         paletteItem.setAttribute("aria-pressed", "false");
       });
@@ -356,6 +357,8 @@ export function initEditor() {
   syncEditorPalette(true);
   syncPaletteRequirementStatus();
 
+  if (editorButtonsBound) return;
+  editorButtonsBound = true;
   els.btnRenameCurrentMap.addEventListener("click", renameCurrentMap);
   els.btnClearMap.addEventListener("click", clearMap);
   els.btnUndoMap.addEventListener("click", undoMap);
