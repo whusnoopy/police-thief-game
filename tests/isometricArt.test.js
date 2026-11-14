@@ -9,6 +9,7 @@ import { createGameSession } from "../src/domain/game/sessionFactory.js";
 import { BRIDGE_DIRECTIONS } from "../src/domain/map/bridgeTopology.js";
 import {
   createIsometricProjection,
+  pointInPolygon,
   projectSurfacePoint,
 } from "../src/ui/isometric/projection.js";
 import { createIsometricScene } from "../src/ui/isometric/sceneModel.js";
@@ -30,6 +31,7 @@ import {
 import { appendVehicleArtwork } from "../src/ui/isometric/vehicleArt.js";
 
 import { getCrosswalkSignalSpecs, renderCrosswalkSignal } from "../src/ui/isometric/signalArt.js";
+import { renderParkingSign } from "../src/ui/isometric/parkingArt.js";
 
 const env = createTestEnvironment();
 env.installGlobals();
@@ -331,6 +333,34 @@ test("signal poles interleave with occupants at their actual bases without chang
     assert.ok(objects[2].depthR + objects[2].depthC > 8);
     assert.equal(JSON.stringify(session), before);
   }
+});
+
+test("parking signs stand upright on their own tile beside a parked car", () => {
+  const { map, cell } = makeCell("PARKING");
+  const session = createGameSession(map);
+  const { objects } = createIsometricScene(session, projection);
+  const occupants = objects.filter(o => o.r === cell.r && o.c === cell.c);
+  assert.deepEqual(occupants.map(o => o.kind), ["car", "parking-sign"]);
+  const sign = occupants[1];
+  const foot = projectSurfacePoint(cell, sign.depthR - cell.r, sign.depthC - cell.c, projection);
+  const root = env.document.createElement("div");
+  renderGround(root, cell, projection, session);
+  assert.equal(root.querySelectorAll(".iso-ground-mark").length, 0);
+  renderParkingSign(root, sign, projection);
+
+  const footing = root.querySelectorAll(".iso-parking-footing");
+  assert.ok(footing.length > 0);
+  assert.ok(footing.flatMap(vertices).every(vertex => pointInPolygon(vertex, cell.polygon)));
+  const [pole] = root.querySelectorAll(".iso-parking-pole");
+  near(+pole.attributes.x1, foot.x);
+  near(+pole.attributes.x2, foot.x);
+  assert.ok(+pole.attributes.y2 < +pole.attributes.y1 && +pole.attributes.y1 <= foot.y);
+  const [front] = root.querySelectorAll(".iso-parking-plaque");
+  const [leftBottom, rightBottom, rightTop, leftTop] = vertices(front);
+  near(leftBottom.x, leftTop.x);
+  near(rightBottom.x, rightTop.x);
+  assert.ok(leftTop.y < leftBottom.y && rightBottom.y < foot.y);
+  assert.equal(root.querySelectorAll(".iso-parking-letter")[0].textContent, "P");
 });
 
 test("river banks and turf edges appear only on exposed edges and leave matching neighbours continuous", () => {

@@ -49,7 +49,7 @@ npm run dev
 
 开发服务器默认由 Vite 提供，适合本地模块化开发与热更新。
 
-本机系统浏览器打开 `http://localhost:4173/`。如需同一局域网的平板或其他电脑访问，使用 `npm run dev -- --host 0.0.0.0` 启动，并打开终端列出的 Network 地址；直接打开 `index.html` 无法完整运行模块和样式。
+本机浏览器打开 `http://localhost:4173/`。其他能连到本机的设备可打开启动时终端列出的 Network 地址。直接打开 `index.html` 无法完整运行模块和样式。
 
 ## Build
 

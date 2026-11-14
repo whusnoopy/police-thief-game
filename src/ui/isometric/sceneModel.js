@@ -5,6 +5,7 @@ import { getActorLayout } from "./actorLayout.js";
 import { SCENERY_ASSETS } from "./assetMetadata.js";
 import { getBridgeArtSpec } from "./terrainArt.js";
 import { getCrosswalkSignalSpecs } from "./signalArt.js";
+import { PARKING_SIGN_BASE } from "./parkingArt.js";
 import { compareSceneDepth, getSurfacePolygon, projectSurfacePoint } from "./projection.js";
 
 export function createIsometricScene(session, projection, { unitDirections = new Map(), vehicleDirections = new Map() } = {}) {
@@ -19,6 +20,9 @@ export function createIsometricScene(session, projection, { unitDirections = new
     cellsByPosition.set(`${r},${c}`, cell);
     for (const signal of getCrosswalkSignalSpecs(cell.tileType)) {
       objects.push({ ...cell, kind: "signal", signal, depthR: r + signal.localR, depthC: c + signal.localC, order: 2 });
+    }
+    if (cell.tileType === "PARKING") {
+      objects.push({ ...cell, kind: "parking-sign", depthR: r + PARKING_SIGN_BASE.r, depthC: c + PARKING_SIGN_BASE.c, order: 2 });
     }
     if (isBridgeTileType(cell.tileType)) {
       objects.push({ ...cell, kind: "bridge", order: 1 });

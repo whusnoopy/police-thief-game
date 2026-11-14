@@ -12,6 +12,7 @@ import { renderScenery, renderSceneryShadow } from "./sceneryArt.js";
 import { renderGround, renderBridgeDeck, renderBridgeRails, renderBridgeShadow } from "./terrainArt.js";
 import { appendVehicleArtwork } from "./vehicleArt.js";
 import { renderCrosswalkSignal } from "./signalArt.js";
+import { renderParkingSign } from "./parkingArt.js";
 import { getActorLayout } from "./actorLayout.js";
 import { createActorRecord, rebuildOcclusion, renderActorLabels, updateOutlineSelection } from "./occlusionLayer.js";
 import { pickOccludedActor, readOpaqueGeometry } from "./occlusionGeometry.js";
@@ -247,6 +248,7 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
           if (cell.kind === "bridge") renderBridgeDeck(art, cell, projection, session.mapDefinition);
           if (cell.kind === "bridge-front") renderBridgeRails(art, cell, projection, session.mapDefinition, true);
           if (cell.kind === "signal") renderCrosswalkSignal(art, cell, projection, session.signalPhase);
+          if (cell.kind === "parking-sign") renderParkingSign(art, cell, projection);
           if (cell.kind === "scenery") {
             renderScenery(art, cell, projection, session.mapDefinition);
             group.appendChild(svgElement("text", { x: cell.anchor.x, y: cell.anchor.y + 17, class: "iso-feature-label", "text-anchor": "middle" }, TILE_TYPES[cell.tileType].name));
