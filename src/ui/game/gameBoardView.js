@@ -1,6 +1,5 @@
 import { getMapDimensions } from "../../domain/map/mapDimensions.js";
-import { SIGNAL_PHASES, normalizeSignalPhase } from "../../config/constants.js";
-import { getCrosswalkSignalPositions, isCrosswalkTileType } from "../../domain/map/crosswalk.js";
+import { getCrosswalkSignalPositions, isCrosswalkPedestrianGreen, isCrosswalkTileType } from "../../domain/map/crosswalk.js";
 import { renderBoard } from "../board/boardRenderer.js";
 import { appendParkedCar, renderUnits } from "./unitRenderer.js";
 import { clearBoardHighlights, clearPathPreview, highlightReachableCells, highlightSelectableCells, highlightSelectedCell, renderPathPreview } from "./highlightRenderer.js";
@@ -18,7 +17,7 @@ export function createGameBoardView(container, options) {
         cellIdPrefix: prefix,
         decorateCell(cell, { r, c, display }) {
           if (isCrosswalkTileType(display.tileType)) {
-            const color = normalizeSignalPhase(session.signalPhase) === SIGNAL_PHASES.PEDESTRIAN_GREEN ? "green" : "red";
+            const color = isCrosswalkPedestrianGreen(display.tileType, session.signalPhase) ? "green" : "red";
             for (const position of getCrosswalkSignalPositions(display.tileType)) {
               const light = document.createElement("span");
               light.className = `signal-light ${position} ${color}`;

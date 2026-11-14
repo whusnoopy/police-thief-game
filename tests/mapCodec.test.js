@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { decodeMapDefinition, encodeMapDefinition, normalizeEncodedMap } from "../src/domain/map/mapCodec.js";
-import { createEmptyMapDefinition, setLegacyTileAt } from "../src/domain/map/mapModel.js";
+import { createEmptyMapDefinition, createNewMapDefinition, setLegacyTileAt } from "../src/domain/map/mapModel.js";
+import { DIRECTIONAL_SIGNAL_RULES } from "../src/domain/map/mapCompatibility.js";
 import { encodeLegacyMapDefinition } from "./helpers/legacyPayload.js";
+import { planMapImport } from "../src/storage/mapBackup.js";
 
 function toComparableMap(mapDefinition) {
   return {
@@ -86,6 +88,24 @@ test("previous v2 share links remain readable and normalize to v3", () => {
 test("unsupported payloads still throw", () => {
   assert.throws(() => decodeMapDefinition("legacy-payload"), /Unsupported map payload/);
   assert.throws(() => decodeMapDefinition("_".repeat(100)), /unknown legacy terrain code/);
+});
+
+test("v5 saves and restores opt-in directional signals and rejects invalid combinations", () => {
+  const map = createNewMapDefinition();
+  const original = encodeMapDefinition(map);
+  assert.equal(decodeMapDefinition(original).signalRules, undefined);
+  map.signalRules = DIRECTIONAL_SIGNAL_RULES;
+  const share = encodeMapDefinition(map);
+  assert.deepEqual(decodeMapDefinition(share), map);
+  assert.equal(normalizeEncodedMap(share), share);
+  const result = planMapImport(JSON.stringify({ version: 1, maps: [{ encodedMap: share }] }), []);
+  assert.equal(result.imported, 1);
+  assert.equal(result.maps[0].encodedMap, share);
+  const payload = JSON.parse(Buffer.from(share.slice(3), "base64url").toString());
+  for (const l of [null, "unknown"]) {
+    assert.throws(() => decodeMapDefinition(`v5.${Buffer.from(JSON.stringify({ ...payload, l })).toString("base64url")}`), /signal rules/);
+  }
+  assert.throws(() => encodeMapDefinition(createEmptyMapDefinition({ signalRules: DIRECTIONAL_SIGNAL_RULES })), /20×20/);
 });
 
 test("incomplete and unknown versioned data is rejected instead of becoming an empty map", () => {

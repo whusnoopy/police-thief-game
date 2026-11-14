@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createTestEnvironment } from "./helpers/fakeDom.js";
+import { DIRECTIONAL_SIGNAL_RULES } from "../src/domain/map/mapCompatibility.js";
+import { createNewMapDefinition } from "../src/domain/map/mapModel.js";
 
 const env = createTestEnvironment();
 env.installGlobals();
@@ -30,6 +32,38 @@ test("crosswalk signal lights rerender on signal phase change", () => {
 
   assert.equal(env.elements["game-board"].querySelectorAll(".green").length, 0);
   assert.equal(env.elements["game-board"].querySelectorAll(".red").length, 2);
+});
+
+test("directional crossing lights and status alternate together after full police turns", () => {
+  const map = createNewMapDefinition();
+  map.signalRules = DIRECTIONAL_SIGNAL_RULES;
+  setLegacyTileAt(map, 8, 8, "CROSSWALK_HORIZONTAL");
+  setLegacyTileAt(map, 8, 9, "CROSSWALK_VERTICAL");
+  gameController.boardMode = "isometric";
+  try {
+    gameController.init(map);
+    const check = (direction, horizontal, vertical) => {
+      const signals = els.gameBoard.querySelectorAll(".iso-crosswalk-signal");
+      assert.match(els.signalIndicator.textContent, direction);
+      for (const signal of signals) {
+        const axis = ["E", "W"].includes(signal.attributes["data-facing"]) ? horizontal : vertical;
+        assert.equal(signal.classList.contains(axis), true);
+      }
+      assert.equal(signals.length, 4);
+    };
+    check(/南北向行人绿灯/, "red", "green");
+    gameController.advanceTurn();
+    check(/南北向行人绿灯/, "red", "green");
+    gameController.advanceTurn();
+    check(/东西向行人绿灯/, "green", "red");
+    gameController.advanceTurn();
+    gameController.advanceTurn();
+    check(/南北向行人绿灯/, "red", "green");
+    assert.equal(gameController.session.revision, 2);
+  } finally {
+    gameController.dispose();
+    gameController.boardMode = "topdown";
+  }
 });
 
 function makePlayableMap() {

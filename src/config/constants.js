@@ -5,11 +5,16 @@ export const NEW_GRID_SIZE = 20;
 export const SIGNAL_PHASES = {
   PEDESTRIAN_GREEN: "PEDESTRIAN_GREEN",
   PEDESTRIAN_RED: "PEDESTRIAN_RED",
+  NORTH_SOUTH_GREEN: "NORTH_SOUTH_GREEN",
+  EAST_WEST_GREEN: "EAST_WEST_GREEN",
   PEDESTRIAN_GO: "PEDESTRIAN_GREEN",
   CAR_GO: "PEDESTRIAN_RED",
 };
 
 export function normalizeSignalPhase(signalPhase) {
+  if (signalPhase === SIGNAL_PHASES.NORTH_SOUTH_GREEN || signalPhase === SIGNAL_PHASES.EAST_WEST_GREEN) {
+    return signalPhase;
+  }
   if (signalPhase === SIGNAL_PHASES.PEDESTRIAN_RED || signalPhase === "CAR_GO") {
     return SIGNAL_PHASES.PEDESTRIAN_RED;
   }

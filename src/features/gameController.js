@@ -14,7 +14,7 @@ import { resolveEndOfRoundEffects } from "../domain/rules/endOfRoundEffects.js";
 import { applyResolvedAction } from "../domain/rules/interactionResolver.js";
 import { getNextTurn, getWinState } from "../domain/rules/winResolver.js";
 import { isPermanentStalemate } from "../domain/rules/stalemateResolver.js";
-import { usesContinuousActions } from "../domain/map/mapCompatibility.js";
+import { DIRECTIONAL_SIGNAL_RULES, usesContinuousActions } from "../domain/map/mapCompatibility.js";
 import { getUnitOperations } from "../domain/rules/unitOperations.js";
 import { describeAction } from "./actionSummary.js";
 import { startReachabilityJob } from "./reachabilityJob.js";
@@ -157,6 +157,7 @@ export const gameController = {
     els.btnCancelSelection.classList.add("hidden");
     this.boardView?.dispose();
     this.boardView = null;
+    document.body.classList.remove("directional-signals");
     renderGameLayout(false);
   },
 
@@ -187,8 +188,6 @@ export const gameController = {
     els.btnCancelSelection.addEventListener("click", () => this.cancelUnitSelection());
     els.btnEndTurn.addEventListener("click", () => this.endTurn());
     // Assignment keeps one handler when a new game is started.
-    if (els.btnViewTopdown) els.btnViewTopdown.onclick = () => this.setBoardMode("topdown");
-    if (els.btnViewIsometric) els.btnViewIsometric.onclick = () => this.setBoardMode("isometric");
     if (els.btnBoardZoomIn) els.btnBoardZoomIn.onclick = () => this.setBoardZoom(this.boardViewState.zoom + 0.25);
     if (els.btnBoardZoomOut) els.btnBoardZoomOut.onclick = () => this.setBoardZoom(this.boardViewState.zoom - 0.25);
     if (els.btnBoardFit) els.btnBoardFit.onclick = () => this.setBoardZoom(1);
@@ -200,6 +199,7 @@ export const gameController = {
 
   renderGameBoard() {
     document.body.classList.toggle("continuous-actions", this.isContinuous());
+    document.body.classList.toggle("directional-signals", this.session.mapDefinition.signalRules === DIRECTIONAL_SIGNAL_RULES);
     this.boardView?.dispose();
     renderGameLayout(this.boardMode === "isometric");
     this.boardView = createGameBoardView(els.gameBoard, {
@@ -237,10 +237,6 @@ export const gameController = {
   },
 
   updateBoardControls() {
-    const iso = this.boardMode === "isometric";
-    els.btnViewTopdown?.setAttribute("aria-pressed", String(!iso));
-    els.btnViewIsometric?.setAttribute("aria-pressed", String(iso));
-    els.boardZoomControls?.classList.toggle("hidden", !iso);
     if (els.boardZoomValue) els.boardZoomValue.textContent = `${Math.round(this.boardViewState.zoom * 100)}%`;
     if (els.btnBoardZoomIn) els.btnBoardZoomIn.disabled = this.boardViewState.zoom >= (getMapDimensions(this.session.mapDefinition).rows > 10 ? 5 : 2.5);
     if (els.btnBoardZoomOut) els.btnBoardZoomOut.disabled = this.boardViewState.zoom <= 1;

@@ -1,5 +1,4 @@
-import { SIGNAL_PHASES, normalizeSignalPhase } from "../../config/constants.js";
-import { getCrosswalkOrientation } from "../../domain/map/crosswalk.js";
+import { getCrosswalkOrientation, isCrosswalkPedestrianGreen } from "../../domain/map/crosswalk.js";
 import { createPainter, svgElement } from "./artPrimitives.js";
 
 // Both heads face across the crossing, toward pedestrians at the opposite end.
@@ -18,8 +17,7 @@ export function getCrosswalkSignalSpecs(tileType) {
 
 export function renderCrosswalkSignal(parent, cell, projection, signalPhase) {
   const { localR, localC, dr, dc, direction } = cell.signal;
-  const green =
-    normalizeSignalPhase(signalPhase) === SIGNAL_PHASES.PEDESTRIAN_GREEN;
+  const green = isCrosswalkPedestrianGreen(cell.tileType, signalPhase);
   const frontVisible = dr + dc > 0;
   const group = svgElement("g", {
     class: `iso-crosswalk-signal ${green ? "green" : "red"}`,

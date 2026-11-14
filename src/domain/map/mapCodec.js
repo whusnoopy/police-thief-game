@@ -110,7 +110,7 @@ function validateJsonPayload(payload, version) {
   if (version === 5 && (!Array.isArray(payload?.d) || payload.d.length !== 2 || !Object.values(ACTION_RULES).includes(payload.a) || !Object.values(MAP_RULESETS).includes(payload.b))) {
     throw new Error("Invalid map payload: unsupported dimensions or action rules");
   }
-  if (version < 5 && ["d", "a", "x", "s", "q"].some(key => payload?.[key] !== undefined)) throw new Error("Invalid map payload: dimensions and action rules require v5");
+  if (version < 5 && ["d", "a", "x", "s", "q", "l"].some(key => payload?.[key] !== undefined)) throw new Error("Invalid map payload: dimensions and map options require v5");
   if (version === 5 && payload.s !== (dimensions.rows === 20 ? "cut3" : "square")) throw new Error("Invalid map payload: unsupported map shape");
   const cellCount = dimensions.rows * dimensions.cols;
   const validIndex = (value) => Number.isInteger(value) && value >= 0 && value < cellCount &&
@@ -143,7 +143,7 @@ function validateJsonPayload(payload, version) {
       throw new Error("Invalid map payload: unsupported ramp rules or metadata");
     }
     if (payload.b === MAP_RULESETS.LEGACY && [...payload.t].some(char => isRampTileType(terrainTypes[BASE64_ALPHABET.indexOf(char)]))) throw new Error("Ramp terrain requires ramp rules");
-    normalizeMapCompatibility({ ruleset: payload.b, upgrade: payload.u, ...(version === 5 ? { meta: dimensions, actionRules: payload.a, expansion: payload.x, actionUpgrade: payload.q } : {}) });
+    normalizeMapCompatibility({ ruleset: payload.b, upgrade: payload.u, ...(version === 5 ? { meta: dimensions, actionRules: payload.a, signalRules: payload.l, expansion: payload.x, actionUpgrade: payload.q } : {}) });
     if (payload.q && usesContinuousActions(decodeMapDefinition(payload.q.source.encodedMap))) throw new Error("Invalid action upgrade source: already continuous");
     if (payload.x) validateExpansionSource(payload.x);
     validateUpgradeSource(payload.u);
@@ -234,7 +234,14 @@ export function encodeMapDefinition(mapDefinition) {
     h: normalized.spawns.thief.map(p => positionToIndex(p, normalized)),
     m: normalized.meta.name ? { n: normalized.meta.name } : undefined,
     ...(version >= 4 ? { b: normalized.ruleset, ...(normalized.upgrade ? { u: normalized.upgrade } : {}) } : {}),
-    ...(version === 5 ? { d: [dimensions.rows, dimensions.cols], s: dimensions.rows === 20 ? "cut3" : "square", a: normalized.actionRules || "single", ...(normalized.expansion ? { x: normalized.expansion } : {}), ...(normalized.actionUpgrade ? { q: normalized.actionUpgrade } : {}) } : {}),
+    ...(version === 5 ? {
+      d: [dimensions.rows, dimensions.cols],
+      s: dimensions.rows === 20 ? "cut3" : "square",
+      a: normalized.actionRules || "single",
+      l: normalized.signalRules,
+      ...(normalized.expansion ? { x: normalized.expansion } : {}),
+      ...(normalized.actionUpgrade ? { q: normalized.actionUpgrade } : {}),
+    } : {}),
   };
   validateJsonPayload(payload, version);
   return `v${version}.${encodeJsonPayload(payload)}`;
@@ -276,7 +283,7 @@ function decodeModernMapDefinition(encodedMap, version) {
   const mapDefinition = createEmptyMapDefinition({
     ruleset: version >= 4 ? payload.b : MAP_RULESETS.LEGACY,
     ...(version >= 4 && payload.u !== undefined ? { upgrade: payload.u } : {}),
-    ...(version === 5 ? { actionRules: payload.a, ...(payload.x ? { expansion: payload.x } : {}), ...(payload.q ? { actionUpgrade: payload.q } : {}) } : {}),
+    ...(version === 5 ? { actionRules: payload.a, signalRules: payload.l, ...(payload.x ? { expansion: payload.x } : {}), ...(payload.q ? { actionUpgrade: payload.q } : {}) } : {}),
     meta: {
       name: typeof payload.m?.n === "string" ? payload.m.n : "",
       ...dimensions,

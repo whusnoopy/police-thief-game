@@ -1,10 +1,5 @@
 import { getMapDimensions, isWithinMap } from "../map/mapDimensions.js";
-import { SIGNAL_PHASES, normalizeSignalPhase } from "../../config/constants.js";
-import {
-  getAllowedCrosswalkAxis,
-  isCrosswalkTileType,
-  isStepAlongAxis,
-} from "../map/crosswalk.js";
+import { canTakeCrosswalkStep } from "../map/crosswalk.js";
 import { getFeaturePositionsByKind } from "../map/mapQueries.js";
 import {
   getUnitAt,
@@ -76,18 +71,6 @@ function getCoordKey(r, c) {
   return `${r},${c}`;
 }
 
-function isCrosswalkMoveBlocked({ session, fromTileType, toTileType, isDriving, dr, dc }) {
-  const signalPhase = normalizeSignalPhase(
-    session?.signalPhase || SIGNAL_PHASES.PEDESTRIAN_GREEN,
-  );
-  const tileTypesToCheck = [fromTileType, toTileType].filter(isCrosswalkTileType);
-
-  return tileTypesToCheck.some((tileType) => {
-    const allowedAxis = getAllowedCrosswalkAxis(tileType, isDriving, signalPhase);
-    return !allowedAxis || !isStepAlongAxis(dr, dc, allowedAxis);
-  });
-}
-
 function chooseBetterAction(existing, candidate) {
   if (!existing) return true;
   if (candidate.hasMoney !== existing.hasMoney) return candidate.hasMoney;
@@ -137,9 +120,10 @@ function createSearchBoard(session, role, unit) {
       if (to.animal || !canEnterCell(to.rule, role, isDriving)) return [];
       if (to.occupant && (role === "THIEF" || to.occupant.role === "POLICE" || unit.state === "CARRYING")) return [];
       if (isDriving && !isTeleport && to.parkedCar) return [];
-      if (!isTeleport && isCrosswalkMoveBlocked({
-        session, fromTileType: from.rule.tileType, toTileType: to.rule.tileType,
-        isDriving, dr: nr - from.r, dc: nc - from.c,
+      if (!isTeleport && !canTakeCrosswalkStep({
+        fromTileType: from.rule.tileType, toTileType: to.rule.tileType,
+        isDriving, signalPhase: session.signalPhase, dr: nr - from.r, dc: nc - from.c,
+        fromStartingCell: from.r === unit.r && from.c === unit.c,
       })) return [];
       const cost = getMoveCost(isDriving, to.rule, isTeleport);
       if (cost === null) return [];

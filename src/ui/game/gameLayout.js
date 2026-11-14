@@ -10,15 +10,13 @@ export function renderGameLayout(isometric) {
   if (isometric) els.gameBoard.parentNode?.classList.remove("large-topdown");
   document.body.classList.toggle("isometric-playing", isometric);
   move(els.appHeader, isometric ? els.isoInfoContent : els.appHeaderHome);
-  move(els.boardToolbar, isometric ? els.isoInfoContent : els.boardToolbarHome);
   move(els.gameActions, isometric ? els.isoInfoContent : els.gameSidebar);
   move(els.gameStatusPanel, isometric ? els.isoStatusContent : els.gameSidebar);
   move(els.unitCounts, isometric ? els.isoStatusContent : els.gameSidebar);
   move(els.gameDicePanel, isometric ? els.isoDiceContent : els.gameSidebar);
   move(els.gameActionDetails, isometric ? els.isoProgressContent : els.boardFeedbackHome);
-  move(els.boardZoomControls, isometric ? els.isoStatusZoom : els.boardToolbar);
   if (!isometric && els.gameSidebar && els.gameActions) els.gameSidebar.appendChild(els.gameActions);
   [els.isoPanelInfo, els.isoPanelStatus, els.isoPanelProgress, els.isoPanelDice].forEach(element => element?.classList.toggle("hidden", !isometric));
-  [els.appHeaderHome, els.boardToolbarHome, els.boardFeedbackHome].forEach(element => element?.classList.toggle("hidden", isometric));
+  [els.appHeaderHome, els.boardFeedbackHome].forEach(element => element?.classList.toggle("hidden", isometric));
   if (focused?.isConnected && document.activeElement !== focused) focused.focus({ preventScroll: true });
 }

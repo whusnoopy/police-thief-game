@@ -1,4 +1,4 @@
-import { SIGNAL_PHASES } from "../../config/constants.js";
+import { getSignalPhases } from "../map/crosswalk.js";
 import { cloneMapDefinition } from "../map/mapModel.js";
 import { getFeaturePositionsByKind } from "../map/mapQueries.js";
 import { getMapGameplayBlocker } from "../map/mapCompatibility.js";
@@ -39,7 +39,7 @@ export function createGameSession(mapDefinition) {
     remainingPoints: null,
     actingUnitId: null,
     revision: 0,
-    signalPhase: SIGNAL_PHASES.PEDESTRIAN_GREEN,
+    signalPhase: getSignalPhases(sessionMapDefinition)[0],
     policeUnits,
     thiefUnits,
     animalUnits: [],

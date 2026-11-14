@@ -90,6 +90,12 @@
             </div>
 
             <section id="action-rule-controls" class="editor-map-actions" aria-label="行动规则"></section>
+            <div id="signal-rule-controls" class="editor-map-actions hidden">
+              <label class="editor-signal-option">
+                <input id="directional-signals" type="checkbox">
+                南北向与东西向红绿灯交替
+              </label>
+            </div>
             <section id="bridge-panel" class="editor-map-actions" aria-label="高架与上下桥"></section>
 
             <p id="editor-palette-shortcut" aria-live="polite">按 T 选择地块</p>
@@ -110,19 +116,9 @@
           <div id="game-sidebar-view" class="hidden"></div>
           <div id="game-status-panel" class="status-panel">
             <h3 id="turn-indicator">小偷回合</h3>
-            <p id="signal-indicator" class="signal-indicator pedestrian-go">
+            <p id="signal-indicator" class="signal-indicator pedestrian-go" aria-live="polite">
               🚥 当前：行人通行
             </p>
-            <div class="player-stats">
-              <div class="stat-box" id="police-stat">
-                <span id="police-role-icon" class="icon role-icon" aria-hidden="true"></span>
-                <span class="label">警察</span>
-              </div>
-              <div class="stat-box active" id="thief-stat">
-                <span id="thief-role-icon" class="icon role-icon" aria-hidden="true"></span>
-                <span class="label">小偷</span>
-              </div>
-            </div>
           </div>
 
           <p id="unit-counts" class="unit-counts" aria-live="polite"></p>
@@ -158,21 +154,6 @@
         </div>
 
         <div class="game-board-area">
-          <div id="board-toolbar-home">
-            <div id="board-view-toolbar" class="board-view-toolbar" aria-label="游戏视角">
-              <div class="board-view-switch">
-                <button id="btn-view-topdown" type="button" aria-pressed="true">俯视</button>
-                <button id="btn-view-isometric" type="button" aria-pressed="false">斜视（测试）</button>
-              </div>
-              <div id="board-zoom-controls" class="board-zoom-controls hidden" aria-label="棋盘缩放">
-                <button id="btn-board-zoom-out" type="button" aria-label="缩小棋盘">−</button>
-                <span id="board-zoom-value" aria-live="polite">100%</span>
-                <button id="btn-board-zoom-in" type="button" aria-label="放大棋盘">＋</button>
-                <button id="btn-board-fit" type="button">全图</button>
-                <button id="btn-board-focus" type="button">定位角色</button>
-              </div>
-            </div>
-          </div>
           <div class="board-container">
             <div id="game-board" class="board grid-10x10">
               <!-- 游戏棋盘通过 JS 渲染 -->
@@ -194,9 +175,19 @@
         </div>
         <section id="iso-panel-info" class="iso-corner-panel iso-info hidden" aria-label="游戏与规则">
           <div id="iso-info-content" class="iso-panel-content"></div>
+          <div class="board-zoom-controls" role="group" aria-label="地图缩放与定位">
+            <div class="board-zoom-level">
+              <button id="btn-board-zoom-out" type="button" aria-label="缩小棋盘">−</button>
+              <span id="board-zoom-value" aria-live="polite">100%</span>
+              <button id="btn-board-zoom-in" type="button" aria-label="放大棋盘">＋</button>
+            </div>
+            <div class="board-zoom-actions">
+              <button id="btn-board-fit" type="button">全图</button>
+              <button id="btn-board-focus" type="button">定位角色</button>
+            </div>
+          </div>
         </section>
         <section id="iso-panel-status" class="iso-corner-panel iso-status hidden" aria-label="游戏状态">
-          <div id="iso-status-zoom" class="iso-panel-zoom"></div>
           <div id="iso-status-content" class="iso-panel-content"></div>
         </section>
         <section id="iso-panel-progress" class="iso-corner-panel iso-progress hidden" aria-label="行动与进度">
@@ -298,14 +289,14 @@
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🏁</span><span class="rule-description">抓住全部小偷（含押送中）即警察获胜；全部小偷带钱逃脱即小偷获胜。若部分逃脱、部分被抓且没有活动小偷，则以混合结局结束。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">⬜</span><span class="rule-description">道路步行消耗 1 点、驾车消耗 0.5 点，出生点等同道路。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🌊🌉</span><span class="rule-description">行人和汽车均不可进入水面。高架桥和上下桥格仅供车辆通行，每格基础费用为 0.25 点。高架仅通过上下桥格连接地面，箭头朝向高端，反向可下桥，两侧封闭。</span></p>
-            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">↔️↕️</span><span class="rule-description">斑马线分横向和纵向；行人只能按斑马线方向在绿灯时通过，车辆只能按垂直方向在红灯时通过。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">↔️↕️</span><span class="rule-description">斑马线分横向和纵向。行人可在行人绿灯时沿斑马线方向进入，车辆可在行人红灯时沿垂直方向进入。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🌿</span><span class="rule-description">草地步行每格消耗 2 点，车辆不能进入。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🏢🏗️🚧⛰️</span><span class="rule-description">建筑物、建筑工地、路障和山均不可进入。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🚨</span><span class="rule-description">警察局仅警察可进入，交付小偷后可再次抓人。<span class="rules-single">押送进入时自动交付并下车。</span><span class="rules-continuous">驾车到达后，先下车 1 点、再交付 1 点，随后可用余额继续行动；也可留待之后的回合操作。</span></span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🏦</span><span class="rule-description">银行的钱无限，小偷必须自己在银行拿到钱后，才能回小偷基地逃脱。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🚜🐷🐮</span><span class="rule-description">农场会在相邻且有出口的空格刷新动物；每个农场最多 3 只。动物受困 3 轮或在外停留 6 轮后回农场，回场当轮该农场不刷新动物，留出通行机会。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🤝</span><span class="rule-description">跳过回合时，若双方即使掷出 6、切换红绿灯且动物离开后也完全无法行动，则以平局结束。</span></p>
-            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🟢🔴</span><span class="rule-description">斑马线两侧的小灯只表示行人信号；绿灯时行人可按斑马线方向通过，红灯时车辆可按垂直方向通过；每次警察回合结束时切换，动物也只在此时更新一次。</span></p>
+            <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🟢🔴</span><span class="rule-description">斑马线两端显示该方向的行人灯。<span class="rules-standard-signals">所有斑马线同步由绿变红或由红变绿。</span><span class="rules-directional-signals">开局南北向行人绿灯。放行方向的行人沿同向斑马线过街，车辆沿同一方向穿过垂直的斑马线。已经停在斑马线上的单位可沿其通行轴离开，驶入或走入下一条斑马线仍需等到放行。</span>每次警察回合结束时切换灯相，动物也只在此时更新一次。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🏚️</span><span class="rule-description">小偷基地仅带钱小偷可进入，进入即逃脱；若驾车到达，汽车会自动回到最近的空停车场。</span></p>
             <p class="rule-row"><span class="emoji rule-icons" aria-hidden="true">🕳️</span><span class="rule-description">井盖对警察等同道路，步行小偷站在井盖上可花 1 点传送到其他任何井盖。</span></p>
             <p class="rule-row rules-single"><span class="emoji rule-icons" aria-hidden="true">🅿️🚗</span><span class="rule-description">步行进入空车会自动上车并结束行动；驾车以无车停车场为终点时自动下车，不能中途下车或换乘。</span></p>

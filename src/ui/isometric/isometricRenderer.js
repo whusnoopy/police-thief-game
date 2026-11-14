@@ -1,8 +1,6 @@
 import { getMapDimensions } from "../../domain/map/mapDimensions.js";
 import { TILE_TYPES } from "../../config/constants.js";
 import { BRIDGE_DIRECTIONS, isBridgeTileType } from "../../domain/map/bridgeTopology.js";
-import { appendParkedCar, appendUnitToken } from "../game/unitRenderer.js";
-import { appendSprite } from "../board/storybookArt.js";
 import { createIsometricScene } from "./sceneModel.js";
 import { createIsometricProjection, pickSurface, projectPoint, projectSurfacePoint } from "./projection.js";
 
@@ -19,15 +17,6 @@ import { pickOccludedActor, readOpaqueGeometry } from "./occlusionGeometry.js";
 
 let nextSceneId = 0;
 const DETAIL_TILE_WIDTH = 112;
-
-function billboard(parent, { x, y }, width, height, className) {
-  const foreignObject = svgElement("foreignObject", { x: x - width / 2, y: y - height, width, height, class: className });
-  const content = document.createElement("div");
-  content.className = "iso-billboard";
-  foreignObject.appendChild(content);
-  parent.appendChild(foreignObject);
-  return { content, foreignObject };
-}
 
 export function createIsometricGameView(container, { viewState, onCellClick, onCellHover, onLeave, unitDirections, vehicleDirections }) {
   let projection = createIsometricProjection();
@@ -261,18 +250,30 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
         group.setAttribute("data-scale", layout.scale);
         const actor = createActorRecord(defs, cell, layout, projection, id, index, scheduleOcclusion);
         actors.push(actor); records.push(actor);
-        const { content, foreignObject } = billboard(group, { x: layout.foot.x, y: layout.top + layout.height }, layout.width, layout.height, "iso-unit-art");
-        const artwork = { showBadges: false, appendArtwork: layout.vehicle
-          ? container => appendVehicleArtwork(container, cell, projection, cell.direction, cell.side === "police")
-          : (container, name, className, label) => {
-            const image = appendSprite(container, name, className, label, { url: actor.url });
-            image.addEventListener("error", () => { actor.failed = true; scheduleOcclusion(); });
-            return image;
-          } };
-        if (cell.kind === "car") appendParkedCar(content, artwork);
-        else appendUnitToken(content, cell.unit, cell.side, artwork);
-        foreignObject.setAttribute("pointer-events", "all");
-        bindActorTarget(foreignObject, cell, actor);
+        if (cell.unit) group.setAttribute("data-id", cell.unit.id);
+        group.setAttribute("role", "img");
+        group.setAttribute("aria-label", actor.title);
+        group.appendChild(svgElement("title", {}, actor.title));
+        // Keep actor artwork in SVG coordinates: WebKit can mispaint HTML in
+        // foreignObject when the board's viewBox is scaled.
+        if (layout.vehicle) {
+          appendVehicleArtwork(group, cell, projection, cell.direction, cell.side === "police", layout.bounds);
+        } else {
+          group.appendChild(svgElement("ellipse", {
+            class: `iso-actor-shadow ${cell.side}`,
+            cx: layout.foot.x, cy: layout.foot.y,
+            rx: layout.width * 0.31, ry: layout.height * 0.1,
+            "aria-hidden": "true",
+          }));
+          const image = svgElement("image", { ...layout.bounds, href: actor.url });
+          image.addEventListener("error", () => { actor.failed = true; scheduleOcclusion(); });
+          group.appendChild(image);
+        }
+        const hit = svgElement("rect", {
+          ...layout.bounds, class: "iso-actor-hit", fill: "none", "pointer-events": "all", "aria-hidden": "true",
+        });
+        group.appendChild(hit);
+        bindActorTarget(hit, cell, actor);
       }
       refreshOcclusion();
       // Direction cues refer to map north/east, not the screen's up/right.

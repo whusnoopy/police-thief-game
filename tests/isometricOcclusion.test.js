@@ -269,6 +269,33 @@ test("masks reference only later opaque art and outlines do not merge the full s
   actor.unsubscribe();
 });
 
+test("foreground people cover vehicle outlines while a car hidden by scenery remains marked", () => {
+  const { cell } = makeCell("ROAD");
+  const defs = svgElement("defs");
+  const layer = svgElement("g");
+  const car = { ...cell, kind: "car", direction: "S" };
+  const person = { ...cell, kind: "unit", side: "police", unit: { id: "P1" } };
+  const parked = createActorRecord(defs, car, getActorLayout(car, projection), projection, "car", 0, () => {});
+  const police = createActorRecord(defs, person, getActorLayout(person, projection), projection, "police", 2, () => {});
+  police.contains = () => true;
+  const rebuild = records => rebuildOcclusion(defs, layer, [parked], records, null);
+
+  rebuild([parked, police]);
+  assert.equal(parked.occluded, true);
+  assert.equal(parked.outline, null);
+
+  const scenery = svgElement("g");
+  const { x, y, width, height } = parked.bounds;
+  rect(scenery, x, y, width, height);
+  rebuild([parked, opaque(scenery, 1), police]);
+  assert.equal(parked.occluded, true);
+  assert.equal(layer.querySelectorAll(".iso-occluded-outline").length, 1);
+  assert.equal(parked.mask.querySelectorAll(".iso-outline-mask-white")[0].attributes.href, "#test-1");
+  assert.equal(parked.mask.querySelectorAll(".iso-outline-mask-black")[0].attributes.href, "#police-body");
+  assert.deepEqual(parked.mask.children.map(use => use.attributes.href), ["#test-1", "#police-body"]);
+  police.unsubscribe();
+});
+
 test("foreground labels retain money/escort, avoid overlaps and bind to original cells despite doorway scaling", () => {
   const { cell } = makeCell("BANK");
   const defs = svgElement("defs"),

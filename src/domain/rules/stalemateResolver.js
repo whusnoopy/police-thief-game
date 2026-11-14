@@ -1,4 +1,4 @@
-import { SIGNAL_PHASES } from "../../config/constants.js";
+import { getSignalPhases } from "../map/crosswalk.js";
 import { getActiveUnitsForTurn } from "../game/sessionSelectors.js";
 import { hasReachableAction } from "./moveGenerator.js";
 import { getUnitOperations } from "./unitOperations.js";
@@ -8,7 +8,7 @@ export function isPermanentStalemate(session) {
   // A low roll, a red light, or a temporary animal obstruction is not a draw.
   // Without a possible action, characters/cars cannot change positions; test
   // the maximum roll in both light phases with temporary animals removed.
-  for (const signalPhase of [SIGNAL_PHASES.PEDESTRIAN_GREEN, SIGNAL_PHASES.PEDESTRIAN_RED]) {
+  for (const signalPhase of getSignalPhases(session.mapDefinition)) {
     const futureSession = { ...session, signalPhase, animalUnits: [] };
     for (const turn of ["THIEF", "POLICE"]) {
       for (const unit of getActiveUnitsForTurn(session, turn)) {

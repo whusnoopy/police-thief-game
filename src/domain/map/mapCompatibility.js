@@ -1,7 +1,10 @@
 import { isRampTileType } from "./bridgeTopology.js";
+import { NEW_GRID_SIZE } from "../../config/constants.js";
+import { getMapDimensions } from "./mapDimensions.js";
 
 export const MAP_RULESETS = Object.freeze({ LEGACY: "legacy", RAMPS: "ramps" });
 export const ACTION_RULES = Object.freeze({ SINGLE: "single", CONTINUOUS: "continuous" });
+export const DIRECTIONAL_SIGNAL_RULES = "directional";
 const UPGRADE_STATUSES = new Set(["pending", "editing", "ready"]);
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
@@ -10,7 +13,16 @@ export function normalizeMapCompatibility(mapDefinition) {
   if (!Object.values(MAP_RULESETS).includes(ruleset)) throw new Error("Unsupported map ruleset");
   const actionRules = mapDefinition.actionRules ?? (mapDefinition.meta?.rows === 20 ? "single" : undefined);
   if (actionRules !== undefined && !Object.values(ACTION_RULES).includes(actionRules)) throw new Error("Unsupported action rules");
-  const compatibility = { ruleset, ...(actionRules !== undefined ? { actionRules } : {}) };
+  const signalRules = mapDefinition.signalRules;
+  if (signalRules !== undefined) {
+    if (signalRules !== DIRECTIONAL_SIGNAL_RULES) throw new Error("Unsupported signal rules");
+    if (!supportsDirectionalSignals(mapDefinition)) throw new Error("Directional signal rules require a 20×20 map");
+  }
+  const compatibility = {
+    ruleset,
+    ...(actionRules !== undefined ? { actionRules } : {}),
+    ...(signalRules !== undefined ? { signalRules } : {}),
+  };
   if (mapDefinition.actionUpgrade !== undefined) {
     const source = mapDefinition.actionUpgrade?.source;
     if (actionRules !== ACTION_RULES.CONTINUOUS || !isObject(source) || typeof source.encodedMap !== "string" || !source.encodedMap ||
@@ -58,6 +70,10 @@ export function usesRampRules(mapDefinition) {
 
 export function usesContinuousActions(mapDefinition) {
   return mapDefinition?.actionRules === ACTION_RULES.CONTINUOUS;
+}
+
+export function supportsDirectionalSignals(mapDefinition) {
+  return getMapDimensions(mapDefinition).rows === NEW_GRID_SIZE;
 }
 
 export function getMapGameplayBlocker(mapDefinition, { allowUpgradeDraft = false, allowExpansionDraft = false } = {}) {

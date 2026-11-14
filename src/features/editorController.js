@@ -14,7 +14,7 @@ import { encodeMapDefinition } from "../domain/map/mapCodec.js";
 import { renderTileIcon } from '../ui/board/storybookArt.js';
 import { persistCurrentMap, getCurrentMapId, getCurrentMapName, getMapList, updateModeIndicatorForEditor } from "../storage/mapRepository.js";
 import { createMapUpgradeDraft, beginMapUpgrade, completeMapUpgrade } from "../domain/map/mapUpgrade.js";
-import { usesRampRules, usesContinuousActions } from "../domain/map/mapCompatibility.js";
+import { DIRECTIONAL_SIGNAL_RULES, normalizeMapCompatibility, supportsDirectionalSignals, usesRampRules, usesContinuousActions } from "../domain/map/mapCompatibility.js";
 import { createActionUpgradeCopy } from "../domain/map/mapActionUpgrade.js";
 import { BRIDGE_DIRECTIONS, RAMP_TILE_TYPES, getBridgeConnectionMask, isBridgeTileType, isRampTileType } from "../domain/map/bridgeTopology.js";
 import { renderBridgePanel } from "../ui/editor/bridgePanelRenderer.js";
@@ -427,6 +427,14 @@ export function initEditor() {
   els.btnClearMap.addEventListener("click", clearMap);
   els.btnUndoMap.addEventListener("click", undoMap);
   els.btnRedoMap.addEventListener("click", redoMap);
+  els.directionalSignals.addEventListener("change", () => {
+    if (state.mode !== "EDITOR" || !supportsDirectionalSignals(state.mapDefinition)) return;
+    finishStroke();
+    const before = cloneMapDefinition(state.mapDefinition);
+    if (els.directionalSignals.checked) state.mapDefinition.signalRules = DIRECTIONAL_SIGNAL_RULES;
+    else delete state.mapDefinition.signalRules;
+    recordEdit(before);
+  });
 }
 
 export function renderEditorBoard() {
@@ -465,6 +473,8 @@ export function renderEditorBoard() {
   syncEditorViewport(state.mapDefinition);
   renderExpansionControls();
   renderActionRuleControls();
+  els.signalRuleControls.classList.toggle("hidden", !supportsDirectionalSignals(state.mapDefinition));
+  els.directionalSignals.checked = state.mapDefinition.signalRules === DIRECTIONAL_SIGNAL_RULES;
 }
 
 export function clearMap() {
@@ -472,7 +482,7 @@ export function clearMap() {
 
   finishStroke();
   const before = cloneMapDefinition(state.mapDefinition);
-  setMapDefinition(createEmptyMapDefinition({ meta: before.meta, ruleset: before.ruleset, ...(before.actionRules ? { actionRules: before.actionRules } : {}), ...(before.actionUpgrade ? { actionUpgrade: before.actionUpgrade } : {}), ...(before.expansion ? { expansion: before.expansion } : {}), ...(before.upgrade ? { upgrade: before.upgrade } : {}) }));
+  setMapDefinition(createEmptyMapDefinition({ meta: before.meta, ...normalizeMapCompatibility(before) }));
   historyMap = state.mapDefinition;
   recordEdit(before);
   renderEditorBoard();

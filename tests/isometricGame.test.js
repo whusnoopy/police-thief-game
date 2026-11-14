@@ -2,10 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createTestEnvironment } from "./helpers/fakeDom.js";
 import { createRampScenario } from "./helpers/rampScenario.js";
+import { createIsometricProjection, projectSurfacePoint } from "../src/ui/isometric/projection.js";
 const env = createTestEnvironment();
 env.installGlobals();
 const { gameController: game, GAME_PHASES } = await import("../src/features/gameController.js");
 const board = env.elements["game-board"];
+const actorById = id => board.querySelectorAll(".iso-unit").find(element => element.attributes["data-id"] === id);
 
 function begin(direction = "E") {
   const scenario = createRampScenario(direction);
@@ -22,7 +24,7 @@ test("switching views preserves the rolled turn, selected unit, reachable action
   game.handleCellClick(positions.start.r, positions.start.c);
   game.handleCellClick(positions.end.r, positions.end.c, { previewOnly: true });
   const session = game.session, selected = game.selectedUnit, reachable = game.reachable;
-  env.elements["btn-view-isometric"].click();
+  game.setBoardMode("isometric");
   assert.equal(game.session, session);
   assert.equal(game.selectedUnit, selected);
   assert.equal(game.reachable, reachable);
@@ -30,9 +32,9 @@ test("switching views preserves the rolled turn, selected unit, reachable action
   assert.equal(game.phase, GAME_PHASES.SELECT_DESTINATION);
   assert.ok(board.querySelectorAll(".iso-step-badge").length > 0);
   assert.equal(board.querySelectorAll(".unit-selected").length, 1);
-  env.elements["btn-view-topdown"].click();
+  game.setBoardMode("topdown");
   assert.ok(board.querySelectorAll(".path-badge-temp").length > 0);
-  env.elements["btn-view-isometric"].click();
+  game.setBoardMode("isometric");
   game.confirmMove();
   assert.equal(selected.hasMoney, true);
   assert.deepEqual({ r: selected.r, c: selected.c }, positions.end);
@@ -49,8 +51,8 @@ test("isometric unit hit targets preserve touch preview, cancellation and all fo
   for (const direction of ["N", "E", "S", "W"]) {
     const { positions } = begin(direction);
     game.setBoardMode("isometric");
-    const token = board.querySelectorAll(".character").find(element => element.dataset.id === "T1");
-    token.parentNode.parentNode.dispatchEvent({ type: "click", pointerType: "touch" });
+    const hit = actorById("T1").querySelectorAll(".iso-actor-hit")[0];
+    hit.dispatchEvent({ type: "click", pointerType: "touch" });
     assert.equal(game.selectedUnit.id, "T1");
     game.handleCellClick(positions.deck.r, positions.deck.c, { previewOnly: true });
     assert.equal(game.thiefUnits[0].r, positions.start.r);
@@ -79,15 +81,35 @@ test("switching while background moves are calculated keeps the job and renders 
   } finally { game.createSearchJob = original; }
 });
 
-test("isometric rendering has readable asset fallbacks and excludes escaped or jailed thieves", () => {
-  begin();
+test("isometric actors use native SVG, keep artwork and hit targets aligned, and label failed images", () => {
+  const { positions } = begin();
   game.thiefUnits.push({ id: "T2", r: 1, c: 1, state: "JAILED" });
   game.thiefUnits.push({ id: "T3", r: 2, c: 1, state: "ESCAPED" });
+  game.session.parkedCars.add("8,8");
   game.setBoardMode("isometric");
-  assert.equal(board.querySelectorAll(".character").length, 2);
-  const image = board.querySelectorAll(".story-sprite").find(element => element.tagName === "IMG");
+  assert.equal(board.querySelectorAll(".iso-unit").length, 2);
+  assert.equal(board.querySelectorAll("foreignObject").length, 0);
+  const image = actorById("P1").querySelectorAll("image")[0];
+  const car = board.querySelectorAll(".iso-car")[0];
+  const ring = actorById("P1").querySelectorAll(".iso-actor-shadow")[0];
+  const foot = projectSurfacePoint({ ...positions.police, tileType: "ROAD" }, 0, 0, createIsometricProjection());
+  assert.equal(+ring.attributes.cx, foot.x);
+  assert.equal(+ring.attributes.cy, foot.y);
+  for (const [group, art] of [
+    [actorById("P1"), image],
+    [actorById("T1"), actorById("T1").querySelectorAll(".iso-vehicle-art")[0]],
+    [car, car.querySelectorAll(".iso-vehicle-art")[0]],
+  ]) {
+    const hit = group.querySelectorAll(".iso-actor-hit")[0];
+    assert.equal(art.namespaceURI, "http://www.w3.org/2000/svg");
+    for (const attr of ["x", "y", "width", "height"]) {
+      assert.ok(Number.isFinite(Number(art.attributes[attr])));
+      assert.equal(art.attributes[attr], hit.attributes[attr]);
+    }
+  }
   image.dispatchEvent({ type: "error" });
-  assert.equal(board.querySelectorAll(".story-fallback").length, 1);
+  const label = board.querySelectorAll(".iso-actor-label").find(element => element.attributes["data-id"] === "P1");
+  assert.equal(label.querySelectorAll("text")[0].textContent, "警察P1");
   game.dispose();
   assert.equal(board.children.length, 0);
   assert.equal(game.boardView, null);
@@ -112,7 +134,6 @@ test("driving direction follows the final step and survives view changes, while 
 
 test("raised grass retains a surface-aligned preview across views and lowered water cannot be selected", async () => {
   const { createRampMapDefinition, setLegacyTileAt } = await import("../src/domain/map/mapModel.js");
-  const { createIsometricProjection, projectSurfacePoint } = await import("../src/ui/isometric/projection.js");
   const projection = createIsometricProjection();
   for (const type of ["GRASS", "RIVER"]) {
     const map = createRampMapDefinition();
@@ -157,7 +178,6 @@ test("raised grass retains a surface-aligned preview across views and lowered wa
 
 test("touch and pen use the original road tap when the browser retargets it to a nearby car", async () => {
   const { createRampMapDefinition, setLegacyTileAt } = await import("../src/domain/map/mapModel.js");
-  const { createIsometricProjection, projectSurfacePoint } = await import("../src/ui/isometric/projection.js");
   const projection = createIsometricProjection();
   const map = createRampMapDefinition();
   for (const [r, c, type] of [[4, 3, "THIEF_SPAWN"], [9, 9, "POLICE_SPAWN"], [0, 1, "BANK"], [0, 2, "THIEF_BASE"]]) setLegacyTileAt(map, r, c, type);
@@ -170,8 +190,7 @@ test("touch and pen use the original road tap when the browser retargets it to a
   const viewport = board.querySelectorAll(".iso-viewport")[0];
   const svg = board.querySelectorAll(".iso-canvas")[0];
   svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: projection.width, height: projection.height });
-  const token = board.querySelectorAll(".character").find(e => e.dataset.id === "T1");
-  const actor = token.parentNode.parentNode;
+  const actor = actorById("T1").querySelectorAll(".iso-actor-hit")[0];
   const point = projectSurfacePoint({ r: 4, c: 4, tileType: "ROAD" }, 0, 0, projection);
   try {
     for (const pointerType of ["touch", "pen"]) {
@@ -213,12 +232,12 @@ test("foreground identifiers select by keyboard, remain stable during hover and 
   game.handleCellHover(0,1);game.clearPathHover();
   assert.equal(board.querySelectorAll(".iso-actor-label").find(e=>e.attributes["data-id"]==="T1"),label,"hover does not replace the target below a stationary pointer");
   game.handleCellClick(0,1,{previewOnly:true});game.confirmMove();
-  let person=board.querySelectorAll(".iso-unit").find(e=>e.querySelectorAll(".thief-token").length);
+  let person=actorById("T1");
   assert.equal(person.attributes["data-placement"],"doorway");assert.equal(+person.attributes["data-scale"],.43);
   label=board.querySelectorAll(".iso-actor-label").find(e=>e.attributes["data-id"]==="T1");
   assert.equal(label.querySelectorAll(".money").length,1);
   game.advanceTurn();game.diceValue=1;game.onDiceRolled();game.handleCellClick(0,1);game.handleCellClick(0,0);
-  person=board.querySelectorAll(".iso-unit").find(e=>e.querySelectorAll(".thief-token").length);
+  person=actorById("T1");
   assert.equal(person.attributes["data-placement"],"surface");assert.equal(+person.attributes["data-scale"],.86);
   assert.equal(game.thiefUnits[0].hasMoney,true);
   game.dispose();game.boardMode="topdown";

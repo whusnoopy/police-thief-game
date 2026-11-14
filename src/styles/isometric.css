@@ -1,27 +1,19 @@
-.board-view-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-.board-view-switch, .board-zoom-controls { display: flex; align-items: center; gap: 4px; }
-.board-view-toolbar button, .iso-panel-zoom button { min-height: 44px; min-width: 44px; padding: 8px 12px; border: 1px solid #c6d0cb; border-radius: 7px; background: #fffdf5; color: #43584e; font-family: inherit; font-size: 14px; font-weight: 700; line-height: 1.2; cursor: pointer; touch-action: manipulation; }
-.board-view-toolbar button[aria-pressed="true"] { background: #3d6d69; color: #fff; border-color: #3d6d69; }
-.board-view-toolbar button:disabled, .iso-panel-zoom button:disabled { opacity: .4; cursor: default; }
-.board-view-toolbar button:focus-visible, .iso-panel-zoom button:focus-visible, .iso-viewport:focus-visible { outline: 3px solid #438dbe; outline-offset: 2px; }
-.board-zoom-controls span { min-width: 42px; text-align: center; font-size: 12px; color: #526271; }
+.board-zoom-controls, .board-zoom-level, .board-zoom-actions { display: flex; align-items: center; gap: 4px; }
+.board-zoom-controls { flex-wrap: wrap; justify-content: center; gap: 6px 10px; margin-top: 9px; padding-top: 8px; border-top: 1px solid #d4ddcf; }
+.board-zoom-controls button { min-height: 44px; min-width: 36px; padding: 8px; border: 1px solid #c6d0cb; border-radius: 7px; background: #fffdf5; color: #43584e; font-family: inherit; font-size: 13px; font-weight: 700; line-height: 1.2; cursor: pointer; touch-action: manipulation; }
+.board-zoom-controls button:disabled { opacity: .4; cursor: default; }
+.board-zoom-controls button:focus-visible, .iso-viewport:focus-visible { outline: 3px solid #438dbe; outline-offset: 2px; }
+.board-zoom-level span { min-width: 34px; text-align: center; font-size: 12px; color: #526271; }
 #game-board.iso-board { display: block; width: 100%; min-width: 0; border: 0; background: #edf1e4; border-radius: 8px; touch-action: pan-x pan-y; }
 .iso-viewport { width: 100%; height: 100%; overflow: auto; border-radius: inherit; overscroll-behavior: contain; touch-action: pan-x pan-y; scrollbar-width: thin; cursor: grab; user-select: none; -webkit-user-select: none; }
 .iso-viewport.over-action { cursor: pointer; }
 .iso-viewport.is-panning { cursor: grabbing; }
 .iso-stage { position: relative; }
 .iso-canvas { position: absolute; display: block; max-width: none; user-select: none; -webkit-user-select: none; cursor: inherit; }
-.iso-billboard { position: relative; width: 100%; height: 100%; }
-.iso-billboard > .story-sprite { width: 100%; height: 100%; }
-.iso-billboard .character, .iso-billboard .parked-car { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 0; background: none; box-shadow: none; pointer-events: none; }
-.iso-billboard .unit-id-badge { top: 1px; right: 2px; border: 0; background: #3d6d91; color: white; font-size: 12px; }
-.iso-billboard .thief-token .unit-id-badge { background: #b96e56; }
-.iso-billboard .unit-state-badge { width: 21px; height: 21px; }
-.iso-billboard .driving-token::before { display: none; }
-.iso-billboard .driving-token .unit-id-badge { top: 8px; right: 6px; }
-.iso-billboard .driving-token .unit-state-badge { bottom: 16px; }
+.iso-actor-shadow { fill: #a7c1d77a; stroke: #507b9f; }
+.iso-actor-shadow.thief { fill: #e0aa9380; stroke: #b67661; }
+.iso-actor-shadow.animal { fill: #e7cc8a77; stroke: #ae995e; }
 .iso-vehicle-art { overflow: visible; }
-.iso-billboard .story-fallback { font-size: 13px; }
 .iso-ground-mark { font: 800 14px sans-serif; color: #647d84; fill: currentColor; }
 .iso-ground-mark.mark-POLICE_SPAWN { color: var(--police-spawn-color); }
 .iso-ground-mark.mark-THIEF_SPAWN { color: var(--thief-spawn-color); }
@@ -43,6 +35,8 @@
 .iso-actor-label:focus-visible { outline: 2px solid #efad28; outline-offset: 3px; }
 .iso-label-connector { stroke: #647868; stroke-width: 1; paint-order: stroke; }
 .iso-occluded-outline { pointer-events: none; }
+.iso-outline-mask-white { filter: brightness(0) invert(1); }
+.iso-outline-mask-black { filter: brightness(0); }
 
 .game-action-details { display: flex; flex-direction: column; gap: 10px; }
 .action-details-title { display: none; }
@@ -67,19 +61,12 @@ body.isometric-playing { height: 100dvh; min-height: 0; overflow: hidden; }
 .iso-corner-panel h1 { font-size: 1.15rem; line-height: 1.4; }
 .iso-corner-panel .badge { font-size: 11px; margin-top: 3px; padding: 3px 8px; }
 .iso-corner-panel .btn { min-height: 42px; padding: 9px 8px; margin: 0; font-size: 13px; }
-.iso-corner-panel .board-view-toolbar { justify-content: center; }
 .iso-corner-panel .game-actions { display: flex; flex-direction: row; gap: 6px; margin: 0; }
 .iso-corner-panel .game-actions .btn { flex: 1; font-size: 12px; padding: 9px 4px; }
 .iso-corner-panel .status-panel { margin: 0; padding: 6px 8px; }
 .iso-corner-panel .status-panel h3 { font-size: 1rem; }
-.iso-corner-panel .player-stats { margin-top: 8px; }
 .iso-corner-panel .signal-indicator { margin: 6px 0; font-size: 13px; }
 .iso-corner-panel .unit-counts { margin: 0; font-size: 12px; line-height: 1.5; }
-.iso-panel-zoom { position: sticky; top: 0; z-index: 1; margin: 0 0 10px; padding-bottom: 8px; background: #fffef7; border-bottom: 1px solid #d4ddcf; }
-.iso-panel-zoom .board-zoom-controls { justify-content: space-between; }
-.iso-panel-zoom button { min-width: 36px; padding: 8px; font-size: 13px; }
-.iso-panel-zoom #btn-board-focus { min-width: 68px; }
-.iso-panel-zoom span { min-width: 34px; }
 .iso-corner-panel .dice-panel { min-height: 0; padding: 12px; margin: 0; border: 0; background: #fffef7ed; border-radius: 10px; display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 8px; align-items: center; }
 .iso-corner-panel .dice-panel h3 { display: none; }
 .iso-corner-panel .dice { font-size: 2.6rem; line-height: 1.2; margin: 0; }
@@ -94,7 +81,9 @@ body.isometric-playing { height: 100dvh; min-height: 0; overflow: hidden; }
 @media (max-width: 999px) {
   .isometric-playing .app-container { padding: 6px; gap: 6px; }
   .iso-corner-panel { width: 240px; padding: 8px 10px; }
+  .iso-info { width: 272px; }
   .iso-status { width: 280px; }
+  .iso-info, .iso-status { max-width: calc(50% - 12px); }
   .iso-progress { width: 280px; }
   .iso-info, .iso-status { top: 8px; }
   .iso-info, .iso-progress { left: 8px; }

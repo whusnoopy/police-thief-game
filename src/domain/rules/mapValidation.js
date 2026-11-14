@@ -1,5 +1,4 @@
-import { SIGNAL_PHASES } from "../../config/constants.js";
-import { getAllowedCrosswalkAxis, isCrosswalkTileType, isStepAlongAxis } from "../map/crosswalk.js";
+import { canTakeCrosswalkStep, getSignalPhases } from "../map/crosswalk.js";
 import { getFeaturePositionsByKind, getTerrainAt } from "../map/mapQueries.js";
 import { getCellRuleAt } from "./cellRules.js";
 import { getMapGameplayBlocker, usesRampRules, usesContinuousActions } from "../map/mapCompatibility.js";
@@ -8,7 +7,6 @@ import { areCellsConnected, getRampConnectionIssues } from "../map/bridgeTopolog
 import { isWithinMap } from "../map/mapDimensions.js";
 
 const DIRECTIONS = [[-1, 0], [0, 1], [1, 0], [0, -1]];
-const PHASES = [SIGNAL_PHASES.PEDESTRIAN_GREEN, SIGNAL_PHASES.PEDESTRIAN_RED];
 const coordKey = ({ r, c }) => `${r},${c}`;
 const positionLabel = ({ r, c }) => `第 ${r + 1} 行第 ${c + 1} 列`;
 
@@ -25,6 +23,7 @@ export function getPotentialRoutes(mapDefinition, start, role, carTransferPositi
   let canEscape = false;
   let canDeliver = false;
   const manholes = getFeaturePositionsByKind(mapDefinition, "MANHOLE");
+  const signalPhases = getSignalPhases(mapDefinition);
 
   for (let index = 0; index < queue.length; index += 1) {
     const current = queue[index];
@@ -53,12 +52,10 @@ export function getPotentialRoutes(mapDefinition, start, role, carTransferPositi
       if (!next.teleport && usesRampRules(mapDefinition) && !areCellsConnected(mapDefinition, current, next)) continue;
       const rule = getCellRuleAt(mapDefinition, next.r, next.c);
       if (!(current.inCar ? rule.drivableRoles : rule.walkableRoles).includes(role)) continue;
-      if (!next.teleport && !PHASES.some((phase) => (
-        [fromRule.tileType, rule.tileType].filter(isCrosswalkTileType).every((tile) => {
-          const axis = getAllowedCrosswalkAxis(tile, current.inCar, phase);
-          return axis && isStepAlongAxis(next.r - current.r, next.c - current.c, axis);
-        })
-      ))) continue;
+      if (!next.teleport && !signalPhases.some((signalPhase) => canTakeCrosswalkStep({
+        fromTileType: fromRule.tileType, toTileType: rule.tileType, isDriving: current.inCar,
+        signalPhase, dr: next.r - current.r, dc: next.c - current.c, fromStartingCell: true,
+      }))) continue;
       const hasMoney = current.hasMoney || (role === "THIEF" && rule.tileType === "BANK");
       if (rule.tileType === "THIEF_BASE" && !hasMoney) continue;
       const modes = rule.tileType === "PARKING"

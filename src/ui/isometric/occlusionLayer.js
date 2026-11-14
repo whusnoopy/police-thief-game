@@ -14,6 +14,7 @@ const COLORS = {
   animal: "#8b6ca6",
   car: "#9a7a36",
 };
+const NAMES = { police: "警察", thief: "小偷", pig: "猪", cow: "牛", car: "空车" };
 
 export function createActorRecord(
   defs,
@@ -26,12 +27,19 @@ export function createActorRecord(
 ) {
   const body = svgElement("g", { id: `${id}-body` });
   defs.appendChild(body);
+  const name = NAMES[cell.side === "animal" ? layout.name : cell.side || "car"];
+  const unit = cell.unit;
+  const title = cell.side === "police" || cell.side === "thief"
+    ? `${name} ${unit.id}${unit.inCar ? "，驾车" : ""}${unit.hasMoney ? "，携款" : ""}${unit.state === "CARRYING" ? "，押送小偷" : ""}`
+    : name;
   const record = {
     id,
     maskId: `${id}-body`,
     index,
     cell,
     layout,
+    name,
+    title,
     bounds: layout.bounds,
     failed: false,
     color: COLORS[cell.side || "car"],
@@ -46,22 +54,13 @@ export function createActorRecord(
       projection,
       cell.direction,
       cell.side === "police",
+      layout.bounds,
     );
     source.setAttribute("class", "iso-mask-car");
     for (const shadow of source.querySelectorAll(".iso-vehicle-shadow"))
       shadow.remove();
-    source.setAttribute("x", cell.anchor.x - 38);
-    source.setAttribute("y", cell.anchor.y - 50);
-    source.setAttribute("width", 76);
-    source.setAttribute("height", 76);
-    source.style.width = "76px";
-    source.style.height = "76px";
     const geometry = readOpaqueGeometry(source);
     const s = layout.scale;
-    body.setAttribute(
-      "transform",
-      `matrix(${s} 0 0 ${s} ${layout.foot.x - s * cell.anchor.x} ${layout.foot.y - s * cell.anchor.y})`,
-    );
     record.contains = (point) =>
       geometry.contains({
         x: (point.x - layout.foot.x) / s + cell.anchor.x,
@@ -86,11 +85,8 @@ export function createActorRecord(
     body.setAttribute("filter", `url(#${id}-solid)`);
     body.appendChild(
       svgElement("image", {
+        ...layout.bounds,
         href: record.url,
-        x: layout.left,
-        y: layout.top,
-        width: layout.width,
-        height: layout.height,
       }),
     );
     record.alpha = getSpriteAlpha(record.url);
@@ -178,6 +174,10 @@ function appendFilter(defs, actor) {
   return { filter, outer, inner, color };
 }
 
+function allowsOutline(record) {
+  return !record.layout || record.layout.vehicle;
+}
+
 export function rebuildOcclusion(defs, layer, actors, records, selected) {
   layer.innerHTML = "";
   for (const actor of actors) {
@@ -187,7 +187,7 @@ export function rebuildOcclusion(defs, layer, actors, records, selected) {
     actor.failed ||= actor.alpha?.status === "failed";
     actor.occluded = hasActualOcclusion(actor, actor.occluders);
     actor.outline = null;
-    if (!actor.occluded) continue;
+    if (!actor.occluded || !actor.occluders.some(allowsOutline)) continue;
     const b = actor.bounds;
     const mask = svgElement("mask", {
       id: `${actor.id}-hidden`,
@@ -197,11 +197,15 @@ export function rebuildOcclusion(defs, layer, actors, records, selected) {
       y: b.y - 5,
       width: b.width + 10,
       height: b.height + 10,
-      "mask-type": "alpha",
-      style: "mask-type: alpha",
+      "mask-type": "luminance",
     });
+    // Paint the mask in scene order so foreground sprites cover any outline
+    // drawn on objects behind them.
     for (const front of actor.occluders)
-      mask.appendChild(svgElement("use", { href: `#${front.maskId}` }));
+      mask.appendChild(svgElement("use", {
+        href: `#${front.maskId}`,
+        class: allowsOutline(front) ? "iso-outline-mask-white" : "iso-outline-mask-black",
+      }));
     defs.appendChild(mask);
     actor.mask = mask;
     actor.stroke = appendFilter(defs, actor);
@@ -328,22 +332,14 @@ export function renderActorLabels(
         Number(isSelected(b)) - Number(isSelected(a)) || b.index - a.index,
     );
   for (const actor of ordered) {
-    const { cell, layout } = actor;
+    const { cell, layout, name, title } = actor;
     const id = cell.unit?.id || `car-${cell.r}-${cell.c}`;
     const text =
-      cell.side === "animal"
-        ? layout.name === "cow"
-          ? "牛"
-          : "猪"
-        : cell.kind === "car"
-          ? "空车"
-          : actor.failed
-            ? `${cell.side === "police" ? "警察" : "小偷"}${cell.unit.id}`
-            : cell.unit.id;
-    const title =
-      cell.kind === "car"
-        ? "空车"
-        : `${cell.side === "police" ? "警察" : cell.side === "thief" ? "小偷" : text} ${cell.unit.id}${cell.unit.hasMoney ? "，携款" : ""}${cell.unit.state === "CARRYING" ? "，押送小偷" : ""}`;
+      cell.side === "animal" || cell.kind === "car"
+        ? name
+        : actor.failed
+          ? `${name}${cell.unit.id}`
+          : cell.unit.id;
     const icons = [
       cell.unit?.hasMoney ? "money" : null,
       cell.unit?.state === "CARRYING" ? "escort" : null,

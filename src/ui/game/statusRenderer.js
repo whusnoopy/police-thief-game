@@ -1,6 +1,6 @@
 import { els } from "../../app/state.js";
 import { SIGNAL_PHASES, normalizeSignalPhase } from "../../config/constants.js";
-import { renderRoleIcon, renderRoleLabel } from "./roleArtwork.js";
+import { renderRoleLabel } from "./roleArtwork.js";
 
 const DICE_FACES = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 let actionTurn = null;
@@ -9,22 +9,20 @@ let actionTurnLabel = "";
 function setTurnIndicator(turn) {
   const isThief = turn === "THIEF";
   renderRoleLabel(els.turnIndicator, isThief ? "thief" : "police", isThief ? "小偷回合" : "警察回合");
-  renderRoleIcon(els.policeRoleIcon, "police");
-  renderRoleIcon(els.thiefRoleIcon, "thief");
-  els.policeStat.classList.toggle("active", !isThief);
-  els.thiefStat.classList.toggle("active", isThief);
 }
 
-function getSignalLabel(signalPhase) {
-  return normalizeSignalPhase(signalPhase) === SIGNAL_PHASES.PEDESTRIAN_RED
-    ? "行人红灯"
-    : "行人绿灯";
-}
+const SIGNAL_LABELS = {
+  [SIGNAL_PHASES.PEDESTRIAN_GREEN]: "行人绿灯",
+  [SIGNAL_PHASES.PEDESTRIAN_RED]: "行人红灯",
+  [SIGNAL_PHASES.NORTH_SOUTH_GREEN]: "南北向行人绿灯",
+  [SIGNAL_PHASES.EAST_WEST_GREEN]: "东西向行人绿灯",
+};
 
 function setSignalIndicator(signalPhase) {
   if (!els.signalIndicator) return;
-  const isPedestrianRed = normalizeSignalPhase(signalPhase) === SIGNAL_PHASES.PEDESTRIAN_RED;
-  els.signalIndicator.textContent = `🚥 当前：${getSignalLabel(signalPhase)}`;
+  const phase = normalizeSignalPhase(signalPhase);
+  const isPedestrianRed = phase === SIGNAL_PHASES.PEDESTRIAN_RED;
+  els.signalIndicator.textContent = `🚥 当前：${SIGNAL_LABELS[phase]}`;
   els.signalIndicator.classList.toggle("car-go", isPedestrianRed);
   els.signalIndicator.classList.toggle("pedestrian-go", !isPedestrianRed);
 }

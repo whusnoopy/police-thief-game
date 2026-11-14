@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createTestEnvironment } from "./helpers/fakeDom.js";
+import { DIRECTIONAL_SIGNAL_RULES } from "../src/domain/map/mapCompatibility.js";
+import { createNewMapDefinition } from "../src/domain/map/mapModel.js";
 
 const env = createTestEnvironment();
 env.installGlobals();
@@ -23,6 +25,33 @@ function resetMap(type = "GRASS") {
   setMapDefinition(createEmptyMapDefinition());
   renderEditorBoard();
 }
+
+test("editor saves the 20×20 signal option and restores it through undo, redo and clear", () => {
+  initEditor();
+  resetMap();
+  assert.ok(env.elements["signal-rule-controls"].classList.contains("hidden"));
+
+  setMapDefinition(createNewMapDefinition());
+  renderEditorBoard();
+  const checkbox = env.elements["directional-signals"];
+  assert.equal(env.elements["signal-rule-controls"].classList.contains("hidden"), false);
+  assert.equal(checkbox.checked, false);
+  checkbox.checked = true;
+  checkbox.dispatchEvent({ type: "change" });
+  const saved = () => decodeMapDefinition(getMapList().find(map => map.id === getCurrentMapId()).encodedMap);
+  assert.equal(saved().signalRules, DIRECTIONAL_SIGNAL_RULES);
+  undoMap();
+  assert.equal(checkbox.checked, false);
+  assert.equal(saved().signalRules, undefined);
+  redoMap();
+  assert.equal(checkbox.checked, true);
+  clearMap();
+  assert.equal(checkbox.checked, true);
+  assert.equal(saved().signalRules, DIRECTIONAL_SIGNAL_RULES);
+  checkbox.checked = false;
+  checkbox.dispatchEvent({ type: "change" });
+  assert.equal(saved().signalRules, undefined);
+});
 
 test('continuous terrain refreshes after painting, undo and redo without replacing hit targets', () => {
   resetMap();

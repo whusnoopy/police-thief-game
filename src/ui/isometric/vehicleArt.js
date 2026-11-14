@@ -8,10 +8,12 @@ export function appendVehicleArtwork(
   projection,
   direction = "S",
   police = false,
+  bounds = {},
 ) {
   const svg = svgElement("svg", {
+    ...bounds,
     viewBox: `${cell.anchor.x - 38} ${cell.anchor.y - 50} 76 76`,
-    class: "story-sprite unit-art iso-vehicle-art",
+    class: "iso-vehicle-art",
     "data-direction": direction,
     "aria-hidden": "true",
   });

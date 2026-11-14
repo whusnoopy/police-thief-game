@@ -14,7 +14,6 @@ import { createIsometricScene } from "../../src/ui/isometric/sceneModel.js";
 import { svgElement } from "../../src/ui/isometric/artPrimitives.js";
 import { SCENERY_ASSETS } from "../../src/ui/isometric/assetMetadata.js";
 import { ACTOR_ASSETS } from "../../src/ui/isometric/assetMetadata.js";
-import { appendSprite } from "../../src/ui/board/storybookArt.js";
 import {
   renderGround,
   renderBridgeDeck,
@@ -273,20 +272,15 @@ for (const [name, label] of [
     mapDefinition: map,
     signalPhase: "PEDESTRIAN_GREEN",
   });
-  const image = svgElement("foreignObject", {
+  svg.appendChild(svgElement("image", {
+    href: new URL(`../../src/assets/isometric/${name}.webp`, import.meta.url).href,
     x: cell.anchor.x - asset.width * asset.displayScale / 2,
     y: cell.anchor.y - asset.height * asset.foot * asset.displayScale,
     width: asset.width * asset.displayScale,
     height: asset.height * asset.displayScale,
-  });
-  const content = document.createElement("div");
-  content.className = "iso-billboard";
-  image.appendChild(content);
-  svg.appendChild(image);
-  appendSprite(content, name, "unit-art", label, {
-    url: new URL(`../../src/assets/isometric/${name}.webp`, import.meta.url)
-      .href,
-  });
+    role: "img",
+    "aria-label": label,
+  }));
 }
 for (let mask = 0; mask < 16; mask += 1) {
   const map = createRampMapDefinition();

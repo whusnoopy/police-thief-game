@@ -5,6 +5,9 @@ import { createRampScenario } from "./helpers/rampScenario.js";
 import { createGameSession } from "../src/domain/game/sessionFactory.js";
 import { calculateReachableActions } from "../src/domain/rules/moveGenerator.js";
 import { startReachabilityJob } from "../src/features/reachabilityJob.js";
+import { SIGNAL_PHASES } from "../src/config/constants.js";
+import { DIRECTIONAL_SIGNAL_RULES } from "../src/domain/map/mapCompatibility.js";
+import { createNewMapDefinition, setLegacyTileAt } from "../src/domain/map/mapModel.js";
 
 function browserWorkerAdapter() {
   const entry = new URL("../src/workers/reachabilityWorker.js", import.meta.url).href;
@@ -60,7 +63,6 @@ test("production worker matches synchronous ramp search for all orientations, ro
 });
 
 test("20×20 Worker and unavailable or failed Worker fallback match far-edge searches and release cancelled jobs", async () => {
-  const { createNewMapDefinition, setLegacyTileAt } = await import("../src/domain/map/mapModel.js");
   const map=createNewMapDefinition();setLegacyTileAt(map,19,16,"THIEF_SPAWN");
   const session=createGameSession(map),units=session.thiefUnits;
   const payload={session,units,turn:"THIEF",diceValue:2};
@@ -70,4 +72,32 @@ test("20×20 Worker and unavailable or failed Worker fallback match far-edge sea
     assert.deepEqual(results.get("T1"),expected);
   }
   const job=startReachabilityJob({...payload,diceValue:6},()=>null);job.cancel();assert.equal(await job.promise,null);
+});
+
+test("directional signals share the same walking and driving rules in sync, Worker and fallback searches", async () => {
+  const map = createNewMapDefinition();
+  map.signalRules = DIRECTIONAL_SIGNAL_RULES;
+  setLegacyTileAt(map, 10, 10, "THIEF_SPAWN");
+  setLegacyTileAt(map, 9, 10, "CROSSWALK_VERTICAL");
+  setLegacyTileAt(map, 11, 10, "CROSSWALK_HORIZONTAL");
+  setLegacyTileAt(map, 10, 9, "CROSSWALK_HORIZONTAL");
+  setLegacyTileAt(map, 10, 11, "CROSSWALK_VERTICAL");
+  const session = createGameSession(map);
+  const [unit] = session.thiefUnits;
+  for (const [signalPhase, inCar, open] of [
+    [SIGNAL_PHASES.NORTH_SOUTH_GREEN, false, "9,10"],
+    [SIGNAL_PHASES.NORTH_SOUTH_GREEN, true, "11,10"],
+    [SIGNAL_PHASES.EAST_WEST_GREEN, false, "10,9"],
+    [SIGNAL_PHASES.EAST_WEST_GREEN, true, "10,11"],
+  ]) {
+    session.signalPhase = signalPhase;
+    unit.inCar = inCar;
+    const payload = { session, units: [unit], turn: "THIEF", diceValue: 1 };
+    const expected = calculateReachableActions({ ...payload, unit });
+    assert.deepEqual([...expected.keys()].filter(key => ["9,10", "11,10", "10,9", "10,11"].includes(key)), [open]);
+    for (const factory of [browserWorkerAdapter, () => null]) {
+      const results = await startReachabilityJob(payload, factory).promise;
+      assert.deepEqual(results.get(unit.id), expected);
+    }
+  }
 });
