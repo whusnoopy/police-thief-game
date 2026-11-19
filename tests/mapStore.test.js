@@ -6,6 +6,7 @@ import {
   getMapListFromStorage,
   getStoredEncodedMapFromStorage,
   migrateLegacyStorage,
+  migrateTestMapLibrary,
   STORAGE_KEYS,
   setCurrentMapIdToStorage,
 } from "../src/storage/mapStore.js";
@@ -170,4 +171,41 @@ test("migrates v2 local map-list storage to v3 without changing map ids", () => 
   assert.equal(migratedList[0].schemaVersion, 3);
   assert.equal(storage.getItem(STORAGE_KEYS.v2MapList), null);
   assert.ok(storage.getItem(STORAGE_KEYS.mapList));
+});
+
+test("migrates test maps once, retaining the production selection and both sides of an ID conflict", () => {
+  const productionMap = { id: "shared", name: "正式地图", encodedMap: createEncodedMap(), updatedAt: 10 };
+  const testMap = { ...productionMap, name: "测试地图", updatedAt: 20 };
+  const testKey = "police-test:policeThief.maps.v3";
+  const testLibrary = JSON.stringify([testMap]);
+  const storage = createMemoryStorage({
+    [STORAGE_KEYS.mapList]: JSON.stringify([productionMap]),
+    [STORAGE_KEYS.currentMapId]: productionMap.id,
+    [testKey]: testLibrary,
+  });
+
+  migrateTestMapLibrary(storage);
+  const [original, migrated] = getMapListFromStorage(storage);
+  assert.equal(original.id, productionMap.id);
+  assert.equal(original.name, productionMap.name);
+  assert.notEqual(migrated.id, productionMap.id);
+  assert.equal(migrated.name, testMap.name);
+  assert.equal(storage.getItem(STORAGE_KEYS.currentMapId), productionMap.id);
+  assert.equal(storage.getItem(testKey), testLibrary);
+
+  storage.setItem(STORAGE_KEYS.mapList, JSON.stringify([original]));
+  migrateTestMapLibrary(storage);
+  assert.deepEqual(getMapListFromStorage(storage), [original]);
+});
+
+test("migrates the selected test map first when the production library is empty", () => {
+  const first = { id: "first", name: "第一张", encodedMap: createEncodedMap() };
+  const selected = { ...first, id: "selected", name: "当前测试地图" };
+  const storage = createMemoryStorage({
+    "police-test:policeThief.maps.v3": JSON.stringify([first, selected]),
+    "police-test:policeThief.currentMapId": selected.id,
+  });
+
+  migrateTestMapLibrary(storage);
+  assert.deepEqual(getMapListFromStorage(storage).map((record) => record.id), [selected.id, first.id]);
 });

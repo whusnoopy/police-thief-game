@@ -6,6 +6,7 @@ import {
   getCurrentMapIdFromStorage,
   getMapListFromStorage,
   migrateLegacyStorage,
+  migrateTestMapLibrary,
   STORAGE_KEYS,
   setCurrentMapIdToStorage,
   setMapListToStorage,
@@ -45,6 +46,13 @@ function preserveUnreadableStorage(error) {
   storage.protectItem(error.storageKey);
   dataProblem = "部分地图库数据无法读取，原始数据已保留，导出备份会包含原文。";
   renderStorageNotice();
+}
+
+function migrateSavedMaps(storage) {
+  try { migrateLegacyStorage(storage); } catch (error) { preserveUnreadableStorage(error); }
+  if (/^\/police\/?$/.test(window.location.pathname)) {
+    try { migrateTestMapLibrary(storage); } catch (error) { preserveUnreadableStorage(error); }
+  }
 }
 
 function downloadJson(name, value) {
@@ -105,7 +113,7 @@ export function retryMapSave() {
     return JSON.stringify([...bufferedMaps, ...savedMaps.filter((record) => !ids.has(record.id))]);
   });
   if (!recovered) return;
-  try { migrateLegacyStorage(storage); } catch (error) { preserveUnreadableStorage(error); }
+  migrateSavedMaps(storage);
   persistCurrentMap();
 }
 
@@ -313,7 +321,7 @@ export function loadInitialMapIntoState() {
   storageProblem = "";
   dataProblem = "";
   unreadableStorage = {};
-  try { migrateLegacyStorage(getStorage()); } catch (error) { preserveUnreadableStorage(error); }
+  migrateSavedMaps(getStorage());
   const maps = getMapList();
   const currentMap = maps.find((record) => record.id === getCurrentMapId()) || maps[0];
   if (currentMap && !currentMap.isCorrupt) setCurrentMapId(currentMap.id);

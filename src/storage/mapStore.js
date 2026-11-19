@@ -213,6 +213,36 @@ export function migrateLegacyStorage(storage, options = {}) {
   };
 }
 
+export function migrateTestMapLibrary(storage) {
+  const migrationKey = "policeThief.migratedPoliceTestMaps";
+  if (namespace || storage.getItem(migrationKey)) return;
+
+  const testMaps = readMapList(storage, "police-test:policeThief.maps.v3");
+  if (!testMaps.length) return;
+
+  const testCurrentMapId = storage.getItem("police-test:policeThief.currentMapId");
+  const maps = getMapListFromStorage(storage);
+  const recordsById = new Map(maps.map((record) => [record.id, record]));
+  const originalCount = maps.length;
+
+  for (const record of moveCurrentMapToFront(testMaps, testCurrentMapId)) {
+    let id = record.id;
+    for (let suffix = 1; recordsById.has(id); suffix += 1) {
+      const existing = recordsById.get(id);
+      if (existing.name === record.name && existing.encodedMap === record.encodedMap &&
+        JSON.stringify(existing.rawRecord) === JSON.stringify(record.rawRecord)) break;
+      id = `${record.id}_police-test_${suffix}`;
+    }
+    if (recordsById.has(id)) continue;
+    const imported = { ...record, id };
+    recordsById.set(id, imported);
+    maps.push(imported);
+  }
+
+  if (maps.length > originalCount) setMapListToStorage(storage, maps);
+  storage.setItem(migrationKey, "1");
+}
+
 export function getStoredEncodedMapFromStorage(storage) {
   const mapList = getMapListFromStorage(storage);
   const currentMapId = getCurrentMapIdFromStorage(storage);
