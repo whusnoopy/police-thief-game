@@ -142,6 +142,17 @@ const CONTINUOUS_HELP = {
   POLICE_STATION: { summary: "警察专属的交付地点。", details: ["只有警察可进入。", "押送到位后点击交付，另付 1 点，再次恢复抓捕能力。", "驾车到达需先下车 1 点、再交付 1 点。"] },
 };
 
+const DIRECTIONAL_SIGNAL_HELP = {
+  CROSSWALK_HORIZONTAL: {
+    summary: "东西向斑马线（方向灯模式）。",
+    details: ["东西向通行时，步行可沿东西向通过。", "南北向通行时，车辆可沿南北向通过。", "已停在斑马线上可沿通行轴离开；步行 1 步，开车基础费用 0.5 点。"],
+  },
+  CROSSWALK_VERTICAL: {
+    summary: "南北向斑马线（方向灯模式）。",
+    details: ["南北向通行时，步行可沿南北向通过。", "东西向通行时，车辆可沿东西向通过。", "已停在斑马线上可沿通行轴离开；步行 1 步，开车基础费用 0.5 点。"],
+  },
+};
+
 function getFallbackHelp() {
   return {
     summary: "基础地块。",
@@ -149,8 +160,11 @@ function getFallbackHelp() {
   };
 }
 
-function renderTileHelpPanel(panel, type, continuousRules = false) {
-  const help = (continuousRules && CONTINUOUS_HELP[type.id]) || TILE_HELP[type.id] || getFallbackHelp(type);
+function renderTileHelpPanel(panel, type, continuousRules = false, directionalSignals = false) {
+  const help = (directionalSignals && DIRECTIONAL_SIGNAL_HELP[type.id])
+    || (continuousRules && CONTINUOUS_HELP[type.id])
+    || TILE_HELP[type.id]
+    || getFallbackHelp(type);
   panel.innerHTML = "";
   panel.dataset.type = type.id;
 
@@ -173,12 +187,12 @@ function renderTileHelpPanel(panel, type, continuousRules = false) {
   panel.append(title, summary, detailList);
 }
 
-function createTileHelpPanel(type, continuousRules) {
+function createTileHelpPanel(type, continuousRules, directionalSignals) {
   const panel = document.createElement("div");
   panel.id = "tile-help-panel";
   panel.className = "tile-help-panel";
   panel.setAttribute("aria-live", "polite");
-  renderTileHelpPanel(panel, type, continuousRules);
+  renderTileHelpPanel(panel, type, continuousRules, directionalSignals);
   return panel;
 }
 
@@ -268,19 +282,19 @@ function createPaletteGroup(
   return details;
 }
 
-export function renderPalette(container, { tileTypes, currentPaletteType, onSelect, rampRules = false, continuousRules = false }) {
+export function renderPalette(container, { tileTypes, currentPaletteType, onSelect, rampRules = false, continuousRules = false, directionalSignals = false }) {
   container.innerHTML = "";
 
   const typeById = new Map(tileTypes.map((type) => [type.id, type]));
   const groupedIds = new Set();
   let selectedTileType = typeById.has(currentPaletteType) ? currentPaletteType : tileTypes[0]?.id;
   const initialTileType = typeById.get(selectedTileType) || tileTypes[0];
-  const helpPanel = createTileHelpPanel(initialTileType, continuousRules);
+  const helpPanel = createTileHelpPanel(initialTileType, continuousRules, directionalSignals);
 
   function previewTileHelp(typeId) {
     const type = typeById.get(typeId);
     if (type) {
-      renderTileHelpPanel(helpPanel, type, continuousRules);
+      renderTileHelpPanel(helpPanel, type, continuousRules, directionalSignals);
       if (rampRules && typeId === "OVERPASS") {
         const extra = document.createElement("span");
         extra.textContent = "桥面不能直接进出相邻地面，请使用有方向的上下桥格。";

@@ -1,18 +1,28 @@
-import { getCrosswalkOrientation, isCrosswalkPedestrianGreen } from "../../domain/map/crosswalk.js";
+import {
+  getCrosswalkOrientation,
+  getCrosswalkSignalPositions,
+  isCrosswalkPedestrianGreen,
+} from "../../domain/map/crosswalk.js";
 import { createPainter, svgElement } from "./artPrimitives.js";
 
 // Both heads face across the crossing, toward pedestrians at the opposite end.
-export function getCrosswalkSignalSpecs(tileType) {
+// Adjacent same-orientation crosswalks along the pedestrian axis merge into one
+// continuous crossing, keeping poles only at the two outer ends.
+export function getCrosswalkSignalSpecs(tileType, context = null) {
   const orientation = getCrosswalkOrientation(tileType);
   if (!orientation) return [];
   const horizontal = orientation === "HORIZONTAL";
-  return [-1, 1].map((sign) => ({
-    localR: horizontal ? 0.39 : sign * 0.44,
-    localC: horizontal ? sign * 0.44 : 0.39,
-    dr: horizontal ? 0 : -sign,
-    dc: horizontal ? -sign : 0,
-    direction: horizontal ? (sign < 0 ? "E" : "W") : sign < 0 ? "S" : "N",
-  }));
+  return getCrosswalkSignalPositions(tileType, context).map((position) => {
+    const sign = position === "left" || position === "top" ? -1 : 1;
+    return {
+      position,
+      localR: horizontal ? 0.39 : sign * 0.44,
+      localC: horizontal ? sign * 0.44 : 0.39,
+      dr: horizontal ? 0 : -sign,
+      dc: horizontal ? -sign : 0,
+      direction: horizontal ? (sign < 0 ? "E" : "W") : sign < 0 ? "S" : "N",
+    };
+  });
 }
 
 export function renderCrosswalkSignal(parent, cell, projection, signalPhase) {

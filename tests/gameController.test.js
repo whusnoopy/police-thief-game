@@ -34,6 +34,24 @@ test("crosswalk signal lights rerender on signal phase change", () => {
   assert.equal(env.elements["game-board"].querySelectorAll(".red").length, 2);
 });
 
+test("adjacent same-axis crosswalks omit interior signal lights in topdown view too", () => {
+  const mapDefinition = createEmptyMapDefinition();
+  setLegacyTileAt(mapDefinition, 0, 0, "POLICE_SPAWN");
+  setLegacyTileAt(mapDefinition, 0, 5, "THIEF_SPAWN");
+  setLegacyTileAt(mapDefinition, 0, 1, "CROSSWALK_HORIZONTAL");
+  setLegacyTileAt(mapDefinition, 0, 2, "CROSSWALK_HORIZONTAL");
+  setLegacyTileAt(mapDefinition, 0, 3, "CROSSWALK_HORIZONTAL");
+
+  gameController.init(mapDefinition);
+
+  const sidesAt = (c) => env.document.getElementById(`game-cell-0-${c}`)
+    .querySelectorAll(".signal-light")
+    .map((light) => (light.classList.contains("left") ? "left" : "right"));
+  assert.deepEqual(sidesAt(1), ["left"]);
+  assert.deepEqual(sidesAt(2), []);
+  assert.deepEqual(sidesAt(3), ["right"]);
+});
+
 test("directional crossing lights and status alternate together after full police turns", () => {
   const map = createNewMapDefinition();
   map.signalRules = DIRECTIONAL_SIGNAL_RULES;
@@ -42,23 +60,26 @@ test("directional crossing lights and status alternate together after full polic
   gameController.boardMode = "isometric";
   try {
     gameController.init(map);
-    const check = (direction, horizontal, vertical) => {
+    const check = (direction, horizontal, vertical, phaseClass) => {
       const signals = els.gameBoard.querySelectorAll(".iso-crosswalk-signal");
       assert.match(els.signalIndicator.textContent, direction);
+      assert.equal(els.signalIndicator.classList.contains(phaseClass), true);
+      assert.equal(els.signalIndicator.classList.contains("pedestrian-go"), false);
+      assert.equal(els.signalIndicator.classList.contains("car-go"), false);
       for (const signal of signals) {
         const axis = ["E", "W"].includes(signal.attributes["data-facing"]) ? horizontal : vertical;
         assert.equal(signal.classList.contains(axis), true);
       }
       assert.equal(signals.length, 4);
     };
-    check(/南北向行人绿灯/, "red", "green");
+    check(/南北向通行/, "red", "green", "north-south-go");
     gameController.advanceTurn();
-    check(/南北向行人绿灯/, "red", "green");
+    check(/南北向通行/, "red", "green", "north-south-go");
     gameController.advanceTurn();
-    check(/东西向行人绿灯/, "green", "red");
+    check(/东西向通行/, "green", "red", "east-west-go");
     gameController.advanceTurn();
     gameController.advanceTurn();
-    check(/南北向行人绿灯/, "red", "green");
+    check(/南北向通行/, "red", "green", "north-south-go");
     assert.equal(gameController.session.revision, 2);
   } finally {
     gameController.dispose();

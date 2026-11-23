@@ -26,6 +26,7 @@ import {
 } from "../../src/ui/isometric/sceneryArt.js";
 import { appendVehicleArtwork } from "../../src/ui/isometric/vehicleArt.js";
 import { renderCrosswalkSignal } from "../../src/ui/isometric/signalArt.js";
+import { renderParkingSign } from "../../src/ui/isometric/parkingArt.js";
 import { createIsometricGameView } from "../../src/ui/isometric/isometricRenderer.js";
 
 const projection = createIsometricProjection();
@@ -180,6 +181,8 @@ function context(
   for (const current of objects) {
     if (current.kind === "signal")
       renderCrosswalkSignal(svg, current, projection, signalPhase);
+    if (current.kind === "parking-sign")
+      renderParkingSign(svg, current, projection);
     if (current.kind === "bridge") {
       renderBridgeDeck(svg, current, projection, map);
       if (vehicle && current.r === center.r && current.c === center.c) {

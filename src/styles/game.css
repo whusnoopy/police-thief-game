@@ -219,12 +219,17 @@
   font-weight: 700;
 }
 
-.signal-indicator.pedestrian-go {
+.signal-indicator.pedestrian-go,
+.signal-indicator.north-south-go {
   color: #1f8f46;
 }
 
 .signal-indicator.car-go {
   color: #d35400;
+}
+
+.signal-indicator.east-west-go {
+  color: #1d6fa5;
 }
 
 .dice-panel {

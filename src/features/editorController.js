@@ -342,7 +342,8 @@ function paintPlacement(r, c) {
 function syncEditorPalette(force = false) {
   const rampRules = usesRampRules(state.mapDefinition);
   const continuousRules = usesContinuousActions(state.mapDefinition);
-  const paletteKey = `${rampRules}:${continuousRules}`;
+  const directionalSignals = state.mapDefinition.signalRules === DIRECTIONAL_SIGNAL_RULES;
+  const paletteKey = `${rampRules}:${continuousRules}:${directionalSignals}`;
   if (!force && paletteRuleset === paletteKey) return;
   cancelPaletteShortcut();
   paletteRuleset = paletteKey;
@@ -352,6 +353,7 @@ function syncEditorPalette(force = false) {
     currentPaletteType: state.currentPaletteType,
     rampRules,
     continuousRules,
+    directionalSignals,
     onSelect(typeId, item) {
       clearPlacementPreview();
       els.palette.querySelectorAll(".palette-item").forEach((paletteItem) => {
@@ -433,6 +435,8 @@ export function initEditor() {
     const before = cloneMapDefinition(state.mapDefinition);
     if (els.directionalSignals.checked) state.mapDefinition.signalRules = DIRECTIONAL_SIGNAL_RULES;
     else delete state.mapDefinition.signalRules;
+    syncEditorPalette();
+    syncPaletteRequirementStatus();
     recordEdit(before);
   });
 }

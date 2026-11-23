@@ -18,7 +18,7 @@ export function createGameBoardView(container, options) {
         decorateCell(cell, { r, c, display }) {
           if (isCrosswalkTileType(display.tileType)) {
             const color = isCrosswalkPedestrianGreen(display.tileType, session.signalPhase) ? "green" : "red";
-            for (const position of getCrosswalkSignalPositions(display.tileType)) {
+            for (const position of getCrosswalkSignalPositions(display.tileType, { mapDefinition: session.mapDefinition, r, c })) {
               const light = document.createElement("span");
               light.className = `signal-light ${position} ${color}`;
               cell.appendChild(light);

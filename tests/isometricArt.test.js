@@ -320,6 +320,48 @@ test("crossing poles face pedestrians on the correct axis, with lit fronts and o
   }
 });
 
+test("adjacent same-orientation crosswalks along the pedestrian axis share outer poles only", () => {
+  // Three horizontal crosswalks in a row merge into one crossing with poles only on the far W and E ends.
+  const horizontalMap = createRampMapDefinition();
+  for (const c of [4, 5, 6]) setLegacyTileAt(horizontalMap, 4, c, "CROSSWALK_HORIZONTAL");
+  const horizontalSignals = createIsometricScene(createGameSession(horizontalMap), projection)
+    .objects.filter((o) => o.kind === "signal")
+    .map((o) => ({ r: o.r, c: o.c, direction: o.signal.direction }));
+  assert.deepEqual(horizontalSignals, [
+    { r: 4, c: 4, direction: "E" },
+    { r: 4, c: 6, direction: "W" },
+  ]);
+
+  // Three vertical crosswalks in a column merge into one crossing with poles only on the far N and S ends.
+  const verticalMap = createRampMapDefinition();
+  for (const r of [4, 5, 6]) setLegacyTileAt(verticalMap, r, 4, "CROSSWALK_VERTICAL");
+  const verticalSignals = createIsometricScene(createGameSession(verticalMap), projection)
+    .objects.filter((o) => o.kind === "signal")
+    .map((o) => ({ r: o.r, c: o.c, direction: o.signal.direction }));
+  assert.deepEqual(verticalSignals, [
+    { r: 4, c: 4, direction: "S" },
+    { r: 6, c: 4, direction: "N" },
+  ]);
+
+  // Parallel lanes (side-by-side perpendicular to walking axis) and mismatched orientations keep all poles.
+  const unmergedMap = createRampMapDefinition();
+  setLegacyTileAt(unmergedMap, 4, 4, "CROSSWALK_HORIZONTAL");
+  setLegacyTileAt(unmergedMap, 5, 4, "CROSSWALK_HORIZONTAL");
+  setLegacyTileAt(unmergedMap, 4, 5, "CROSSWALK_VERTICAL");
+  const unmergedSignals = createIsometricScene(createGameSession(unmergedMap), projection)
+    .objects.filter((o) => o.kind === "signal")
+    .map((o) => `${o.r},${o.c}:${o.signal.direction}`)
+    .sort();
+  assert.deepEqual(unmergedSignals, [
+    "4,4:E",
+    "4,4:W",
+    "4,5:N",
+    "4,5:S",
+    "5,4:E",
+    "5,4:W",
+  ]);
+});
+
 test("signal poles interleave with occupants at their actual bases without changing logical cells", () => {
   for (const type of ["CROSSWALK_HORIZONTAL", "CROSSWALK_VERTICAL"]) {
     const { map } = makeCell(type);

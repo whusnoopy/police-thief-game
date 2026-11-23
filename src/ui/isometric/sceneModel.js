@@ -18,7 +18,7 @@ export function createIsometricScene(session, projection, { unitDirections = new
     cell.anchor = projectSurfacePoint(cell, 0, 0, projection);
     cells.push(cell);
     cellsByPosition.set(`${r},${c}`, cell);
-    for (const signal of getCrosswalkSignalSpecs(cell.tileType)) {
+    for (const signal of getCrosswalkSignalSpecs(cell.tileType, { mapDefinition: session.mapDefinition, r, c })) {
       objects.push({ ...cell, kind: "signal", signal, depthR: r + signal.localR, depthC: c + signal.localC, order: 2 });
     }
     if (cell.tileType === "PARKING") {

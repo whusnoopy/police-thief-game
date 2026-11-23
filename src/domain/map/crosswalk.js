@@ -1,5 +1,6 @@
 import { SIGNAL_PHASES, normalizeSignalPhase } from "../../config/constants.js";
 import { DIRECTIONAL_SIGNAL_RULES } from "./mapCompatibility.js";
+import { isWithinMap } from "./mapDimensions.js";
 
 const STANDARD_PHASES = Object.freeze([SIGNAL_PHASES.PEDESTRIAN_GREEN, SIGNAL_PHASES.PEDESTRIAN_RED]);
 const DIRECTIONAL_PHASES = Object.freeze([SIGNAL_PHASES.NORTH_SOUTH_GREEN, SIGNAL_PHASES.EAST_WEST_GREEN]);
@@ -38,17 +39,32 @@ export function isCrosswalkTileType(tileType) {
   return getCrosswalkOrientation(tileType) !== null;
 }
 
-export function getCrosswalkSignalPositions(tileType) {
+function hasSameCrosswalkAt(mapDefinition, r, c, orientation) {
+  if (!mapDefinition || !isWithinMap(mapDefinition, r, c)) return false;
+  if ((mapDefinition.features || []).some((feature) => feature.position.r === r && feature.position.c === c)) return false;
+  if ((mapDefinition.spawns?.police || []).some((position) => position.r === r && position.c === c)) return false;
+  if ((mapDefinition.spawns?.thief || []).some((position) => position.r === r && position.c === c)) return false;
+  return getCrosswalkOrientation(mapDefinition.terrain?.[r]?.[c]) === orientation;
+}
+
+export function getCrosswalkSignalPositions(tileType, context = null) {
   const orientation = getCrosswalkOrientation(tileType);
-  if (orientation === "HORIZONTAL") {
-    return ["left", "right"];
+  if (!orientation) return [];
+  const ends = orientation === "HORIZONTAL"
+    ? [
+        { position: "left", dr: 0, dc: -1 },
+        { position: "right", dr: 0, dc: 1 },
+      ]
+    : [
+        { position: "top", dr: -1, dc: 0 },
+        { position: "bottom", dr: 1, dc: 0 },
+      ];
+  if (!context?.mapDefinition || !Number.isInteger(context.r) || !Number.isInteger(context.c)) {
+    return ends.map((end) => end.position);
   }
-
-  if (orientation === "VERTICAL") {
-    return ["top", "bottom"];
-  }
-
-  return [];
+  return ends
+    .filter(({ dr, dc }) => !hasSameCrosswalkAt(context.mapDefinition, context.r + dr, context.c + dc, orientation))
+    .map((end) => end.position);
 }
 
 function isPedestrianGreen(orientation, phase) {

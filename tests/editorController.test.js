@@ -32,25 +32,32 @@ test("editor saves the 20×20 signal option and restores it through undo, redo a
   assert.ok(env.elements["signal-rule-controls"].classList.contains("hidden"));
 
   setMapDefinition(createNewMapDefinition());
+  state.currentPaletteType = "CROSSWALK_HORIZONTAL";
   renderEditorBoard();
   const checkbox = env.elements["directional-signals"];
+  const helpText = () => env.elements.palette.querySelectorAll("#tile-help-panel")[0]?.textContent || "";
   assert.equal(env.elements["signal-rule-controls"].classList.contains("hidden"), false);
   assert.equal(checkbox.checked, false);
+  assert.match(helpText(), /行人绿灯时/);
   checkbox.checked = true;
   checkbox.dispatchEvent({ type: "change" });
   const saved = () => decodeMapDefinition(getMapList().find(map => map.id === getCurrentMapId()).encodedMap);
   assert.equal(saved().signalRules, DIRECTIONAL_SIGNAL_RULES);
+  assert.match(helpText(), /东西向通行时/);
   undoMap();
   assert.equal(checkbox.checked, false);
   assert.equal(saved().signalRules, undefined);
+  assert.match(helpText(), /行人绿灯时/);
   redoMap();
   assert.equal(checkbox.checked, true);
+  assert.match(helpText(), /东西向通行时/);
   clearMap();
   assert.equal(checkbox.checked, true);
   assert.equal(saved().signalRules, DIRECTIONAL_SIGNAL_RULES);
   checkbox.checked = false;
   checkbox.dispatchEvent({ type: "change" });
   assert.equal(saved().signalRules, undefined);
+  assert.match(helpText(), /行人绿灯时/);
 });
 
 test('continuous terrain refreshes after painting, undo and redo without replacing hit targets', () => {

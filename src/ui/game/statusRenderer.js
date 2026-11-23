@@ -14,17 +14,18 @@ function setTurnIndicator(turn) {
 const SIGNAL_LABELS = {
   [SIGNAL_PHASES.PEDESTRIAN_GREEN]: "行人绿灯",
   [SIGNAL_PHASES.PEDESTRIAN_RED]: "行人红灯",
-  [SIGNAL_PHASES.NORTH_SOUTH_GREEN]: "南北向行人绿灯",
-  [SIGNAL_PHASES.EAST_WEST_GREEN]: "东西向行人绿灯",
+  [SIGNAL_PHASES.NORTH_SOUTH_GREEN]: "南北向通行",
+  [SIGNAL_PHASES.EAST_WEST_GREEN]: "东西向通行",
 };
 
 function setSignalIndicator(signalPhase) {
   if (!els.signalIndicator) return;
   const phase = normalizeSignalPhase(signalPhase);
-  const isPedestrianRed = phase === SIGNAL_PHASES.PEDESTRIAN_RED;
   els.signalIndicator.textContent = `🚥 当前：${SIGNAL_LABELS[phase]}`;
-  els.signalIndicator.classList.toggle("car-go", isPedestrianRed);
-  els.signalIndicator.classList.toggle("pedestrian-go", !isPedestrianRed);
+  els.signalIndicator.classList.toggle("pedestrian-go", phase === SIGNAL_PHASES.PEDESTRIAN_GREEN);
+  els.signalIndicator.classList.toggle("car-go", phase === SIGNAL_PHASES.PEDESTRIAN_RED);
+  els.signalIndicator.classList.toggle("north-south-go", phase === SIGNAL_PHASES.NORTH_SOUTH_GREEN);
+  els.signalIndicator.classList.toggle("east-west-go", phase === SIGNAL_PHASES.EAST_WEST_GREEN);
 }
 
 function setActionButtons({ rollHidden = false, rollDisabled = false, skipHidden = true, selectionHidden = true } = {}) {
