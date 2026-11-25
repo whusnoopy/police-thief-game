@@ -4,7 +4,7 @@ import { encodeMapDefinition } from "../src/domain/map/mapCodec.js";
 import { createEmptyMapDefinition, setLegacyTileAt } from "../src/domain/map/mapModel.js";
 import { resolveInitialMapLoad } from "../src/storage/mapLoadPlan.js";
 import { encodeLegacyMapDefinition } from "./helpers/legacyPayload.js";
-import { EXAMPLE_MAP_NAME, createExampleMap } from "../src/domain/map/exampleMap.js";
+import { createBuiltInMap } from "../src/domain/map/builtInMaps.js";
 
 function createEncodedMap(mutator) {
   const mapDefinition = createEmptyMapDefinition();
@@ -83,22 +83,27 @@ test("falls back to an empty map when neither storage nor url is usable", () => 
 
 test("a named example loads as a separate map, while a matching saved example can be reopened",()=>{
   const savedEncodedMap=createEncodedMap(map=>setLegacyTileAt(map,0,0,"BANK"));
-  const result=resolveInitialMapLoad({savedEncodedMap,exampleId:"river-city"});
-  assert.equal(result.source,"example");assert.equal(result.forceNewMap,true);
-  assert.equal(result.mapDefinition.meta.name,EXAMPLE_MAP_NAME);assert.equal(result.mapDefinition.spawns.thief.length,2);
-  assert.equal(resolveInitialMapLoad({savedEncodedMap:encodeMapDefinition(createExampleMap()),exampleId:"river-city"}).forceNewMap,false);
   const many = resolveInitialMapLoad({ savedEncodedMap, exampleId: "river-city-many" });
   assert.equal(many.source, "example");
   assert.equal(many.forceNewMap, true);
+  assert.equal(many.mapDefinition.actionRules, "continuous");
   assert.equal(many.mapDefinition.spawns.thief.length, 8);
+  assert.equal(
+    resolveInitialMapLoad({
+      savedEncodedMap: encodeMapDefinition(createBuiltInMap("river-city-many")),
+      exampleId: "river-city-many",
+    }).forceNewMap,
+    false,
+  );
   const duel = resolveInitialMapLoad({ exampleId: "river-city-duel" });
   assert.equal(duel.source, "example");
   assert.equal(duel.mapDefinition.actionRules, "continuous");
   assert.equal(duel.mapDefinition.spawns.thief.length, 2);
 });
 
-test("explicit shared maps take precedence over examples and unknown example names preserve the saved map",()=>{
+test("explicit shared maps take precedence over examples and retired or unknown example names preserve the saved map",()=>{
   const sharedEncodedMap=createEncodedMap(map=>setLegacyTileAt(map,4,4,"BANK"));
-  assert.equal(resolveInitialMapLoad({sharedEncodedMap,exampleId:"river-city"}).source,"url");
+  assert.equal(resolveInitialMapLoad({sharedEncodedMap,exampleId:"river-city-duel"}).source,"url");
+  assert.equal(resolveInitialMapLoad({savedEncodedMap:sharedEncodedMap,exampleId:"river-city"}).source,"storage");
   assert.equal(resolveInitialMapLoad({savedEncodedMap:sharedEncodedMap,exampleId:"unknown"}).source,"storage");
 });

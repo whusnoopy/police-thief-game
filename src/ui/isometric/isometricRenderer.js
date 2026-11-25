@@ -1,10 +1,9 @@
 import { getMapDimensions } from "../../domain/map/mapDimensions.js";
 import { TILE_TYPES } from "../../config/constants.js";
 import { BRIDGE_DIRECTIONS, isBridgeTileType } from "../../domain/map/bridgeTopology.js";
-import { createIsometricScene } from "./sceneModel.js";
-import { createIsometricProjection, pickSurface, projectPoint, projectSurfacePoint } from "./projection.js";
+import { createIsometricDynamicObjects, createIsometricStaticScene } from "./sceneModel.js";
+import { compareSceneDepth, createIsometricProjection, pickSurface, projectPoint, projectSurfacePoint } from "./projection.js";
 
-import { SCENERY_ASSETS } from "./assetMetadata.js";
 import { svgElement, polygon, line } from "./artPrimitives.js";
 import { renderScenery, renderSceneryShadow } from "./sceneryArt.js";
 import { renderGround, renderBridgeDeck, renderBridgeRails, renderBridgeShadow } from "./terrainArt.js";
@@ -12,7 +11,7 @@ import { appendVehicleArtwork } from "./vehicleArt.js";
 import { renderCrosswalkSignal } from "./signalArt.js";
 import { renderParkingSign } from "./parkingArt.js";
 import { getActorLayout } from "./actorLayout.js";
-import { createActorRecord, rebuildOcclusion, renderActorLabels, updateOutlineSelection } from "./occlusionLayer.js";
+import { appendSolidAlphaFilter, createActorRecord, rebuildOcclusion, renderActorLabels, updateOutlineSelection } from "./occlusionLayer.js";
 import { pickOccludedActor, readOpaqueGeometry } from "./occlusionGeometry.js";
 
 let nextSceneId = 0;
@@ -20,9 +19,11 @@ const DETAIL_TILE_WIDTH = 112;
 
 export function createIsometricGameView(container, { viewState, onCellClick, onCellHover, onLeave, unitDirections, vehicleDirections }) {
   let projection = createIsometricProjection();
-  let scene, svg, viewport, stage, overlay, resizeObserver, geometry, defs, outlines, labels;
+  let scene, svg, viewport, stage, objectsLayer, overlay, resizeObserver, geometry, defs, outlines, labels;
   let cellMap = new Map();
-  let records = [], actors = [], disposed = false, refreshPending = false, frameId = null;
+  let staticEntries = [], dynamicGroups = [], records = [], actors = [];
+  let renderedMapDefinition = null, renderedSignalPhase = null, scenePrefix = "", solidFilterId = "", nextActorId = 0;
+  let disposed = false, refreshPending = false, frameId = null;
   let selectable = [], reachable = [], selected = null, path = [], lastHover = null;
   let pointerType = "mouse", drag = null, suppressClick = false;
   let touchPress = null;
@@ -183,12 +184,114 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
     }
   }
 
+  function disposeDynamicActors() {
+    for (const actor of actors) actor.dispose();
+    for (const group of dynamicGroups) group.remove();
+    actors = [];
+    dynamicGroups = [];
+  }
+
+  function createDynamicActorGroup(cell, index) {
+    const id = `${scenePrefix}-actor-${++nextActorId}`;
+    const group = svgElement("g", { class: `iso-object iso-${cell.kind}`, "data-r": cell.r, "data-c": cell.c });
+    const layout = getActorLayout(cell, projection);
+    group.setAttribute("data-placement", layout.placement);
+    group.setAttribute("data-scale", layout.scale);
+    const actor = createActorRecord(defs, cell, layout, projection, id, index, scheduleOcclusion, solidFilterId);
+    if (cell.unit) group.setAttribute("data-id", cell.unit.id);
+    group.setAttribute("role", "img");
+    group.setAttribute("aria-label", actor.title);
+    group.appendChild(svgElement("title", {}, actor.title));
+    // Keep actor artwork in SVG coordinates: WebKit can mispaint HTML in
+    // foreignObject when the board's viewBox is scaled.
+    if (layout.vehicle) {
+      appendVehicleArtwork(group, cell, projection, cell.direction, cell.side === "police", layout.bounds);
+    } else {
+      group.appendChild(svgElement("ellipse", {
+        class: `iso-actor-shadow ${cell.side}`,
+        cx: layout.foot.x, cy: layout.foot.y,
+        rx: layout.width * 0.31, ry: layout.height * 0.1,
+        "aria-hidden": "true",
+      }));
+      const image = svgElement("image", { ...layout.bounds, href: actor.url });
+      image.addEventListener("error", () => { actor.failed = true; scheduleOcclusion(); });
+      group.appendChild(image);
+    }
+    const hit = svgElement("rect", {
+      ...layout.bounds, class: "iso-actor-hit", fill: "none", "pointer-events": "all", "aria-hidden": "true",
+    });
+    group.appendChild(hit);
+    bindActorTarget(hit, cell, actor);
+    return { group, actor };
+  }
+
+  function updateSignalArtwork(signalPhase) {
+    if (signalPhase === renderedSignalPhase) return;
+    renderedSignalPhase = signalPhase;
+    for (const entry of staticEntries) {
+      if (entry.cell.kind !== "signal") continue;
+      entry.art.innerHTML = "";
+      renderCrosswalkSignal(entry.art, entry.cell, projection, signalPhase);
+      Object.assign(entry, readOpaqueGeometry(entry.art));
+    }
+  }
+
+  function syncDynamicObjects(session) {
+    cancelScheduledOcclusion();
+    disposeDynamicActors();
+    updateSignalArtwork(session.signalPhase);
+    const dynamicObjects = createIsometricDynamicObjects(session, cellMap, projection, { unitDirections, vehicleDirections });
+    records = [];
+    const mergedCells = [];
+    let s = 0, d = 0;
+    while (s < staticEntries.length || d < dynamicObjects.length) {
+      const takeStatic = d >= dynamicObjects.length ||
+        (s < staticEntries.length && compareSceneDepth(staticEntries[s].cell, dynamicObjects[d]) <= 0);
+      const index = records.length;
+      if (takeStatic) {
+        const entry = staticEntries[s++];
+        entry.index = index;
+        records.push(entry);
+        mergedCells.push(entry.cell);
+      } else {
+        const cell = dynamicObjects[d++];
+        const { group, actor } = createDynamicActorGroup(cell, index);
+        const anchor = staticEntries[s]?.group || null;
+        if (anchor) objectsLayer.insertBefore(group, anchor);
+        else objectsLayer.appendChild(group);
+        dynamicGroups.push(group);
+        actors.push(actor);
+        records.push(actor);
+        mergedCells.push(cell);
+      }
+    }
+    scene.objects = mergedCells;
+    refreshOcclusion();
+  }
+
   return {
+    canUpdate(session) {
+      return Boolean(!disposed && svg && renderedMapDefinition && session?.mapDefinition === renderedMapDefinition);
+    },
+    update(session) {
+      if (!this.canUpdate(session)) {
+        this.render(session);
+        return;
+      }
+      syncDynamicObjects(session);
+      drawHighlights();
+    },
     render(session) {
       cancelScheduledOcclusion();
-      for (const actor of actors) actor.unsubscribe();
-      records = []; actors = []; disposed = false;
-      const prefix = `iso-scene-${++nextSceneId}`;
+      disposeDynamicActors();
+      resizeObserver?.disconnect();
+      resizeObserver = null;
+      staticEntries = []; records = []; disposed = false;
+      scenePrefix = `iso-scene-${++nextSceneId}`;
+      solidFilterId = `${scenePrefix}-solid`;
+      nextActorId = 0;
+      renderedMapDefinition = session.mapDefinition;
+      renderedSignalPhase = session.signalPhase;
       container.className = "board iso-board";
       container.style.backgroundImage = "none";
       container.innerHTML = "";
@@ -201,8 +304,9 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
         viewState.centerX = projection.width / 2;
         viewState.centerY = projection.height / 2;
       }
-      scene = createIsometricScene(session, projection, { unitDirections, vehicleDirections });
-      cellMap = new Map(scene.cells.map((cell) => [`${cell.r},${cell.c}`, cell]));
+      const staticScene = createIsometricStaticScene(session.mapDefinition, projection);
+      scene = { cells: staticScene.cells, objects: [] };
+      cellMap = staticScene.cellsByPosition;
       viewport = document.createElement("div");
       viewport.className = "iso-viewport";
       viewport.style.aspectRatio = `${projection.width} / ${projection.height}`;
@@ -216,66 +320,35 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
       container.appendChild(viewport);
       const ground = svgElement("g", { class: "iso-ground", "pointer-events": "none" });
       const shadows = svgElement("g", { class: "iso-shadows", "pointer-events": "none" });
-      const objects = svgElement("g", { class: "iso-objects", "pointer-events": "none" });
+      objectsLayer = svgElement("g", { class: "iso-objects", "pointer-events": "none" });
       overlay = svgElement("g", { class: "iso-overlays", "pointer-events": "none" });
       defs = svgElement("defs");
+      appendSolidAlphaFilter(defs, solidFilterId);
       outlines = svgElement("g", { class: "iso-occlusions", "pointer-events": "none" });
       labels = svgElement("g", { class: "iso-actor-labels", "pointer-events": "none" });
-      svg.append(defs, ground, shadows, objects, overlay, outlines, labels);
+      svg.append(defs, ground, shadows, objectsLayer, overlay, outlines, labels);
       for (const cell of scene.cells) if (!isBridgeTileType(cell.tileType)) renderGround(ground, cell, projection, session);
-      for (const cell of scene.objects) {
+      for (const cell of staticScene.objects) {
         if (cell.kind === "scenery") renderSceneryShadow(shadows, cell, projection);
         if (cell.kind === "bridge") renderBridgeShadow(shadows, cell, projection);
       }
-      for (const [index, cell] of scene.objects.entries()) {
-        const id = `${prefix}-object-${index}`;
+      for (const [index, cell] of staticScene.objects.entries()) {
+        const id = `${scenePrefix}-static-${index}`;
         const group = svgElement("g", { class: `iso-object iso-${cell.kind}`, "data-r": cell.r, "data-c": cell.c });
-        objects.appendChild(group);
-        if (cell.kind !== "unit" && cell.kind !== "car") {
-          const art = svgElement("g", { id });
-          group.appendChild(art);
-          if (cell.kind === "bridge") renderBridgeDeck(art, cell, projection, session.mapDefinition);
-          if (cell.kind === "bridge-front") renderBridgeRails(art, cell, projection, session.mapDefinition, true);
-          if (cell.kind === "signal") renderCrosswalkSignal(art, cell, projection, session.signalPhase);
-          if (cell.kind === "parking-sign") renderParkingSign(art, cell, projection);
-          if (cell.kind === "scenery") {
-            renderScenery(art, cell, projection, session.mapDefinition);
-            group.appendChild(svgElement("text", { x: cell.anchor.x, y: cell.anchor.y + 17, class: "iso-feature-label", "text-anchor": "middle" }, TILE_TYPES[cell.tileType].name));
-          }
-          records.push({ cell, index, maskId: id, ...readOpaqueGeometry(art) });
-          continue;
+        const art = svgElement("g", { id });
+        group.appendChild(art);
+        if (cell.kind === "bridge") renderBridgeDeck(art, cell, projection, session.mapDefinition);
+        if (cell.kind === "bridge-front") renderBridgeRails(art, cell, projection, session.mapDefinition, true);
+        if (cell.kind === "signal") renderCrosswalkSignal(art, cell, projection, session.signalPhase);
+        if (cell.kind === "parking-sign") renderParkingSign(art, cell, projection);
+        if (cell.kind === "scenery") {
+          renderScenery(art, cell, projection, session.mapDefinition);
+          group.appendChild(svgElement("text", { x: cell.anchor.x, y: cell.anchor.y + 17, class: "iso-feature-label", "text-anchor": "middle" }, TILE_TYPES[cell.tileType].name));
         }
-        const layout = getActorLayout(cell, projection);
-        group.setAttribute("data-placement", layout.placement);
-        group.setAttribute("data-scale", layout.scale);
-        const actor = createActorRecord(defs, cell, layout, projection, id, index, scheduleOcclusion);
-        actors.push(actor); records.push(actor);
-        if (cell.unit) group.setAttribute("data-id", cell.unit.id);
-        group.setAttribute("role", "img");
-        group.setAttribute("aria-label", actor.title);
-        group.appendChild(svgElement("title", {}, actor.title));
-        // Keep actor artwork in SVG coordinates: WebKit can mispaint HTML in
-        // foreignObject when the board's viewBox is scaled.
-        if (layout.vehicle) {
-          appendVehicleArtwork(group, cell, projection, cell.direction, cell.side === "police", layout.bounds);
-        } else {
-          group.appendChild(svgElement("ellipse", {
-            class: `iso-actor-shadow ${cell.side}`,
-            cx: layout.foot.x, cy: layout.foot.y,
-            rx: layout.width * 0.31, ry: layout.height * 0.1,
-            "aria-hidden": "true",
-          }));
-          const image = svgElement("image", { ...layout.bounds, href: actor.url });
-          image.addEventListener("error", () => { actor.failed = true; scheduleOcclusion(); });
-          group.appendChild(image);
-        }
-        const hit = svgElement("rect", {
-          ...layout.bounds, class: "iso-actor-hit", fill: "none", "pointer-events": "all", "aria-hidden": "true",
-        });
-        group.appendChild(hit);
-        bindActorTarget(hit, cell, actor);
+        objectsLayer.appendChild(group);
+        staticEntries.push({ cell, group, art, index, maskId: id, ...readOpaqueGeometry(art) });
       }
-      refreshOcclusion();
+      syncDynamicObjects(session);
       // Direction cues refer to map north/east, not the screen's up/right.
       for (const { direction, dr, dc, name } of BRIDGE_DIRECTIONS) {
         const pos = projectPoint({ r: (projection.rows - 1) / 2 + dr * (projection.rows / 2 + .4), c: (projection.cols - 1) / 2 + dc * (projection.cols / 2 + .4) }, projection);
@@ -364,13 +437,19 @@ export function createIsometricGameView(container, { viewState, onCellClick, onC
     dispose() {
       disposed = true;
       cancelScheduledOcclusion();
-      for (const actor of actors) actor.unsubscribe();
+      disposeDynamicActors();
+      staticEntries = [];
+      records = [];
+      renderedMapDefinition = null;
+      renderedSignalPhase = null;
       if (viewport) {
         const centre = visibleCentre();
         viewState.centerX = centre.x;
         viewState.centerY = centre.y;
       }
       resizeObserver?.disconnect();
+      resizeObserver = null;
+      svg = null;
       // All listeners belong to the detached subtree; no global listeners remain.
       container.innerHTML = "";
     },

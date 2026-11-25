@@ -25,7 +25,6 @@ function startGame() {
   renderAppShell(getAppShellState({ mode: "GAME" }));
 
   persistCurrentMap();
-  gameController.boardMode = "isometric";
   gameController.init();
 }
 

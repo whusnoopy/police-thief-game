@@ -1,58 +1,51 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createTestEnvironment } from "./helpers/fakeDom.js";
-const env=createTestEnvironment();env.installGlobals();
-const { els }=await import("../src/app/state.js");
-const { renderGameLayout }=await import("../src/ui/game/gameLayout.js");
-const { renderAppShell }=await import("../src/app/appShellRenderer.js");
-const { getAppShellState }=await import("../src/app/appShellState.js");
+const env = createTestEnvironment();
+env.installGlobals();
+const { els } = await import("../src/app/state.js");
+const { renderGameLayout } = await import("../src/ui/game/gameLayout.js");
+const { renderAppShell } = await import("../src/app/appShellRenderer.js");
+const { getAppShellState } = await import("../src/app/appShellState.js");
 
-test("editor branding shares the sidebar and restores its home through library and both game views",()=>{
-  for (let i=0;i<2;i++) {
-    renderAppShell(getAppShellState({mode:"EDITOR"}));
-    assert.equal(els.appHeader.parentNode,els.editorHeaderSlot);
-    assert.equal(els.appHeaderHome.classList.contains("hidden"),true);
-    assert.equal(document.body.classList.contains("editor-playing"),true);
-    renderAppShell(getAppShellState({mode:"MAP_LIST"}));
-    assert.equal(els.appHeader.parentNode,els.appHeaderHome);
-    assert.equal(els.appHeaderHome.classList.contains("hidden"),false);
-    renderAppShell(getAppShellState({mode:"EDITOR"}));
-    renderAppShell(getAppShellState({mode:"GAME"}));renderGameLayout(false);
-    assert.equal(els.appHeader.parentNode,els.appHeaderHome);
-    assert.equal(document.body.classList.contains("editor-playing"),false);
+test("shared header moves cleanly across editor, map list, and isometric gameplay shells", () => {
+  for (let i = 0; i < 2; i += 1) {
+    renderAppShell(getAppShellState({ mode: "EDITOR" }));
+    assert.equal(els.appHeader.parentNode, els.editorHeaderSlot);
+    assert.equal(els.appHeaderHome.classList.contains("hidden"), true);
+    assert.equal(document.body.classList.contains("editor-playing"), true);
+
+    renderAppShell(getAppShellState({ mode: "MAP_LIST" }));
+    assert.equal(els.appHeader.parentNode, els.appHeaderHome);
+    assert.equal(els.appHeaderHome.classList.contains("hidden"), false);
+
+    renderAppShell(getAppShellState({ mode: "EDITOR" }));
+    renderAppShell(getAppShellState({ mode: "GAME" }));
     renderGameLayout(true);
-    assert.equal(els.appHeader.parentNode,els.isoInfoContent);
-    renderGameLayout(false);renderAppShell(getAppShellState({mode:"EDITOR"}));
-    assert.equal(els.appHeader.parentNode,els.editorHeaderSlot);
+    assert.equal(els.appHeader.parentNode, els.isoHeaderSlot);
+    assert.equal(els.appHeaderHome.classList.contains("hidden"), true);
+    assert.equal(document.body.classList.contains("isometric-playing"), true);
+    assert.equal(document.body.classList.contains("editor-playing"), false);
+
+    renderGameLayout(false);
+    assert.equal(els.appHeader.parentNode, els.appHeaderHome);
+    assert.equal(document.body.classList.contains("isometric-playing"), false);
+    renderAppShell(getAppShellState({ mode: "EDITOR" }));
+    assert.equal(els.appHeader.parentNode, els.editorHeaderSlot);
   }
-  renderAppShell(getAppShellState({mode:"GAME"}));renderGameLayout(false);
 });
 
-test("four corner panels retain live controls and restore the 2D hierarchy after view switches",()=>{
-  els.gameDicePanel.appendChild(els.btnRollDice);
-  els.gameActions.appendChild(els.btnViewRules);
-  let rolls=0;els.btnRollDice.addEventListener("click",()=>rolls++);
-  const button=els.btnRollDice,preview=els.movePreview;
-  for(let n=0;n<2;n++){
+test("toggling isometric gameplay layout preserves live header controls without duplicating handlers", () => {
+  let clicks = 0;
+  els.btnRollDice.addEventListener("click", () => { clicks += 1; });
+  for (let n = 0; n < 2; n += 1) {
     renderGameLayout(true);
-    assert.equal(els.appHeader.parentNode,els.isoInfoContent);
-    assert.equal(els.gameActions.parentNode,els.isoInfoContent);
-    assert.equal(els.gameStatusPanel.parentNode,els.isoStatusContent);
-    assert.equal(els.unitCounts.parentNode,els.isoStatusContent);
-    assert.equal(els.gameDicePanel.parentNode,els.isoDiceContent);
-    assert.equal(els.gameActionDetails.parentNode,els.isoProgressContent);
-    assert.deepEqual(els.isoStatusContent.children,[els.gameStatusPanel,els.unitCounts]);
-    assert.equal(els.btnRollDice,button);button.click();
+    assert.equal(els.appHeader.parentNode, els.isoHeaderSlot);
+    assert.equal(document.body.classList.contains("isometric-playing"), true);
+    els.btnRollDice.click();
     renderGameLayout(false);
-    assert.equal(els.appHeader.parentNode,els.appHeaderHome);
-    assert.equal(els.gameDicePanel.parentNode,els.gameSidebar);
-    assert.equal(els.gameStatusPanel.parentNode,els.gameSidebar);
-    assert.equal(els.gameActions.parentNode,els.gameSidebar);
-    assert.equal(els.gameSidebar.children.at(-1),els.gameActions);
-    assert.equal(els.gameActionDetails.parentNode,els.boardFeedbackHome);
-    assert.equal(els.isoPanelDice.classList.contains("hidden"),true);
-    assert.equal(document.body.classList.contains("isometric-playing"),false);
-    assert.equal(els.movePreview,preview);
+    assert.equal(els.appHeader.parentNode, els.appHeaderHome);
+    assert.equal(document.body.classList.contains("isometric-playing"), false);
   }
-  assert.equal(rolls,2,"moving a live control neither loses nor duplicates its handler");
+  assert.equal(clicks, 2);
 });

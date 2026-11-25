@@ -237,7 +237,7 @@
 - 用户反馈后在 `5.0.6` 内调整斜视为四角面板：左上游戏名/规则、右上状态/缩放、左下行动进度/确认、右下掷骰。地图占满视口，各面板可单独折叠或整体收起；切回 2D 恢复原控件，触屏预览自动展开确认。20×20 按用户确认每角削去三层，保留 376 格；削角区在编辑、绘制、点选、寻路、生成与校验中共同排除，斜视按有效格收紧边界。此前完整 400 格仅为测试，无兼容要求；旧 10×10 不变。见 [形状说明](map-corner-shape-study.md)。
 - 大地图优先使用 Worker；不可用、加载失败或超时后，采用相同规则的分批计算并支持取消，不在主线程同步重跑整个大搜索。10×10 保持原回退行为。
 - 新增 30 项回归，全量 246 项测试和生产构建通过；包括新旧格式、保存/备份、扩展及原图保护、边角绘制/历史、远端抓捕/取钱/NPC/停车、四向桥坡、真实 Worker、分批回退及视角预览。浏览器与生产产物验证结果见 [验证记录](improvement-plan.md)。
-- 内置示例「双岸追缉」包含两警两贼、六辆车、两岸银行/基地/警察局、四向坡道高架、四井盖、堤道和驾车水路，结合山、水、建筑及农场形成多条路线。地图库创建副本，或通过 `?example=river-city` 载入，保留原图；说明见 [示例地图](example-river-city.md)。
+- 内置示例「双岸追缉」包含两警两贼、六辆车、两岸银行/基地/警察局、四向坡道高架、四井盖、堤道和驾车水路，结合山、水、建筑及农场形成多条路线。地图库创建副本，或通过 `?example=river-city` 载入，保留原图（该早期单次行动样板图及文档已于 `5.1.2` 清理，系统地图统一为两张连续行动版本）。
 - 用户确认 `5.0.6` 原定范围已完成，授权提交并标记 `v5.0.6`。river-city 的可玩性及地图放大后的玩法仍待设计，示例仅用于展示机制；目标 iPad Safari 完整真机验收仍待进行。连续行动和操作费用进入 `5.0.7`，本冻结版一次行动后按原规则换手。
 
 ### 5.0.7 实施结果（已授权冻结）
@@ -265,7 +265,7 @@
 | 地图与编码 | `src/config/constants.js`、`src/domain/map/mapModel.js`、`mapQueries.js`、`mapCodec.js`、`cellDisplay.js`：坡道、来源/升级状态、新编码与标准化 |
 | 通行规则 | `src/domain/rules/cellRules.js`、`moveGenerator.js`、`mapValidation.js`：增加共享边连接判断，接入寻路和路线校验；检查 NPC 与车辆相关规则 |
 | 编辑与存储 | `src/features/editorController.js`、`src/ui/editor/editorRenderer.js`、`src/storage/`：方向预览、帮助、撤销、升级副本、保存和恢复 |
-| 游戏显示 | `src/features/gameController.js`、`gameBoardProjection.js`、`src/ui/game/gameBoardView.js`：通过渲染接口处理选中、可达、路径、角色和版本提示 |
+| 游戏显示 | `src/features/gameController.js`、`gameBoardProjection.js`、`src/ui/isometric/isometricRenderer.js`：增量更新斜视棋盘、选中、可达、路径、角色与版本提示 |
 | 场景与素材 | `src/ui/isometric/` 的投影、场景模型、素材元数据、地面/建筑/车辆几何和斜视渲染；`src/ui/board/` 保留俯视；`5.0.5` 接入透明形状采样、遮挡轮廓及编号/入口显示 |
 | 布局与说明 | `src/styles/`、`index.html`、素材说明及规则备忘：视口、图层、交互和正式规则文案同步 |
 

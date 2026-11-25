@@ -2,7 +2,7 @@ const DEFAULT_ELEMENT_IDS = [
   "app-header",
   "app-header-home",
   "editor-header-slot",
-  "game-sidebar",
+  "iso-header-slot",
   "game-status-panel",
   "game-dice-panel",
   "game-actions",
@@ -14,10 +14,6 @@ const DEFAULT_ELEMENT_IDS = [
   "iso-status-content",
   "iso-progress-content",
   "iso-dice-content",
-  "game-sidebar-header",
-  "game-sidebar-view",
-  "game-sidebar-feedback",
-  "board-feedback-home",
   "game-action-details",
   "storage-notice",
   "storage-notice-message",
@@ -254,6 +250,25 @@ class FakeElement {
     this._textContent = "";
     nextChild.parentNode = this;
     this.children.push(nextChild);
+    if (nextChild.nodeType !== 3) {
+      this.ownerDocument.registerTree(nextChild);
+    }
+    return nextChild;
+  }
+
+  insertBefore(child, referenceNode) {
+    if (!referenceNode) return this.appendChild(child);
+    const nextChild =
+      typeof child === "string" ? this.ownerDocument.createTextNode(child) : child;
+    if (nextChild.parentNode) {
+      nextChild.parentNode.removeChild(nextChild);
+    }
+    const index = this.children.indexOf(referenceNode);
+    if (index === -1) return this.appendChild(nextChild);
+    this._innerHTML = "";
+    this._textContent = "";
+    nextChild.parentNode = this;
+    this.children.splice(index, 0, nextChild);
     if (nextChild.nodeType !== 3) {
       this.ownerDocument.registerTree(nextChild);
     }

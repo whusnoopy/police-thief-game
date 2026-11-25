@@ -1,7 +1,7 @@
 import { els, setMapDefinition, state } from "../app/state.js";
 import { getAppShellState } from "../app/appShellState.js";
 import { renderAppShell } from "../app/appShellRenderer.js";
-import { decodeMapDefinition } from "../domain/map/mapCodec.js";
+import { decodeMapDefinition, encodeMapDefinition } from "../domain/map/mapCodec.js";
 import { cloneMapDefinition, createEmptyMapDefinition, createNewMapDefinition } from "../domain/map/mapModel.js";
 import { renderEditorBoard } from "./editorController.js";
 import { renderMapListGrid, setMapListEmptyState } from "../ui/map-list/mapListRenderer.js";
@@ -20,6 +20,7 @@ import {
   setCurrentMapId,
   setMapList,
   shareMapByData,
+  updateMapUrl,
   updateModeIndicatorForEditor,
 } from "../storage/mapRepository.js";
 
@@ -118,9 +119,23 @@ export function renderMapList() {
     },
     onRename(mapObj) {
       const newName = prompt("请输入新名称:", mapObj.name);
-      if (!newName || newName.trim() === "") return;
+      const trimmed = newName?.trim();
+      if (!trimmed) return;
 
-      mapObj.name = newName.trim();
+      mapObj.name = trimmed;
+      if (!mapObj.isCorrupt) {
+        try {
+          const decoded = decodeMapDefinition(mapObj.encodedMap);
+          decoded.meta.name = trimmed;
+          mapObj.encodedMap = encodeMapDefinition(decoded);
+          if (mapObj.id === getCurrentMapId()) {
+            state.mapDefinition.meta = { ...state.mapDefinition.meta, name: trimmed };
+            updateMapUrl(mapObj.encodedMap);
+          }
+        } catch {
+          // Leave unreadable encodings untouched.
+        }
+      }
       setMapList(maps);
       renderMapList();
     },
@@ -138,7 +153,7 @@ export function renderMapList() {
       renderMapList();
     },
     onShare(mapObj) {
-      shareMapByData(mapObj.encodedMap);
+      shareMapByData(mapObj.encodedMap, mapObj.name);
     },
     onDuplicate(mapObj) {
       let duplicatedMapDefinition;

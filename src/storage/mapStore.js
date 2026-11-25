@@ -213,6 +213,12 @@ export function migrateLegacyStorage(storage, options = {}) {
   };
 }
 
+const PRODUCTION_TEST_MIGRATION_PATH = /^\/police\/?$/;
+
+export function shouldMigrateTestMapLibrary(pathname = "") {
+  return !namespace && PRODUCTION_TEST_MIGRATION_PATH.test(pathname);
+}
+
 export function migrateTestMapLibrary(storage) {
   const migrationKey = "policeThief.migratedPoliceTestMaps";
   if (namespace || storage.getItem(migrationKey)) return;

@@ -72,14 +72,25 @@ test("farm spawning cannot place animals on any ramp orientation", () => {
 
 test("crosswalk permission still applies at a ramp's ground connection", () => {
   const { map, positions } = createRampScenario();
+  setLegacyTileAt(map, positions.start.r, positions.start.c - 1, "ROAD");
   const session = createGameSession(map);
   const thief = session.thiefUnits[0];
   thief.inCar = true;
+  thief.r = positions.start.r;
+  thief.c = positions.start.c - 1;
   setLegacyTileAt(session.mapDefinition, positions.start.r, positions.start.c, "CROSSWALK_VERTICAL");
+  setLegacyTileAt(session.mapDefinition, positions.end.r, positions.end.c, "CROSSWALK_VERTICAL");
   session.signalPhase = SIGNAL_PHASES.PEDESTRIAN_GREEN;
-  assert.equal(moves(session).has(key(positions.deck)), false);
+  assert.equal(moves(session).has(key(positions.deck)), false, "cannot enter a red crosswalk to reach the ramp");
   session.signalPhase = SIGNAL_PHASES.PEDESTRIAN_RED;
   assert.equal(moves(session).has(key(positions.deck)), true);
+  // Exiting a down-ramp onto a red crosswalk is also blocked.
+  thief.r = positions.deck.r;
+  thief.c = positions.deck.c;
+  session.signalPhase = SIGNAL_PHASES.PEDESTRIAN_GREEN;
+  assert.equal(moves(session).has(key(positions.end)), false);
+  session.signalPhase = SIGNAL_PHASES.PEDESTRIAN_RED;
+  assert.equal(moves(session).has(key(positions.end)), true);
 });
 
 test("capture terminates the action on the bridge and does not bypass a disconnected side", () => {

@@ -213,6 +213,20 @@ export function isLegacyEncodedMap(encodedMap) {
   );
 }
 
+function encodeFeatureEntry(feature, mapDefinition) {
+  const kindCode = FEATURE_CODE_BY_TYPE[feature.kind];
+  const positionIndex = positionToIndex(feature.position, mapDefinition);
+  const config = feature.config && typeof feature.config === "object" && !Array.isArray(feature.config)
+    ? feature.config
+    : {};
+  const defaultId = `feature_${feature.kind}_${feature.position.r}_${feature.position.c}`;
+  const hasConfig = Object.keys(config).length > 0;
+  const hasCustomId = typeof feature.id === "string" && feature.id !== "" && feature.id !== defaultId;
+  if (!hasConfig && !hasCustomId) return [kindCode, positionIndex];
+  if (!hasCustomId) return [kindCode, positionIndex, config];
+  return [kindCode, positionIndex, config, feature.id];
+}
+
 export function encodeMapDefinition(mapDefinition) {
   const normalized = normalizeMapDefinition(mapDefinition);
   const isRampMap = normalized.ruleset === MAP_RULESETS.RAMPS;
@@ -224,12 +238,7 @@ export function encodeMapDefinition(mapDefinition) {
   const payload = {
     v: version,
     t: encodeTerrainMatrix(normalized.terrain, dimensions),
-    f: normalized.features.map((feature) => [
-      FEATURE_CODE_BY_TYPE[feature.kind],
-      positionToIndex(feature.position, normalized),
-      feature.config || {},
-      feature.id,
-    ]),
+    f: normalized.features.map((feature) => encodeFeatureEntry(feature, normalized)),
     p: normalized.spawns.police.map(p => positionToIndex(p, normalized)),
     h: normalized.spawns.thief.map(p => positionToIndex(p, normalized)),
     m: normalized.meta.name ? { n: normalized.meta.name } : undefined,
@@ -292,7 +301,7 @@ function decodeModernMapDefinition(encodedMap, version) {
   mapDefinition.terrain = decodeTerrainMatrix(payload.t || "", TERRAIN_TYPE_BY_CODE, dimensions);
   mapDefinition.features = Array.isArray(payload.f)
     ? payload.f
-        .map(([kindCode, positionIndex, config, id], index) => {
+        .map(([kindCode, positionIndex, config, id]) => {
           const kind = FEATURE_TYPE_BY_CODE[kindCode];
           const position = indexToPosition(positionIndex, mapDefinition);
           if (!kind) return null;
@@ -300,7 +309,7 @@ function decodeModernMapDefinition(encodedMap, version) {
             id:
               typeof id === "string" && id
                 ? id
-                : `feature_${kind}_${position.r}_${position.c}_${index}`,
+                : `feature_${kind}_${position.r}_${position.c}`,
             kind,
             position,
             config:
@@ -362,7 +371,7 @@ function decodeLegacyMapDefinition(encodedMap) {
 
 let decodingDepth = 0;
 export function decodeMapDefinition(encodedMap) {
-  if (decodingDepth >= 4) throw new Error("Invalid map payload: nested source depth");
+  if (decodingDepth >= 8) throw new Error("Invalid map payload: nested source depth");
   decodingDepth++;
   try { return decodeMapPayload(encodedMap); }
   finally { decodingDepth--; }
@@ -391,4 +400,38 @@ function decodeMapPayload(encodedMap) {
 
 export function normalizeEncodedMap(encodedMap) {
   return encodeMapDefinition(decodeMapDefinition(encodedMap));
+}
+
+// Build a compact share payload: sync the display name into meta.name and omit
+// completed or local-only upgrade provenance snapshots, while preserving
+// unfinished draft review gates (pending/editing) so recipients still review them.
+export function encodeShareableMap(mapOrEncoded, { name } = {}) {
+  const map = typeof mapOrEncoded === "string"
+    ? decodeMapDefinition(mapOrEncoded)
+    : normalizeMapDefinition(mapOrEncoded);
+  const next = {
+    ...map,
+    meta: {
+      ...map.meta,
+      name: typeof name === "string" && name.trim() ? name.trim() : map.meta.name || "",
+    },
+  };
+  if (next.upgrade?.status === "ready") delete next.upgrade;
+  if (next.expansion?.status === "ready") delete next.expansion;
+  delete next.actionUpgrade;
+  return encodeMapDefinition(next);
+}
+
+// Content signature used for deduplication: ignores display name differences
+// and completed provenance snapshots while keeping playable geometry and rules.
+export function getMapContentSignature(encodedMap) {
+  const map = decodeMapDefinition(encodedMap);
+  const next = {
+    ...map,
+    meta: { ...map.meta, name: "" },
+  };
+  if (next.upgrade?.status === "ready") delete next.upgrade;
+  if (next.expansion?.status === "ready") delete next.expansion;
+  delete next.actionUpgrade;
+  return encodeMapDefinition(next);
 }

@@ -16,6 +16,20 @@ const COLORS = {
 };
 const NAMES = { police: "警察", thief: "小偷", pig: "猪", cow: "牛", car: "空车" };
 
+export function appendSolidAlphaFilter(defs, id) {
+  const solid = svgElement("filter", {
+    id,
+    "color-interpolation-filters": "sRGB",
+  });
+  const transfer = svgElement("feComponentTransfer");
+  transfer.appendChild(
+    svgElement("feFuncA", { type: "discrete", tableValues: "0 0 1 1" }),
+  );
+  solid.appendChild(transfer);
+  defs.appendChild(solid);
+  return solid;
+}
+
 export function createActorRecord(
   defs,
   cell,
@@ -24,6 +38,7 @@ export function createActorRecord(
   id,
   index,
   changed,
+  sharedSolidFilterId = null,
 ) {
   const body = svgElement("g", { id: `${id}-body` });
   defs.appendChild(body);
@@ -44,6 +59,7 @@ export function createActorRecord(
     failed: false,
     color: COLORS[cell.side || "car"],
     body,
+    solidFilter: null,
     occluded: false,
     occluders: [],
   };
@@ -72,17 +88,11 @@ export function createActorRecord(
       `../../assets/isometric/${layout.name}.webp`,
       import.meta.url,
     ).href;
-    const solid = svgElement("filter", {
-      id: `${id}-solid`,
-      "color-interpolation-filters": "sRGB",
-    });
-    const transfer = svgElement("feComponentTransfer");
-    transfer.appendChild(
-      svgElement("feFuncA", { type: "discrete", tableValues: "0 0 1 1" }),
-    );
-    solid.appendChild(transfer);
-    defs.appendChild(solid);
-    body.setAttribute("filter", `url(#${id}-solid)`);
+    const solidId = sharedSolidFilterId || `${id}-solid`;
+    if (!sharedSolidFilterId) {
+      record.solidFilter = appendSolidAlphaFilter(defs, solidId);
+    }
+    body.setAttribute("filter", `url(#${solidId})`);
     body.appendChild(
       svgElement("image", {
         ...layout.bounds,
@@ -98,6 +108,13 @@ export function createActorRecord(
       );
     record.unsubscribe = record.alpha.subscribe(changed);
   }
+  record.dispose = () => {
+    record.unsubscribe();
+    record.body?.remove();
+    record.solidFilter?.remove();
+    record.mask?.remove();
+    record.stroke?.filter.remove();
+  };
   return record;
 }
 

@@ -99,12 +99,11 @@ test("touch preview and cancellation do not spend points; double confirmation do
   g.handleCellClick(0,1,{previewOnly:true});await g.confirmMove();const revision=g.session.revision;
   g.confirmMove();assert.equal(g.session.revision,revision);assert.equal(g.session.remainingPoints,12);
   g.handleCellClick(0,2,{previewOnly:true});assert.match(els.movePreviewText.textContent,/消耗 1 点，剩余 2 点/);
-  g.setBoardMode("isometric");assert.equal(g.session.remainingPoints,12);assert.deepEqual(g.pendingDestination,{r:0,c:2});
-  g.setBoardMode("topdown");g.cancelMovePreview();
+  g.cancelMovePreview();
   assert.equal(g.selectedUnit,g.thiefUnits[0]);g.dispose();
 });
 
-test("action history retains segments and turn boundaries through view switches, and resets for a new game",async()=>{
+test("action history retains segments and turn boundaries and resets for a new game",async()=>{
   await roll();g.handleCellClick(0,0);await g.moveSelectedUnit(0,1);
   const first=els.lastAction.textContent;
   assert.equal(first.includes("刚才："),false);
@@ -119,8 +118,6 @@ test("action history retains segments and turn boundaries through view switches,
   assert.equal(els.lastAction.querySelectorAll(".action-turn").length,2);
   const history=els.lastAction.textContent;
   assert.ok(history.startsWith(first));assert.match(history,/警察 1 到达/);
-  g.setBoardMode("topdown");g.setBoardMode("isometric");
-  assert.equal(els.lastAction.textContent,history);
   g.init(fixture());
   assert.equal(els.lastAction.querySelectorAll(".action-turn").length,0);
   assert.equal(els.lastAction.textContent,"行动结果会显示在这里。");g.dispose();
@@ -152,6 +149,7 @@ test("police can capture, drive to station, pay separately to disembark and deli
   g.session.parkingCars.clear();g.session.parkedCars.clear();g.invalidateReachability();g.finishDiceSelection(g.getActiveUnitsForTurn());g.handleCellClick(1,0);
   await g.moveSelectedUnit(1,1);assert.equal(unit.state,"CARRYING");assert.equal(g.session.remainingPoints,20);
   await g.moveSelectedUnit(1,2);assert.equal(unit.state,"CARRYING");assert.equal(unit.inCar,true);
+  assert.equal(g.operationsFor(unit).find(op=>op.type==="PARK")?.isDriving,false);
   g.performOperation("DELIVER");assert.equal(g.session.remainingPoints,16);
   await g.performOperation("PARK");assert.equal(unit.inCar,false);assert.equal(g.session.remainingPoints,12);assert.ok(g.session.parkingCars.has("2,0"));
   await g.performOperation("DELIVER");assert.equal(unit.state,"IDLE");assert.equal(g.thiefUnits[0].state,"JAILED");assert.equal(g.session.remainingPoints,8);

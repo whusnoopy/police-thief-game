@@ -1,5 +1,5 @@
 import { getMapDimensions, isWithinMap } from "../map/mapDimensions.js";
-import { canTakeCrosswalkStep } from "../map/crosswalk.js";
+import { canTakeCrosswalkStep, getMergedCrosswalkKeys } from "../map/crosswalk.js";
 import { getFeaturePositionsByKind } from "../map/mapQueries.js";
 import {
   getUnitAt,
@@ -95,6 +95,7 @@ function createSearchBoard(session, role, unit) {
     };
   });
   const manholes = getFeaturePositionsByKind(session.mapDefinition, "MANHOLE");
+  const startingCrosswalkKeys = getMergedCrosswalkKeys(session.mapDefinition, unit.r, unit.c);
   const directions = [
     [0, 1],
     [0, -1],
@@ -123,7 +124,8 @@ function createSearchBoard(session, role, unit) {
       if (!isTeleport && !canTakeCrosswalkStep({
         fromTileType: from.rule.tileType, toTileType: to.rule.tileType,
         isDriving, signalPhase: session.signalPhase, dr: nr - from.r, dc: nc - from.c,
-        fromStartingCell: from.r === unit.r && from.c === unit.c,
+        fromInStartingCrosswalk: startingCrosswalkKeys.has(`${from.r},${from.c}`),
+        toInStartingCrosswalk: startingCrosswalkKeys.has(`${nr},${nc}`),
       })) return [];
       const cost = getMoveCost(isDriving, to.rule, isTeleport);
       if (cost === null) return [];

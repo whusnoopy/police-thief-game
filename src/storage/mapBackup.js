@@ -1,9 +1,16 @@
+import { getMapContentSignature } from "../domain/map/mapCodec.js";
 import { generateMapId, normalizeMapRecord } from "./mapStore.js";
 
 export const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
-const fingerprint = (record) => record.isCorrupt
-  ? `raw:${JSON.stringify(record.rawRecord)}` : `map:${record.encodedMap}`;
+const fingerprint = (record) => {
+  if (record.isCorrupt) return `raw:${JSON.stringify(record.rawRecord)}`;
+  try {
+    return `map:${getMapContentSignature(record.encodedMap)}`;
+  } catch {
+    return `map:${record.encodedMap}`;
+  }
+};
 
 // Build the entire import before writing anything. Existing records and the
 // current editor are never replaced, including when an imported id collides.

@@ -22,7 +22,7 @@ import {
   projectPathPreview,
   projectReachablePositions,
 } from "./gameBoardProjection.js";
-import { createGameBoardView } from "../ui/game/gameBoardView.js";
+import { createIsometricGameView } from "../ui/isometric/isometricRenderer.js";
 import { renderGameLayout } from "../ui/game/gameLayout.js";
 import { getTrailFacing } from "../ui/isometric/assetMetadata.js";
 import {
@@ -69,7 +69,6 @@ export const gameController = {
   searchJob: null,
   createSearchJob: startReachabilityJob,
   boardView: null,
-  boardMode: "isometric",
   boardViewState: { zoom: 1, left: 0, top: 0 },
   pathDestination: null,
   unitDirections: new Map(),
@@ -200,38 +199,26 @@ export const gameController = {
   renderGameBoard() {
     document.body.classList.toggle("continuous-actions", this.isContinuous());
     document.body.classList.toggle("directional-signals", this.session.mapDefinition.signalRules === DIRECTIONAL_SIGNAL_RULES);
-    this.boardView?.dispose();
-    renderGameLayout(this.boardMode === "isometric");
-    this.boardView = createGameBoardView(els.gameBoard, {
-      mode: this.boardMode,
-      viewState: this.boardViewState,
-      unitDirections: this.unitDirections,
-      vehicleDirections: this.vehicleDirections,
-      onCellClick: (r, c, options) => this.handleCellClick(r, c, options),
-      onCellHover: (r, c) => this.handleCellHover(r, c),
-      onLeave: () => this.clearPathHover(),
-    });
-    this.boardView.render(this.session);
+    if (this.boardView?.canUpdate?.(this.session)) {
+      this.boardView.update(this.session);
+    } else {
+      this.boardView?.dispose();
+      renderGameLayout(true);
+      this.boardView = createIsometricGameView(els.gameBoard, {
+        viewState: this.boardViewState,
+        unitDirections: this.unitDirections,
+        vehicleDirections: this.vehicleDirections,
+        onCellClick: (r, c, options) => this.handleCellClick(r, c, options),
+        onCellHover: (r, c) => this.handleCellHover(r, c),
+        onLeave: () => this.clearPathHover(),
+      });
+      this.boardView.render(this.session);
+    }
     this.updateBoardControls();
     renderUnitCounts(this.session);
   },
 
-  setBoardMode(mode) {
-    if (!["topdown", "isometric"].includes(mode) || mode === this.boardMode || !this.session) return;
-    this.boardMode = mode;
-    this.renderGameBoard();
-    if ([GAME_PHASES.SELECT_UNIT, GAME_PHASES.SELECT_DESTINATION].includes(this.phase)) {
-      this.highlightSelectableUnits(this.getActiveUnitsForTurn());
-    }
-    if (this.selectedUnit) {
-      this.boardView.setSelected(this.selectedUnit);
-      this.highlightReachable();
-      if (this.pathDestination) this.previewAction(this.pathDestination.r, this.pathDestination.c, !!this.pendingDestination);
-    }
-  },
-
   setBoardZoom(zoom) {
-    if (this.boardMode !== "isometric") return;
     this.boardView?.setZoom(zoom);
     this.updateBoardControls();
   },
@@ -627,7 +614,7 @@ export const gameController = {
       projectPathPreview(action, (points) => this.formatMovementPoints(points)),
     );
     renderMovePreview(describeAction({ session: this.session, turn: this.turn, unit: this.selectedUnit, action, diceValue: this.diceValue, movementPoints: this.getMovementPoints() }), needsConfirmation);
-    if (needsConfirmation && this.boardMode === "isometric") {
+    if (needsConfirmation) {
       els.moveConfirmActions.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     }
   },

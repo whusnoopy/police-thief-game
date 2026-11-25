@@ -75,15 +75,3 @@ export function renderTileIcon(container, tileType) {
     appendSprite(container, tileType === 'POLICE_SPAWN' ? 'police' : 'thief', 'spawn-art', TILE_TYPES[tileType].name);
   }
 }
-
-export function appendStateBadge(container, kind) {
-  const badge = document.createElement('span');
-  badge.className = `unit-state-badge ${kind}`;
-  badge.title = kind === 'money' ? '携款' : '押送小偷';
-  badge.setAttribute('role', 'img');
-  badge.setAttribute('aria-label', badge.title);
-  badge.innerHTML = kind === 'money'
-    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9 7 3h10l-2 6c6 4 8 12-3 12S3 13 9 9Z" fill="#e7c36f" stroke="#84693d" stroke-width="1.6"/><path d="M8 9h8" stroke="#84693d" stroke-width="2"/><circle cx="12" cy="15" r="2" fill="none" stroke="#84693d"/></svg>'
-    : '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="#54768d" stroke-width="2.5"><circle cx="6" cy="14" r="4"/><circle cx="18" cy="9" r="4"/><path d="m9 11 6-1"/></g></svg>';
-  container.appendChild(badge);
-}

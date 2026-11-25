@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createTestEnvironment } from "./helpers/fakeDom.js";
+import { decodeMapDefinition } from "../src/domain/map/mapCodec.js";
 import { setLegacyTileAt } from "../src/domain/map/mapModel.js";
 
 const env = createTestEnvironment();
@@ -8,13 +9,13 @@ env.installGlobals();
 
 const { init } = await import("../src/app/bootstrap.js");
 const { state } = await import("../src/app/state.js");
-const { undoMap } = await import("../src/features/editorController.js");
+const { undoMap, renameCurrentMap } = await import("../src/features/editorController.js");
 const { showMapList, importMapFile } = await import("../src/features/mapListController.js");
 const { getMapList, getCurrentMapId, persistCurrentMap } = await import(
   "../src/storage/mapRepository.js"
 );
 
-test("bootstrap initialization and map-list flow stay wired through the controllers", () => {
+test("bootstrap initialization and map-list flow stay wired through the controllers", async () => {
   init();
 
   assert.equal(state.mode, "EDITOR");
@@ -48,6 +49,9 @@ test("bootstrap initialization and map-list flow stay wired through the controll
   assert.equal(env.elements["map-list-view"].classList.contains("hidden"), false);
   assert.equal(env.elements["editor-view"].classList.contains("hidden"), true);
   assert.equal(getMapList()[0].name, "重命名后的地图");
+  assert.equal(decodeMapDefinition(getMapList()[0].encodedMap).meta.name, "重命名后的地图");
+  assert.equal(state.mapDefinition.meta.name, "重命名后的地图");
+  assert.equal(decodeMapDefinition(new URLSearchParams(env.window.location.search).get("m")).meta.name, "重命名后的地图");
 
   env.setPromptResponses(["空白图"]);
   env.elements["btn-create-map"].click();
@@ -56,7 +60,23 @@ test("bootstrap initialization and map-list flow stay wired through the controll
   assert.equal(state.mode, "EDITOR");
   assert.equal(mapsAfterCreate.length, 2);
   assert.equal(getCurrentMapId() === originalMapId, false);
+  assert.equal(state.mapDefinition.meta.name, "空白图");
+  assert.equal(decodeMapDefinition(mapsAfterCreate[0].encodedMap).meta.name, "空白图");
   assert.deepStrictEqual(state.mapDefinition.spawns.police, []);
+
+  env.setPromptResponses(["编辑器重命名"]);
+  renameCurrentMap();
+  assert.equal(state.mapDefinition.meta.name, "编辑器重命名");
+  assert.equal(getMapList()[0].name, "编辑器重命名");
+  assert.equal(decodeMapDefinition(getMapList()[0].encodedMap).meta.name, "编辑器重命名");
+  showMapList();
+  const shareButton = env.elements["map-list-grid"].querySelectorAll("button")
+    .find((button) => button.innerHTML === "🔗 分享");
+  shareButton.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const sharedCode = new URL(env.elements["share-link-input"].value).searchParams.get("m");
+  assert.equal(decodeMapDefinition(sharedCode).meta.name, "编辑器重命名");
+  env.elements["btn-close-share-link-modal"].click();
 
   env.elements["btn-map-list"].click();
   assert.equal(env.elements["map-list-grid"].children.length, 2);
@@ -110,9 +130,8 @@ test("file import reports an invalid file without changing the editor or library
   assert.equal(state.mode, "MAP_LIST");
 });
 
-test("the library lists three system maps and loads each as a playable copy", () => {
+test("the library lists the two continuous system maps and loads each as a playable copy", () => {
   for (const [id, police, thieves, rule] of [
-    ["river-city", 2, 2, "single"],
     ["river-city-many", 5, 8, "continuous"],
     ["river-city-duel", 2, 2, "continuous"],
   ]) {
@@ -120,7 +139,7 @@ test("the library lists three system maps and loads each as a playable copy", ()
     const currentId = getCurrentMapId();
     showMapList();
     const buttons = env.elements["built-in-map-grid"].querySelectorAll("button");
-    assert.equal(buttons.length, 3);
+    assert.equal(buttons.length, 2);
     assert.deepEqual(getMapList(), original);
     buttons.find(button => button.dataset.exampleId === id).click();
     assert.equal(state.mode, "EDITOR");

@@ -45,6 +45,23 @@ test("single map export can be restored and invalid files never produce partial 
   assert.throws(() => planMapImport(" ".repeat(MAX_BACKUP_BYTES + 1), []), /超过 5 MB/);
 });
 
+test("renaming a map locally does not cause re-importing a backup of the same map to duplicate it", () => {
+  const original = record("first", "BANK", "原名");
+  const renamedMap = createEmptyMapDefinition({ meta: { name: "改名后" } });
+  setLegacyTileAt(renamedMap, 1, 1, "BANK");
+  const renamed = normalizeMapRecord({
+    id: "first",
+    name: "改名后",
+    encodedMap: encodeMapDefinition(renamedMap),
+    updatedAt: 2,
+  });
+  const result = planMapImport(JSON.stringify({ version: 1, maps: [original] }), [renamed]);
+  assert.equal(result.imported, 0);
+  assert.equal(result.duplicates, 1);
+  assert.equal(result.maps.length, 1);
+  assert.equal(result.maps[0].name, "改名后");
+});
+
 test("damaged records and unreadable library text survive an export/import cycle", () => {
   const broken = { id: "broken", encodedMap: "v3.invalid!", name: "损坏图" };
   const unreadableStorage = { "policeThief.maps.v3": '{"incomplete":' };

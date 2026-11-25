@@ -44,7 +44,6 @@
 body.isometric-playing { height: 100dvh; min-height: 0; overflow: hidden; }
 .isometric-playing .app-container { width: 100%; max-width: none; height: 100dvh; padding: 10px; gap: 10px; }
 .isometric-playing #game-view { flex: 1; min-height: 0; position: relative; display: block; animation: none; }
-.isometric-playing .game-sidebar { display: none; }
 .isometric-playing .game-board-area { height: 100%; min-height: 0; gap: 0; }
 .isometric-playing .game-board-area > .board-container { position: relative; flex: 1; min-height: 0; height: 100%; padding: 0; overflow: hidden; }
 .isometric-playing #game-board.iso-board { height: 100%; }
@@ -108,7 +107,6 @@ body.isometric-playing { height: 100dvh; min-height: 0; overflow: hidden; }
 .isometric-playing .unit-operations .btn:disabled { background: #edf1ec; color: #758279; border-color: #d6dfd4; opacity: 1; }
 .isometric-playing #btn-end-turn, .isometric-playing #btn-skip-turn { background: transparent; color: #63736a; border: 1px solid #cbd6cb; box-shadow: none; }
 .isometric-playing #btn-end-turn:hover, .isometric-playing #btn-skip-turn:hover { background: #eaf0e6; }
-body:not(.isometric-playing) .rules-isometric { display: none; }
 .isometric-playing .rules-modal-header { padding-bottom: 12px; border-bottom: 1px solid #e2e8df; }
 .isometric-playing .rules-list { gap: 0; }
 .isometric-playing .rules-list p { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 14px; padding: 12px 0; border-top: 1px solid #e2e8df; }

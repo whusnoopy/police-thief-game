@@ -1,5 +1,5 @@
 import { els, setMapDefinition, state } from "../app/state.js";
-import { encodeMapDefinition } from "../domain/map/mapCodec.js";
+import { encodeMapDefinition, encodeShareableMap } from "../domain/map/mapCodec.js";
 import { getAppShellState } from "../app/appShellState.js";
 import { renderAppShell } from "../app/appShellRenderer.js";
 import {
@@ -7,6 +7,7 @@ import {
   getMapListFromStorage,
   migrateLegacyStorage,
   migrateTestMapLibrary,
+  shouldMigrateTestMapLibrary,
   STORAGE_KEYS,
   setCurrentMapIdToStorage,
   setMapListToStorage,
@@ -50,7 +51,7 @@ function preserveUnreadableStorage(error) {
 
 function migrateSavedMaps(storage) {
   try { migrateLegacyStorage(storage); } catch (error) { preserveUnreadableStorage(error); }
-  if (/^\/police\/?$/.test(window.location.pathname)) {
+  if (shouldMigrateTestMapLibrary(window.location.pathname)) {
     try { migrateTestMapLibrary(storage); } catch (error) { preserveUnreadableStorage(error); }
   }
 }
@@ -72,7 +73,12 @@ export function createMapBackup() {
   const name = maps.find((record) => record.id === getCurrentMapId())?.name || "当前地图";
   return {
     version: 1,
-    currentMap: { name, encodedMap, mapDefinition: state.mapDefinition, shareUrl: buildMapShareUrl(encodedMap) },
+    currentMap: {
+      name,
+      encodedMap,
+      mapDefinition: state.mapDefinition,
+      shareUrl: buildMapShareUrl(encodeShareableMap(state.mapDefinition, { name })),
+    },
     maps,
     unreadableStorage: { ...unreadableStorage },
   };
@@ -237,8 +243,14 @@ export function hideShareLinkModal() {
   els.shareLinkModal.classList.add("hidden");
 }
 
-export function shareMapByData(encodedMap) {
-  const shareLink = buildMapShareUrl(encodedMap);
+export function shareMapByData(encodedMap, name = null) {
+  let shareEncoded = encodedMap;
+  try {
+    shareEncoded = encodeShareableMap(encodedMap, { name });
+  } catch {
+    shareEncoded = encodedMap;
+  }
+  const shareLink = buildMapShareUrl(shareEncoded);
   copyTextToClipboard(shareLink)
     .then(() => showShareLinkModal(shareLink, true))
     .catch(() => showShareLinkModal(shareLink, false));
@@ -310,6 +322,12 @@ export function updateMapUrl(encodedMap = encodeMapDefinition(state.mapDefinitio
 
 export function persistCurrentMap(options = {}) {
   const { forceNewMap = false, mapName = null } = options;
+  if (typeof mapName === "string" && mapName.trim()) {
+    state.mapDefinition.meta = {
+      ...state.mapDefinition.meta,
+      name: mapName.trim(),
+    };
+  }
   const encodedMap = encodeMapDefinition(state.mapDefinition);
   upsertCurrentMapInList(encodedMap, { forceNew: forceNewMap, name: mapName });
   updateMapUrl(encodedMap);

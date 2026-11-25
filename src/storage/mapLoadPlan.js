@@ -1,4 +1,4 @@
-import { decodeMapDefinition, encodeMapDefinition, normalizeEncodedMap } from "../domain/map/mapCodec.js";
+import { decodeMapDefinition, encodeShareableMap } from "../domain/map/mapCodec.js";
 import { createNewMapDefinition } from "../domain/map/mapModel.js";
 import { createBuiltInMap } from "../domain/map/builtInMaps.js";
 
@@ -22,7 +22,7 @@ export function resolveInitialMapLoad({ savedEncodedMap = null, sharedEncodedMap
       mapDefinition: sharedMapDefinition,
       forceNewMap: Boolean(
         savedEncodedMap &&
-          (!savedMapDefinition || normalizeEncodedMap(savedEncodedMap) !== encodeMapDefinition(sharedMapDefinition)),
+          (!savedMapDefinition || encodeShareableMap(savedMapDefinition) !== encodeShareableMap(sharedMapDefinition)),
       ),
     };
   }

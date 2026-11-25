@@ -15,7 +15,7 @@ export function getUnitOperations({ session, turn, unit, movementPoints = 0 }) {
   const candidates = [];
   if (!unit.inCar && hasAvailableCar(session, unit.r, unit.c) && rule.drivableRoles.includes(turn)) candidates.push({ type: "BOARD", isDriving: true, carPickups: [key] });
   if (unit.inCar && rule.tileType === "PARKING" && !hasParkedCar(session, unit.r, unit.c)) candidates.push({ type: "PARK", isDriving: false, carDrops: [key] });
-  if (unit.inCar && turn === "POLICE" && rule.tileType === "POLICE_STATION") candidates.push({ type: "PARK", isDriving: true, returnsVehicleToParking: true });
+  if (unit.inCar && turn === "POLICE" && rule.tileType === "POLICE_STATION") candidates.push({ type: "PARK", isDriving: false, returnsVehicleToParking: true });
   if (turn === "THIEF" && !unit.hasMoney && rule.tileType === "BANK") candidates.push({ type: "STEAL", hasMoney: true });
   if (turn === "POLICE" && unit.state === "CARRYING" && rule.tileType === "POLICE_STATION") candidates.push({ type: "DELIVER", reason: unit.inCar ? "请先下车（1 点），再交付（1 点）" : "" });
   return candidates.map(candidate => {

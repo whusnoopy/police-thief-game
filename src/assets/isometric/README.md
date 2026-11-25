@@ -4,4 +4,4 @@
 
 可用 `node scripts/export-isometric-actors.mjs` 从原始 PNG 导出；需要另行安装 sharp，或将其模块目录作为首个参数。日常构建不需要导出工具及 sharp。
 
-其他斜视主体使用 `src/ui/isometric/` 的 SVG 几何绘制。坐标、固定光源、朝向与比例见 [斜视素材约定](../../../docs/isometric-art.md)。俯视所需的 14 张原资源保留在 `src/assets/storybook/`。
+其他斜视主体使用 `src/ui/isometric/` 的 SVG 几何绘制。坐标、固定光源、朝向与比例见 [斜视素材约定](../../../docs/isometric-art.md)。2D 编辑器与界面头像所需的 10 张绘本资源保留在 `src/assets/storybook/`。

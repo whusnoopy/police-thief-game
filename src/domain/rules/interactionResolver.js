@@ -19,8 +19,8 @@ function getActionCarDrops(action) {
   return action?.droppedCarAt ? [action.droppedCarAt] : [];
 }
 
-function returnUnitVehicleToParking(session, unit, action) {
-  if (!action.returnsVehicleToParking || !unit.inCar) return;
+function returnUnitVehicleToParking(session, unit, action, hadCarBeforeAction = false) {
+  if (!action.returnsVehicleToParking || (!unit.inCar && !hadCarBeforeAction)) return;
   placeVehicle(session, { origin: action.to });
   unit.inCar = false;
 }
@@ -64,6 +64,7 @@ export function applyResolvedAction({ session, turn, unit, action }) {
     addAvailableCar(session, r, c);
   });
 
+  const hadCarBeforeAction = Boolean(unit.inCar);
   unit.r = action.to.r;
   unit.c = action.to.c;
   unit.inCar = action.isDriving;
@@ -96,7 +97,7 @@ export function applyResolvedAction({ session, turn, unit, action }) {
       }
     }
 
-    returnUnitVehicleToParking(session, unit, action);
+    returnUnitVehicleToParking(session, unit, action, hadCarBeforeAction);
 
     if (action.type === "DELIVER" && unit.state === "CARRYING") {
       jailCarriedThief(session, unit);
@@ -113,7 +114,7 @@ export function applyResolvedAction({ session, turn, unit, action }) {
   }
 
   if (turn === "THIEF" && action.type === "ESCAPE") {
-    returnUnitVehicleToParking(session, unit, action);
+    returnUnitVehicleToParking(session, unit, action, hadCarBeforeAction);
     unit.state = "ESCAPED";
   }
 

@@ -11,46 +11,74 @@ const actorById = id => board.querySelectorAll(".iso-unit").find(element => elem
 
 function begin(direction = "E") {
   const scenario = createRampScenario(direction);
-  game.boardMode = "topdown";
   game.init(scenario.map);
   game.thiefUnits[0].inCar = true;
+  game.renderGameBoard();
   game.diceValue = 2;
   game.onDiceRolled();
   return scenario;
 }
 
-test("switching views preserves the rolled turn, selected unit, reachable actions and touch preview; confirmation resolves once", () => {
+test("isometric touch preview preserves selection and resolves once while keeping static SVG layers", () => {
   const { positions } = begin();
+  const svgBefore = board.querySelectorAll(".iso-canvas")[0];
+  const groundBefore = board.querySelectorAll(".iso-ground")[0];
+  const sceneryBefore = board.querySelectorAll(".iso-scenery")[0];
   game.handleCellClick(positions.start.r, positions.start.c);
   game.handleCellClick(positions.end.r, positions.end.c, { previewOnly: true });
-  const session = game.session, selected = game.selectedUnit, reachable = game.reachable;
-  game.setBoardMode("isometric");
-  assert.equal(game.session, session);
-  assert.equal(game.selectedUnit, selected);
-  assert.equal(game.reachable, reachable);
+  const selected = game.selectedUnit;
   assert.equal(game.diceValue, 2);
   assert.equal(game.phase, GAME_PHASES.SELECT_DESTINATION);
   assert.ok(board.querySelectorAll(".iso-step-badge").length > 0);
   assert.equal(board.querySelectorAll(".unit-selected").length, 1);
-  game.setBoardMode("topdown");
-  assert.ok(board.querySelectorAll(".path-badge-temp").length > 0);
-  game.setBoardMode("isometric");
   game.confirmMove();
   assert.equal(selected.hasMoney, true);
   assert.deepEqual({ r: selected.r, c: selected.c }, positions.end);
   assert.equal(game.turn, "POLICE");
+  // Incremental SVG update keeps static layers alive without recreating the SVG canvas.
+  assert.equal(board.querySelectorAll(".iso-canvas")[0], svgBefore);
+  assert.equal(board.querySelectorAll(".iso-ground")[0], groundBefore);
+  assert.equal(board.querySelectorAll(".iso-scenery")[0], sceneryBefore);
   game.confirmMove();
   assert.equal(game.turn, "POLICE");
   const bankOccupant = board.querySelectorAll(".iso-unit").find(element => element.attributes["data-r"] == positions.end.r && element.attributes["data-c"] == positions.end.c);
   assert.equal(bankOccupant.attributes["data-placement"], "driveway");
   const bankLabel = board.querySelectorAll(".iso-actor-label").find(e => e.attributes["data-id"] === "T1");
   assert.equal(bankLabel.querySelectorAll(".money").length, 1);
+  game.dispose();
+});
+
+test("incremental updates preserve painter order between bridge deck, actor, and front rails and avoid leaking defs", () => {
+  const { positions } = begin("E");
+  const defs = board.querySelectorAll("defs")[0];
+  const objects = board.querySelectorAll(".iso-objects")[0];
+  const initialDefsCount = defs.children.length;
+  // Shared solid alpha filter is created once for all non-vehicle sprites.
+  assert.equal(
+    defs.querySelectorAll("filter").filter((filter) => (filter.id || filter.attributes.id)?.endsWith("-solid")).length,
+    1,
+  );
+  // Move driving thief onto the elevated bridge deck and verify bridge -> unit -> bridge-front order.
+  game.handleCellClick(positions.start.r, positions.start.c);
+  game.handleCellClick(positions.deck.r, positions.deck.c);
+  const deckChildren = objects.children.filter(
+    (node) => Number(node.attributes["data-r"]) === positions.deck.r && Number(node.attributes["data-c"]) === positions.deck.c,
+  );
+  assert.deepEqual(
+    deckChildren.map((node) => node.className.split(" ").find((c) => c.startsWith("iso-") && c !== "iso-object")),
+    ["iso-bridge", "iso-unit", "iso-bridge-front"],
+  );
+  // Repeated updates clean up replaced actor defs so node count stays bounded.
+  for (let step = 0; step < 5; step += 1) {
+    game.renderGameBoard();
+  }
+  assert.ok(defs.children.length <= initialDefsCount + 4, "no orphaned filters or masks accumulate in defs");
+  game.dispose();
 });
 
 test("isometric unit hit targets preserve touch preview, cancellation and all four ramp routes", () => {
   for (const direction of ["N", "E", "S", "W"]) {
     const { positions } = begin(direction);
-    game.setBoardMode("isometric");
     const hit = actorById("T1").querySelectorAll(".iso-actor-hit")[0];
     hit.dispatchEvent({ type: "click", pointerType: "touch" });
     assert.equal(game.selectedUnit.id, "T1");
@@ -62,23 +90,23 @@ test("isometric unit hit targets preserve touch preview, cancellation and all fo
     game.handleCellClick(positions.end.r, positions.end.c, { previewOnly: true });
     game.confirmMove();
     assert.equal(game.thiefUnits[0].hasMoney, true);
+    game.dispose();
   }
 });
 
-test("switching while background moves are calculated keeps the job and renders its result in the current view", async () => {
+test("background move calculation renders selectable highlights on completion", async () => {
   begin();
   let finish;
   const original = game.createSearchJob;
-  game.createSearchJob = () => ({ promise: new Promise(resolve => { finish = resolve; }), cancel() { assert.fail("view switch cancelled the search"); } });
+  game.createSearchJob = () => ({ promise: new Promise(resolve => { finish = resolve; }), cancel() { assert.fail("unexpected cancel"); } });
   try {
     const done = game.onDiceRolled();
-    game.setBoardMode("isometric");
     assert.equal(game.phase, GAME_PHASES.CALCULATING);
     finish(new Map([["T1", new Map([["4,4", {}]])]]));
     await done;
     assert.equal(game.phase, GAME_PHASES.SELECT_UNIT);
     assert.equal(board.querySelectorAll(".selectable-unit").length, 1);
-  } finally { game.createSearchJob = original; }
+  } finally { game.createSearchJob = original; game.dispose(); }
 });
 
 test("isometric actors use native SVG, keep artwork and hit targets aligned, and label failed images", () => {
@@ -86,7 +114,7 @@ test("isometric actors use native SVG, keep artwork and hit targets aligned, and
   game.thiefUnits.push({ id: "T2", r: 1, c: 1, state: "JAILED" });
   game.thiefUnits.push({ id: "T3", r: 2, c: 1, state: "ESCAPED" });
   game.session.parkedCars.add("8,8");
-  game.setBoardMode("isometric");
+  game.renderGameBoard();
   assert.equal(board.querySelectorAll(".iso-unit").length, 2);
   assert.equal(board.querySelectorAll("foreignObject").length, 0);
   const image = actorById("P1").querySelectorAll("image")[0];
@@ -115,30 +143,27 @@ test("isometric actors use native SVG, keep artwork and hit targets aligned, and
   assert.equal(game.boardView, null);
 });
 
-test("driving direction follows the final step and survives view changes, while a new game resets it", () => {
-  for (const direction of ["N","E","S","W"]) {
-    const {positions,map}=begin(direction);
-    game.setBoardMode("isometric");
-    game.handleCellClick(positions.start.r,positions.start.c);
-    game.handleCellClick(positions.end.r,positions.end.c);
-    assert.equal(game.unitDirections.get("T1"),direction);
-    const occupant=board.querySelectorAll(".iso-unit").find(e=>e.attributes["data-r"]==positions.end.r&&e.attributes["data-c"]==positions.end.c);
-    assert.equal(occupant.querySelectorAll(".iso-vehicle-art")[0].attributes["data-direction"],direction);
-    assert.equal("direction" in game.thiefUnits[0],false);
-    game.setBoardMode("topdown");game.setBoardMode("isometric");
-    assert.equal(game.unitDirections.get("T1"),direction);
+test("driving direction follows the final step and resets on a new game", () => {
+  for (const direction of ["N", "E", "S", "W"]) {
+    const { positions, map } = begin(direction);
+    game.handleCellClick(positions.start.r, positions.start.c);
+    game.handleCellClick(positions.end.r, positions.end.c);
+    assert.equal(game.unitDirections.get("T1"), direction);
+    const occupant = board.querySelectorAll(".iso-unit").find(e => e.attributes["data-r"] == positions.end.r && e.attributes["data-c"] == positions.end.c);
+    assert.equal(occupant.querySelectorAll(".iso-vehicle-art")[0].attributes["data-direction"], direction);
+    assert.equal("direction" in game.thiefUnits[0], false);
     game.init(map);
-    assert.equal(game.unitDirections.size,0);
+    assert.equal(game.unitDirections.size, 0);
+    game.dispose();
   }
 });
 
-test("raised grass retains a surface-aligned preview across views and lowered water cannot be selected", async () => {
+test("raised grass retains a surface-aligned preview and lowered water cannot be selected", async () => {
   const { createRampMapDefinition, setLegacyTileAt } = await import("../src/domain/map/mapModel.js");
   const projection = createIsometricProjection();
   for (const type of ["GRASS", "RIVER"]) {
     const map = createRampMapDefinition();
     for (const [r, c, tile] of [[4, 3, "THIEF_SPAWN"], [4, 4, type], [9, 9, "POLICE_SPAWN"], [0, 1, "BANK"], [0, 2, "THIEF_BASE"]]) setLegacyTileAt(map, r, c, tile);
-    game.boardMode = "isometric";
     game.init(map);
     game.thiefUnits[0].inCar = type === "RIVER";
     game.renderGameBoard();
@@ -156,24 +181,19 @@ test("raised grass retains a surface-aligned preview across views and lowered wa
     const first = projectSurfacePoint({ r: 4, c: 3, tileType: "ROAD" }, 0, 0.5, projection);
     const next = projectSurfacePoint({ r: 4, c: 4, tileType: type }, 0, -0.5, projection);
     const centre = projectSurfacePoint({ r: 4, c: 4, tileType: type }, 0, 0, projection);
-    for (const mode of ["isometric", "topdown", "isometric"]) {
-      game.setBoardMode(mode);
-      assert.deepEqual(game.pendingDestination, { r: 4, c: 4 });
-      if (mode !== "isometric") continue;
-      const lines = board.querySelectorAll(".iso-path-line");
-      assert.equal(lines.length, 3);
-      assert.equal(+lines[1].attributes.y1, first.y);
-      assert.equal(+lines[1].attributes.y2, next.y);
-      assert.equal(+lines[2].attributes.y1, next.y);
-      assert.equal(+lines[2].attributes.y2, centre.y);
-    }
+    assert.deepEqual(game.pendingDestination, { r: 4, c: 4 });
+    const lines = board.querySelectorAll(".iso-path-line");
+    assert.equal(lines.length, 3);
+    assert.equal(+lines[1].attributes.y1, first.y);
+    assert.equal(+lines[1].attributes.y2, next.y);
+    assert.equal(+lines[2].attributes.y1, next.y);
+    assert.equal(+lines[2].attributes.y2, centre.y);
     game.confirmMove();
     assert.deepEqual({ r: game.thiefUnits[0].r, c: game.thiefUnits[0].c }, { r: 4, c: 4 });
     assert.equal(game.thiefUnits[0].inCar, false);
     assert.equal(game.turn, "POLICE");
     game.dispose();
   }
-  game.boardMode = "topdown";
 });
 
 test("touch and pen use the original road tap when the browser retargets it to a nearby car", async () => {
@@ -181,7 +201,6 @@ test("touch and pen use the original road tap when the browser retargets it to a
   const projection = createIsometricProjection();
   const map = createRampMapDefinition();
   for (const [r, c, type] of [[4, 3, "THIEF_SPAWN"], [9, 9, "POLICE_SPAWN"], [0, 1, "BANK"], [0, 2, "THIEF_BASE"]]) setLegacyTileAt(map, r, c, type);
-  game.boardMode = "isometric";
   game.init(map);
   game.thiefUnits[0].inCar = true;
   game.renderGameBoard();
@@ -215,30 +234,39 @@ test("touch and pen use the original road tap when the browser retargets it to a
   } finally {
     delete env.document.elementFromPoint;
     game.dispose();
-    game.boardMode = "topdown";
   }
 });
 
 test("foreground identifiers select by keyboard, remain stable during hover and preserve doorway money on arrival and exit", async () => {
   const { createRampMapDefinition, setLegacyTileAt } = await import("../src/domain/map/mapModel.js");
   const map = createRampMapDefinition();
-  for (const [r,c,type] of [[0,0,"THIEF_SPAWN"],[9,9,"POLICE_SPAWN"],[0,1,"BANK"],[0,2,"THIEF_BASE"]]) setLegacyTileAt(map,r,c,type);
-  game.boardMode="isometric";game.init(map);game.diceValue=3;game.onDiceRolled();
-  let label=board.querySelectorAll(".iso-actor-label").find(e=>e.attributes["data-id"]==="T1");
-  assert.equal(label.attributes.role,"button");
-  label.dispatchEvent({type:"keydown",key:"Enter"});
-  assert.equal(game.selectedUnit.id,"T1");
-  label=board.querySelectorAll(".iso-actor-label").find(e=>e.attributes["data-id"]==="T1");
-  game.handleCellHover(0,1);game.clearPathHover();
-  assert.equal(board.querySelectorAll(".iso-actor-label").find(e=>e.attributes["data-id"]==="T1"),label,"hover does not replace the target below a stationary pointer");
-  game.handleCellClick(0,1,{previewOnly:true});game.confirmMove();
-  let person=actorById("T1");
-  assert.equal(person.attributes["data-placement"],"doorway");assert.equal(+person.attributes["data-scale"],.43);
-  label=board.querySelectorAll(".iso-actor-label").find(e=>e.attributes["data-id"]==="T1");
-  assert.equal(label.querySelectorAll(".money").length,1);
-  game.advanceTurn();game.diceValue=1;game.onDiceRolled();game.handleCellClick(0,1);game.handleCellClick(0,0);
-  person=actorById("T1");
-  assert.equal(person.attributes["data-placement"],"surface");assert.equal(+person.attributes["data-scale"],.86);
-  assert.equal(game.thiefUnits[0].hasMoney,true);
-  game.dispose();game.boardMode="topdown";
+  for (const [r, c, type] of [[0, 0, "THIEF_SPAWN"], [9, 9, "POLICE_SPAWN"], [0, 1, "BANK"], [0, 2, "THIEF_BASE"]]) setLegacyTileAt(map, r, c, type);
+  game.init(map);
+  game.diceValue = 3;
+  game.onDiceRolled();
+  let label = board.querySelectorAll(".iso-actor-label").find(e => e.attributes["data-id"] === "T1");
+  assert.equal(label.attributes.role, "button");
+  label.dispatchEvent({ type: "keydown", key: "Enter" });
+  assert.equal(game.selectedUnit.id, "T1");
+  label = board.querySelectorAll(".iso-actor-label").find(e => e.attributes["data-id"] === "T1");
+  game.handleCellHover(0, 1);
+  game.clearPathHover();
+  assert.equal(board.querySelectorAll(".iso-actor-label").find(e => e.attributes["data-id"] === "T1"), label, "hover does not replace the target below a stationary pointer");
+  game.handleCellClick(0, 1, { previewOnly: true });
+  game.confirmMove();
+  let person = actorById("T1");
+  assert.equal(person.attributes["data-placement"], "doorway");
+  assert.equal(+person.attributes["data-scale"], 0.43);
+  label = board.querySelectorAll(".iso-actor-label").find(e => e.attributes["data-id"] === "T1");
+  assert.equal(label.querySelectorAll(".money").length, 1);
+  game.advanceTurn();
+  game.diceValue = 1;
+  game.onDiceRolled();
+  game.handleCellClick(0, 1);
+  game.handleCellClick(0, 0);
+  person = actorById("T1");
+  assert.equal(person.attributes["data-placement"], "surface");
+  assert.equal(+person.attributes["data-scale"], 0.86);
+  assert.equal(game.thiefUnits[0].hasMoney, true);
+  game.dispose();
 });

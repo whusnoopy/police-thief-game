@@ -47,6 +47,25 @@ function hasSameCrosswalkAt(mapDefinition, r, c, orientation) {
   return getCrosswalkOrientation(mapDefinition.terrain?.[r]?.[c]) === orientation;
 }
 
+export function getMergedCrosswalkKeys(mapDefinition, r, c) {
+  const keys = new Set();
+  if (!mapDefinition || !isWithinMap(mapDefinition, r, c)) return keys;
+  const orientation = getCrosswalkOrientation(mapDefinition.terrain?.[r]?.[c]);
+  if (!orientation) return keys;
+  keys.add(`${r},${c}`);
+  if (!hasSameCrosswalkAt(mapDefinition, r, c, orientation)) return keys;
+  const [dr, dc] = orientation === "HORIZONTAL" ? [0, 1] : [1, 0];
+  for (const sign of [-1, 1]) {
+    for (let step = 1; ; step += 1) {
+      const nr = r + dr * sign * step;
+      const nc = c + dc * sign * step;
+      if (!hasSameCrosswalkAt(mapDefinition, nr, nc, orientation)) break;
+      keys.add(`${nr},${nc}`);
+    }
+  }
+  return keys;
+}
+
 export function getCrosswalkSignalPositions(tileType, context = null) {
   const orientation = getCrosswalkOrientation(tileType);
   if (!orientation) return [];
@@ -91,18 +110,28 @@ export function getAllowedCrosswalkAxis(tileType, isDriving, signalPhase) {
 }
 
 export function canTakeCrosswalkStep({
-  fromTileType, toTileType, isDriving, signalPhase, dr, dc, fromStartingCell,
+  fromTileType,
+  toTileType,
+  isDriving,
+  signalPhase,
+  dr,
+  dc,
+  fromStartingCell = false,
+  fromInStartingCrosswalk = fromStartingCell,
+  toInStartingCrosswalk = false,
 }) {
   const from = getCrosswalkOrientation(fromTileType);
   const to = getCrosswalkOrientation(toTileType);
   if (!from && !to) return true;
 
   const phase = normalizeSignalPhase(signalPhase);
-  // A unit already on the crossing may clear it after the light changes.
-  // Entry into another crossing still requires that crossing's green phase.
-  const canClear = fromStartingCell && DIRECTIONAL_PHASES.includes(phase);
-  return (!from || isStepAlongAxis(dr, dc, getTravelAxis(from, isDriving, phase, canClear))) &&
-    (!to || isStepAlongAxis(dr, dc, getTravelAxis(to, isDriving, phase)));
+  // A unit already on a crossing may clear its own (possibly merged) crossing
+  // along its travel axis after the light changes, in either signal mode.
+  // Re-entering from outside or entering another crossing still requires green.
+  const canClearFrom = Boolean(fromInStartingCrosswalk);
+  const canClearTo = Boolean(fromInStartingCrosswalk && toInStartingCrosswalk && from && from === to);
+  return (!from || isStepAlongAxis(dr, dc, getTravelAxis(from, isDriving, phase, canClearFrom))) &&
+    (!to || isStepAlongAxis(dr, dc, getTravelAxis(to, isDriving, phase, canClearTo)));
 }
 
 export function isStepAlongAxis(dr, dc, axis) {

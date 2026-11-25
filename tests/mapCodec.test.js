@@ -1,8 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { decodeMapDefinition, encodeMapDefinition, normalizeEncodedMap } from "../src/domain/map/mapCodec.js";
+import { decodeMapDefinition, encodeMapDefinition, encodeShareableMap, getMapContentSignature, normalizeEncodedMap } from "../src/domain/map/mapCodec.js";
 import { createEmptyMapDefinition, createNewMapDefinition, setLegacyTileAt } from "../src/domain/map/mapModel.js";
 import { DIRECTIONAL_SIGNAL_RULES } from "../src/domain/map/mapCompatibility.js";
+import { createMapUpgradeDraft, completeMapUpgrade } from "../src/domain/map/mapUpgrade.js";
+import { createMapExpansionDraft, completeMapExpansion } from "../src/domain/map/mapExpansion.js";
+import { createActionUpgradeCopy } from "../src/domain/map/mapActionUpgrade.js";
 import { encodeLegacyMapDefinition } from "./helpers/legacyPayload.js";
 import { planMapImport } from "../src/storage/mapBackup.js";
 
@@ -115,4 +118,44 @@ test("incomplete and unknown versioned data is rejected instead of becoming an e
   const payload = { v: 3, t: "E".repeat(100), f: [[99, 5]], p: [], h: [] };
   assert.throws(() => decodeMapDefinition(encodePayload(payload)), /Invalid map payload/);
   assert.throws(() => decodeMapDefinition(encodePayload({ ...payload, f: [], p: [0], h: [0] })), /overlapping/);
+});
+
+test("compact feature encoding omits default config and id while preserving custom metadata", () => {
+  const map = createNewMapDefinition();
+  setLegacyTileAt(map, 5, 5, "BANK");
+  setLegacyTileAt(map, 6, 6, "FARM");
+  map.features.find((f) => f.kind === "FARM").config = { maxAnimals: 4 };
+  const encoded = encodeMapDefinition(map);
+  const payload = JSON.parse(Buffer.from(encoded.slice(3), "base64url").toString());
+  assert.equal(payload.f[0].length, 2, "default feature encodes only [kindCode, index]");
+  assert.deepEqual(payload.f[1], [6, 126, { maxAnimals: 4 }]);
+  assert.deepEqual(decodeMapDefinition(encoded), map);
+});
+
+test("shareable map encoding syncs display name, strips completed provenance, and preserves unfinished drafts", () => {
+  const legacy = createEmptyMapDefinition();
+  for (const [r, c, tile] of [[0, 0, "POLICE_SPAWN"], [9, 9, "THIEF_SPAWN"], [9, 8, "BANK"], [8, 9, "THIEF_BASE"]]) {
+    setLegacyTileAt(legacy, r, c, tile);
+  }
+  const upgraded = completeMapUpgrade(createMapUpgradeDraft({ encodedMap: encodeMapDefinition(legacy) })).mapDefinition;
+  const expanded = completeMapExpansion(createMapExpansionDraft({ encodedMap: encodeMapDefinition(upgraded) })).mapDefinition;
+  const chained = createActionUpgradeCopy({ encodedMap: encodeMapDefinition(expanded) });
+  const rawEncoded = encodeMapDefinition(chained);
+  const shared = encodeShareableMap(rawEncoded, { name: "重命名后的城市" });
+  assert.ok(shared.length < rawEncoded.length / 2, "stripping completed provenance significantly shrinks chained share links");
+  const decoded = decodeMapDefinition(shared);
+  assert.equal(decoded.meta.name, "重命名后的城市");
+  assert.equal(decoded.upgrade, undefined);
+  assert.equal(decoded.expansion, undefined);
+  assert.equal(decoded.actionUpgrade, undefined);
+  assert.equal(decoded.ruleset, "ramps");
+  assert.equal(decoded.actionRules, "continuous");
+  assert.equal(getMapContentSignature(rawEncoded), getMapContentSignature(shared));
+
+  // Unfinished drafts keep their review gate when shared.
+  const draft = createMapExpansionDraft({ encodedMap: encodeMapDefinition(upgraded) });
+  const sharedDraft = decodeMapDefinition(encodeShareableMap(draft, { name: "草稿" }));
+  assert.equal(sharedDraft.meta.name, "草稿");
+  assert.equal(sharedDraft.expansion?.status, "editing");
+  assert.equal(sharedDraft.upgrade, undefined);
 });
